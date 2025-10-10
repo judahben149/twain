@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:twain/counter_page.dart';
+import 'package:twain/widgets/auth_gate.dart';
 
 
 class MyApp extends StatelessWidget {
@@ -13,7 +13,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.pink),
         useMaterial3: true,
       ),
-      home: const CounterPage(),
+      home: const AuthGate(),
     );
   }
 }
