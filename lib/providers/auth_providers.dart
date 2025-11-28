@@ -1,5 +1,5 @@
 import 'package:twain/services/auth_service.dart';
-import 'package:riverpod/riverpod.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:twain/models/twain_user.dart';
 
 final authServiceProvider = Provider<AuthService>((ref) => AuthService());

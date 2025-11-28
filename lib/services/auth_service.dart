@@ -34,37 +34,37 @@ class AuthService {
     });
   }
 
-  Future<TwainUser?> signInWithGoogle() async {
-    final googleUser = await GoogleSignIn().signIn();
-    if (googleUser == null) return null;
-
-    final googleAuth = await googleUser.authentication;
-    final credential = GoogleAuthProvider.credential(
-      accessToken: googleAuth.accessToken,
-      idToken: googleAuth.idToken,
-    );
-
-    final userCred = await _auth.signInWithCredential(credential);
-    final user = userCred.user;
-    if (user == null) return null;
-
-    final docRef = _firestore.collection('users').doc(user.uid);
-    final doc = await docRef.get();
-
-    if (!doc.exists) {
-      await docRef.set({
-        'email': user.email,
-        'displayName': user.displayName,
-        'avatarUrl': user.photoURL,
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-    } else {
-      await docRef.update({'updatedAt': FieldValue.serverTimestamp()});
-    }
-
-    return _getUserFromFirestore(user.uid);
-  }
+  // Future<TwainUser?> signInWithGoogle() async {
+  //   final googleUser = await GoogleSignIn().signIn();
+  //   if (googleUser == null) return null;
+  //
+  //   final googleAuth = await googleUser.authentication;
+  //   final credential = GoogleAuthProvider.credential(
+  //     accessToken: googleAuth.accessToken,
+  //     idToken: googleAuth.idToken,
+  //   );
+  //
+  //   final userCred = await _auth.signInWithCredential(credential);
+  //   final user = userCred.user;
+  //   if (user == null) return null;
+  //
+  //   final docRef = _firestore.collection('users').doc(user.uid);
+  //   final doc = await docRef.get();
+  //
+  //   if (!doc.exists) {
+  //     await docRef.set({
+  //       'email': user.email,
+  //       'displayName': user.displayName,
+  //       'avatarUrl': user.photoURL,
+  //       'createdAt': FieldValue.serverTimestamp(),
+  //       'updatedAt': FieldValue.serverTimestamp(),
+  //     });
+  //   } else {
+  //     await docRef.update({'updatedAt': FieldValue.serverTimestamp()});
+  //   }
+  //
+  //   return _getUserFromFirestore(user.uid);
+  // }
 
   Future<TwainUser?> _getUserFromFirestore(String? uid) async {
     if (uid == null) return null;
@@ -89,8 +89,8 @@ class AuthService {
     );
   }
 
-  Future<void> signOut() async {
-    await _auth.signOut();
-    await GoogleSignIn().signOut();
-  }
+  // Future<void> signOut() async {
+  //   await _auth.signOut();
+  //   await GoogleSignIn().signOut();
+  // }
 }

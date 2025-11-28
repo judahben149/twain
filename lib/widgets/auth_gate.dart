@@ -1,8 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
+import 'dart:developer';
 import 'package:twain/providers/auth_providers.dart';
 import 'package:twain/screens/login_screen.dart';
 import 'package:twain/screens/home_screen.dart';
+import 'package:twain/screens/welcome_screen.dart';
 
 class AuthGate extends ConsumerWidget {
   const AuthGate({super.key});
@@ -14,8 +16,10 @@ class AuthGate extends ConsumerWidget {
     return authState.when(
       data: (user) {
         if (user != null) {
+          log('User is logged in');
           return const HomeScreen();
         } else {
+          log('User is not logged in');
           return const LoginScreen();
         }
       },

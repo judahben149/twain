@@ -14,8 +14,13 @@ class HomeScreen extends ConsumerWidget {
         title: const Text("Twain"),
       ),
       body: Center(
-        child: ,
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(user?.displayName ?? 'User'),
+          ),
+        ),
       ),
-    )
+    );
   }
 }
