@@ -79,7 +79,7 @@ class AuthService {
   }
 
   // Sign up with email and password
-  Future<TwainUser?> signUpWithEmailPassword(
+  Future<void> signUpWithEmailPassword(
     String email,
     String password,
     String displayName,
@@ -91,18 +91,15 @@ class AuthService {
         data: {'display_name': displayName},
       );
 
-      final user = response.user;
-      if (user == null) return null;
+      // Note: User won't be signed in until they verify their email
+      // The user record in database will be created via a trigger or
+      // when they first sign in after verification
 
-      // Create user record in database
-      await _supabase.from('users').insert({
-        'id': user.id,
-        'email': email,
-        'display_name': displayName,
-        'avatar_url': null,
-      });
+      if (response.user == null) {
+        throw Exception('Failed to create account');
+      }
 
-      return await _getUserFromSupabase(user.id);
+      // Success - user needs to check email for confirmation link
     } catch (e) {
       print('Error signing up: $e');
       rethrow;
@@ -118,6 +115,41 @@ class AuthService {
       );
     } catch (e) {
       print('Error sending magic link: $e');
+      rethrow;
+    }
+  }
+
+  // Verify email OTP code
+  Future<void> verifyEmailOTP(String email, String token) async {
+    try {
+      final response = await _supabase.auth.verifyOTP(
+        email: email,
+        token: token,
+        type: OtpType.signup,
+      );
+
+      final user = response.user;
+      if (user == null) {
+        throw Exception('Failed to verify code');
+      }
+
+      // Create or update user in database
+      await _createOrUpdateUser(user);
+    } catch (e) {
+      print('Error verifying OTP: $e');
+      rethrow;
+    }
+  }
+
+  // Resend email OTP code
+  Future<void> resendEmailOTP(String email) async {
+    try {
+      await _supabase.auth.resend(
+        type: OtpType.signup,
+        email: email,
+      );
+    } catch (e) {
+      print('Error resending OTP: $e');
       rethrow;
     }
   }
@@ -146,7 +178,8 @@ class AuthService {
       await _supabase.from('users').insert({
         'id': user.id,
         'email': user.email!,
-        'display_name': user.userMetadata?['full_name'] ??
+        'display_name': user.userMetadata?['display_name'] ??
+                       user.userMetadata?['full_name'] ??
                        user.userMetadata?['name'] ??
                        user.email!.split('@')[0],
         'avatar_url': user.userMetadata?['avatar_url'] ??
@@ -170,7 +203,9 @@ class AuthService {
           .from('users')
           .select()
           .eq('id', uid)
-          .single();
+          .maybeSingle();
+
+      if (data == null) return null;
 
       return TwainUser(
         id: data['id'],

@@ -1,8 +1,10 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:twain/constants/app_colours.dart';
 import 'package:twain/providers/auth_providers.dart';
+import 'package:twain/screens/signup_screen.dart';
 import 'package:twain/widgets/textfields.dart';
 import 'package:twain/widgets/buttons.dart';
 
@@ -81,40 +83,61 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    // Calculate responsive spacing
+    final topSpacing = screenHeight * 0.04;
+    final headerSpacing = screenHeight * 0.06;
+    final fieldSpacing = screenHeight * 0.03;
+    final buttonSpacing = screenHeight * 0.04;
+    final horizontalPadding = screenWidth * 0.06;
+
     return Scaffold(
       body: Container(
         decoration: _buildGradientBackground(),
         child: SafeArea(
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 16),
-                  _buildBackButton(context),
-                  const SizedBox(height: 60),
-                  _buildHeader(),
-                  const SizedBox(height: 48),
-                  if (_errorMessage != null) ...[
-                    _buildErrorMessage(),
-                    const SizedBox(height: 16),
-                  ],
-                  _buildEmailField(_emailController),
-                  const SizedBox(height: 24),
-                  _buildPasswordField(_passwordController),
-                  const SizedBox(height: 32),
-                  _buildSignInButton(),
-                  const SizedBox(height: 32),
-                  const DividerWithText(text: 'Or continue with', color: AppColors.grey),
-                  const SizedBox(height: 24),
-                  _buildSocialButtons(),
-                  const SizedBox(height: 32),
-                  _buildSignUpLink(context),
-                  const SizedBox(height: 32),
-                ],
-              ),
-            ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: constraints.maxHeight,
+                  ),
+                  child: IntrinsicHeight(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(height: topSpacing),
+                          _buildBackButton(context),
+                          SizedBox(height: headerSpacing),
+                          _buildHeader(),
+                          SizedBox(height: fieldSpacing),
+                          if (_errorMessage != null) ...[
+                            _buildErrorMessage(),
+                            SizedBox(height: fieldSpacing * 0.5),
+                          ],
+                          _buildEmailField(_emailController),
+                          SizedBox(height: fieldSpacing),
+                          _buildPasswordField(_passwordController),
+                          SizedBox(height: buttonSpacing),
+                          _buildSignInButton(),
+                          SizedBox(height: buttonSpacing),
+                          const DividerWithText(text: 'Or continue with', color: AppColors.grey),
+                          SizedBox(height: fieldSpacing),
+                          _buildSocialButtons(),
+                          const Spacer(),
+                          _buildSignUpLink(context),
+                          SizedBox(height: buttonSpacing),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ),
@@ -224,8 +247,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       children: [
         SocialLoginButton(
           onPressed: _isLoading ? null : () => _signInWithGoogle(),
-          text: 'Continue with Google',
-          iconColor: const Color(0xFFFF6B35),
+          text: 'Google',
+          icon: SvgPicture.asset(
+            'assets/images/google-icon.svg',
+            width: 24,
+            height: 24,
+          ),
         ),
         // Only show Apple sign-in on iOS
         if (Platform.isIOS) ...[
@@ -237,8 +264,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 const SnackBar(content: Text('Apple Sign-In coming soon')),
               );
             },
-            text: 'Continue with Apple',
-            iconColor: AppColors.black,
+            text: 'Apple',
+            icon: SvgPicture.asset(
+              'assets/images/apple-icon.svg',
+              width: 24,
+              height: 24,
+            ),
           ),
         ],
       ],
@@ -259,9 +290,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
           GestureDetector(
             onTap: _isLoading ? null : () {
-              // TODO: Navigate to sign up screen
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Sign up screen coming soon')),
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SignupScreen()),
               );
             },
             child: Text(

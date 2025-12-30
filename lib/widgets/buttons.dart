@@ -119,12 +119,14 @@ class SocialLoginButton extends StatelessWidget {
     super.key,
     required this.onPressed,
     required this.text,
-    required this.iconColor,
+    this.icon,
+    this.iconColor,
   });
 
   final VoidCallback? onPressed;
   final String text;
-  final Color iconColor;
+  final Widget? icon;
+  final Color? iconColor;
 
   @override
   Widget build(BuildContext context) {
@@ -144,14 +146,21 @@ class SocialLoginButton extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                color: iconColor,
-                shape: BoxShape.circle,
+            if (icon != null)
+              SizedBox(
+                width: 24,
+                height: 24,
+                child: icon!,
+              )
+            else if (iconColor != null)
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: iconColor,
+                  shape: BoxShape.circle,
+                ),
               ),
-            ),
             const SizedBox(width: 12),
             Text(
               text,
