@@ -1,95 +1,250 @@
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:io';
+import 'package:google_sign_in/google_sign_in.dart' as google_sign_in;
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:twain/models/twain_user.dart';
+import 'package:twain/supabase_config.dart';
 
 class AuthService {
-  final _auth = FirebaseAuth.instance;
-  final _firestore = FirebaseFirestore.instance;
+  final _supabase = Supabase.instance.client;
 
-  Stream<User?> get userChanges => _auth.authStateChanges();
+  // Get current user
+  User? get currentUser => _supabase.auth.currentUser;
 
+  // Stream of auth state changes
+  Stream<User?> get userChanges => _supabase.auth.onAuthStateChange.map((data) => data.session?.user);
+
+  // Stream of TwainUser with data from database
   Stream<TwainUser?> twainUserStream() {
-    return _auth.authStateChanges().asyncMap((user) async {
+    return _supabase.auth.onAuthStateChange.asyncMap((data) async {
+      final user = data.session?.user;
       if (user == null) return null;
 
-      final doc = await _firestore.collection('users').doc(user.uid).get();
-      if (!doc.exists) return null;
-
-      final data = doc.data()!;
-      return TwainUser(
-        id: user.uid,
-        email: data['email'],
-        displayName: data['displayName'],
-        avatarUrl: data['avatarUrl'],
-        pairId: data['pairId'],
-        fcmToken: data['fcmToken'],
-        deviceId: data['deviceId'],
-        status: data['status'],
-        createdAt: (data['createdAt'] as Timestamp).toDate(),
-        updatedAt: (data['updatedAt'] as Timestamp).toDate(),
-        preferences: data['preferences'],
-        metaData: data['metaData'],
-      );
+      return await _getUserFromSupabase(user.id);
     });
   }
 
-  // Future<TwainUser?> signInWithGoogle() async {
-  //   final googleUser = await GoogleSignIn().signIn();
-  //   if (googleUser == null) return null;
-  //
-  //   final googleAuth = await googleUser.authentication;
-  //   final credential = GoogleAuthProvider.credential(
-  //     accessToken: googleAuth.accessToken,
-  //     idToken: googleAuth.idToken,
-  //   );
-  //
-  //   final userCred = await _auth.signInWithCredential(credential);
-  //   final user = userCred.user;
-  //   if (user == null) return null;
-  //
-  //   final docRef = _firestore.collection('users').doc(user.uid);
-  //   final doc = await docRef.get();
-  //
-  //   if (!doc.exists) {
-  //     await docRef.set({
-  //       'email': user.email,
-  //       'displayName': user.displayName,
-  //       'avatarUrl': user.photoURL,
-  //       'createdAt': FieldValue.serverTimestamp(),
-  //       'updatedAt': FieldValue.serverTimestamp(),
-  //     });
-  //   } else {
-  //     await docRef.update({'updatedAt': FieldValue.serverTimestamp()});
-  //   }
-  //
-  //   return _getUserFromFirestore(user.uid);
-  // }
+  // Sign in with Google (Native)
+  Future<TwainUser?> signInWithGoogle() async {
+    try {
+      // Get the already-initialized GoogleSignIn instance
+      final googleSignIn = google_sign_in.GoogleSignIn.instance;
 
-  Future<TwainUser?> _getUserFromFirestore(String? uid) async {
-    if (uid == null) return null;
+      // Authenticate the user - this shows native Android Credential Manager UI
+      final googleUser = await googleSignIn.authenticate();
 
-    final doc = await _firestore.collection('users').doc(uid).get();
-    if (!doc.exists) return null;
+      // Get the authentication tokens directly without requesting additional scopes
+      // This avoids triggering the WebView flow
+      final idToken = googleUser.authentication.idToken;
 
-    final data = doc.data()!;
-    return TwainUser(
-      id: uid,
-      email: data['email'],
-      displayName: data['displayName'],
-      avatarUrl: data['avatarUrl'],
-      pairId: data['pairId'],
-      fcmToken: data['fcmToken'],
-      deviceId: data['deviceId'],
-      status: data['status'],
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-      updatedAt: (data['updatedAt'] as Timestamp).toDate(),
-      preferences: data['preferences'],
-      metaData: data['metaData'],
-    );
+      if (idToken == null) {
+        throw Exception('Failed to get ID token from Google');
+      }
+
+      // For Supabase, we primarily need the ID token
+      // Access token can be obtained from authorization if needed later
+      final response = await _supabase.auth.signInWithIdToken(
+        provider: OAuthProvider.google,
+        idToken: idToken,
+      );
+
+      final user = response.user;
+      if (user == null) return null;
+
+      // Create or update user in database
+      await _createOrUpdateUser(user);
+
+      return await _getUserFromSupabase(user.id);
+    } catch (e) {
+      print('Error signing in with Google: $e');
+      rethrow;
+    }
   }
 
-  // Future<void> signOut() async {
-  //   await _auth.signOut();
-  //   await GoogleSignIn().signOut();
-  // }
+  // Sign in with email and password
+  Future<TwainUser?> signInWithEmailPassword(String email, String password) async {
+    try {
+      final response = await _supabase.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
+
+      final user = response.user;
+      if (user == null) return null;
+
+      return await _getUserFromSupabase(user.id);
+    } catch (e) {
+      print('Error signing in with email: $e');
+      rethrow;
+    }
+  }
+
+  // Sign up with email and password
+  Future<TwainUser?> signUpWithEmailPassword(
+    String email,
+    String password,
+    String displayName,
+  ) async {
+    try {
+      final response = await _supabase.auth.signUp(
+        email: email,
+        password: password,
+        data: {'display_name': displayName},
+      );
+
+      final user = response.user;
+      if (user == null) return null;
+
+      // Create user record in database
+      await _supabase.from('users').insert({
+        'id': user.id,
+        'email': email,
+        'display_name': displayName,
+        'avatar_url': null,
+      });
+
+      return await _getUserFromSupabase(user.id);
+    } catch (e) {
+      print('Error signing up: $e');
+      rethrow;
+    }
+  }
+
+  // Sign in with magic link (passwordless)
+  Future<void> signInWithMagicLink(String email) async {
+    try {
+      await _supabase.auth.signInWithOtp(
+        email: email,
+        emailRedirectTo: 'io.supabase.twain://login-callback/',
+      );
+    } catch (e) {
+      print('Error sending magic link: $e');
+      rethrow;
+    }
+  }
+
+  // Sign out
+  Future<void> signOut() async {
+    try {
+      await google_sign_in.GoogleSignIn.instance.signOut();
+      await _supabase.auth.signOut();
+    } catch (e) {
+      print('Error signing out: $e');
+      rethrow;
+    }
+  }
+
+  // Create or update user in database
+  Future<void> _createOrUpdateUser(User user) async {
+    final existingUser = await _supabase
+        .from('users')
+        .select()
+        .eq('id', user.id)
+        .maybeSingle();
+
+    if (existingUser == null) {
+      // Create new user
+      await _supabase.from('users').insert({
+        'id': user.id,
+        'email': user.email!,
+        'display_name': user.userMetadata?['full_name'] ??
+                       user.userMetadata?['name'] ??
+                       user.email!.split('@')[0],
+        'avatar_url': user.userMetadata?['avatar_url'] ??
+                     user.userMetadata?['picture'],
+      });
+    } else {
+      // Update existing user's updated_at timestamp
+      // The trigger in database will handle this automatically
+      await _supabase.from('users').update({
+        'avatar_url': user.userMetadata?['avatar_url'] ??
+                     user.userMetadata?['picture'] ??
+                     existingUser['avatar_url'],
+      }).eq('id', user.id);
+    }
+  }
+
+  // Get TwainUser from Supabase database
+  Future<TwainUser?> _getUserFromSupabase(String uid) async {
+    try {
+      final data = await _supabase
+          .from('users')
+          .select()
+          .eq('id', uid)
+          .single();
+
+      return TwainUser(
+        id: data['id'],
+        email: data['email'],
+        displayName: data['display_name'],
+        avatarUrl: data['avatar_url'],
+        pairId: data['pair_id'],
+        fcmToken: data['fcm_token'],
+        deviceId: data['device_id'],
+        status: data['status'],
+        createdAt: DateTime.parse(data['created_at']),
+        updatedAt: DateTime.parse(data['updated_at']),
+        preferences: data['preferences'],
+        metaData: data['metadata'],
+      );
+    } catch (e) {
+      print('Error getting user from Supabase: $e');
+      return null;
+    }
+  }
+
+  // Update user profile
+  Future<void> updateUserProfile({
+    String? displayName,
+    String? avatarUrl,
+    String? status,
+    String? fcmToken,
+    String? deviceId,
+    Map<String, dynamic>? preferences,
+    Map<String, dynamic>? metadata,
+  }) async {
+    final user = currentUser;
+    if (user == null) throw Exception('No user logged in');
+
+    final updates = <String, dynamic>{};
+    if (displayName != null) updates['display_name'] = displayName;
+    if (avatarUrl != null) updates['avatar_url'] = avatarUrl;
+    if (status != null) updates['status'] = status;
+    if (fcmToken != null) updates['fcm_token'] = fcmToken;
+    if (deviceId != null) updates['device_id'] = deviceId;
+    if (preferences != null) updates['preferences'] = preferences;
+    if (metadata != null) updates['metadata'] = metadata;
+
+    await _supabase.from('users').update(updates).eq('id', user.id);
+  }
+
+  // Pair with another user
+  Future<void> pairWithUser(String pairId) async {
+    final user = currentUser;
+    if (user == null) throw Exception('No user logged in');
+
+    await _supabase.from('users').update({
+      'pair_id': pairId,
+    }).eq('id', user.id);
+  }
+
+  // Unpair from current partner
+  Future<void> unpair() async {
+    final user = currentUser;
+    if (user == null) throw Exception('No user logged in');
+
+    await _supabase.from('users').update({
+      'pair_id': null,
+    }).eq('id', user.id);
+  }
+
+  // Get paired user
+  Future<TwainUser?> getPairedUser() async {
+    final user = currentUser;
+    if (user == null) return null;
+
+    final currentUserData = await _getUserFromSupabase(user.id);
+    if (currentUserData?.pairId == null) return null;
+
+    return await _getUserFromSupabase(currentUserData!.pairId!);
+  }
 }

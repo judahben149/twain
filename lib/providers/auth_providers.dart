@@ -4,7 +4,7 @@ import 'package:twain/models/twain_user.dart';
 
 final authServiceProvider = Provider<AuthService>((ref) => AuthService());
 
-final firebaseUserProvider = StreamProvider.autoDispose((ref) {
+final authUserProvider = StreamProvider.autoDispose((ref) {
   final auth = ref.watch(authServiceProvider);
   return auth.userChanges;
 });

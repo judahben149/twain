@@ -1,17 +1,86 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:twain/constants/app_colours.dart';
+import 'package:twain/providers/auth_providers.dart';
 import 'package:twain/widgets/textfields.dart';
 import 'package:twain/widgets/buttons.dart';
 
-class LoginScreen extends ConsumerWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final emailController = TextEditingController();
-    final passwordController = TextEditingController();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
+}
 
+class _LoginScreenState extends ConsumerState<LoginScreen> {
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _isLoading = false;
+  String? _errorMessage;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _signInWithEmail() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    if (email.isEmpty || password.isEmpty) {
+      setState(() {
+        _errorMessage = 'Please enter email and password';
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final authService = ref.read(authServiceProvider);
+      await authService.signInWithEmailPassword(email, password);
+      // Navigation will be handled by AuthGate automatically
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Invalid email or password';
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _signInWithGoogle() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final authService = ref.read(authServiceProvider);
+      final user = await authService.signInWithGoogle();
+
+      if (user == null) {
+        setState(() {
+          _errorMessage = 'Google sign-in was cancelled';
+          _isLoading = false;
+        });
+      }
+      // If successful, AuthGate will handle navigation
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Failed to sign in with Google';
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
         decoration: _buildGradientBackground(),
@@ -27,9 +96,13 @@ class LoginScreen extends ConsumerWidget {
                   const SizedBox(height: 60),
                   _buildHeader(),
                   const SizedBox(height: 48),
-                  _buildEmailField(emailController),
+                  if (_errorMessage != null) ...[
+                    _buildErrorMessage(),
+                    const SizedBox(height: 16),
+                  ],
+                  _buildEmailField(_emailController),
                   const SizedBox(height: 24),
-                  _buildPasswordField(passwordController),
+                  _buildPasswordField(_passwordController),
                   const SizedBox(height: 32),
                   _buildSignInButton(),
                   const SizedBox(height: 32),
@@ -98,6 +171,32 @@ class LoginScreen extends ConsumerWidget {
     );
   }
 
+  Widget _buildErrorMessage() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.red.shade200),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.error_outline, color: Colors.red.shade700, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              _errorMessage!,
+              style: TextStyle(
+                color: Colors.red.shade700,
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildEmailField(TextEditingController controller) {
     return LabeledTextField(
       label: 'Email',
@@ -114,11 +213,9 @@ class LoginScreen extends ConsumerWidget {
 
   Widget _buildSignInButton() {
     return GradientButton(
-      onPressed: () {
-        // TODO: Implement sign in logic
-      },
-      text: 'Sign In',
-      icon: Icons.email_outlined,
+      onPressed: _isLoading ? null : () => _signInWithEmail(),
+      text: _isLoading ? 'Signing in...' : 'Sign In',
+      icon: _isLoading ? null : Icons.email_outlined,
     );
   }
 
@@ -126,20 +223,24 @@ class LoginScreen extends ConsumerWidget {
     return Column(
       children: [
         SocialLoginButton(
-          onPressed: () {
-            // TODO: Implement Google sign in
-          },
+          onPressed: _isLoading ? null : () => _signInWithGoogle(),
           text: 'Continue with Google',
           iconColor: const Color(0xFFFF6B35),
         ),
-        const SizedBox(height: 16),
-        SocialLoginButton(
-          onPressed: () {
-            // TODO: Implement Apple sign in
-          },
-          text: 'Continue with Apple',
-          iconColor: AppColors.black,
-        ),
+        // Only show Apple sign-in on iOS
+        if (Platform.isIOS) ...[
+          const SizedBox(height: 16),
+          SocialLoginButton(
+            onPressed: _isLoading ? null : () {
+              // TODO: Implement Apple sign in when ready
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Apple Sign-In coming soon')),
+              );
+            },
+            text: 'Continue with Apple',
+            iconColor: AppColors.black,
+          ),
+        ],
       ],
     );
   }
@@ -157,14 +258,17 @@ class LoginScreen extends ConsumerWidget {
             ),
           ),
           GestureDetector(
-            onTap: () {
+            onTap: _isLoading ? null : () {
               // TODO: Navigate to sign up screen
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Sign up screen coming soon')),
+              );
             },
-            child: const Text(
+            child: Text(
               'Sign up',
               style: TextStyle(
                 fontSize: 14,
-                color: Color(0xFF9C27B0),
+                color: _isLoading ? AppColors.grey : const Color(0xFF9C27B0),
                 fontWeight: FontWeight.bold,
               ),
             ),

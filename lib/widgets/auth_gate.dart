@@ -10,7 +10,7 @@ class AuthGate extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final authState = ref.watch(firebaseUserProvider);
+    final authState = ref.watch(authUserProvider);
 
     return authState.when(
       data: (user) {

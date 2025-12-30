@@ -63,7 +63,7 @@ class GradientButton extends StatelessWidget {
     this.gradientColors = const [Color(0xFF9C27B0), Color(0xFFE91E63)],
   });
 
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
   final String text;
   final IconData? icon;
   final List<Color> gradientColors;
@@ -77,7 +77,9 @@ class GradientButton extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
-          colors: gradientColors,
+          colors: onPressed == null
+              ? gradientColors.map((c) => c.withOpacity(0.5)).toList()
+              : gradientColors,
         ),
         borderRadius: BorderRadius.circular(14),
       ),
@@ -120,7 +122,7 @@ class SocialLoginButton extends StatelessWidget {
     required this.iconColor,
   });
 
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
   final String text;
   final Color iconColor;
 
@@ -131,8 +133,8 @@ class SocialLoginButton extends StatelessWidget {
       height: 56,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black,
+          backgroundColor: onPressed == null ? Colors.grey.shade200 : Colors.white,
+          foregroundColor: onPressed == null ? Colors.grey.shade600 : Colors.black,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
