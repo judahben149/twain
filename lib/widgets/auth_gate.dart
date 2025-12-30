@@ -4,7 +4,6 @@ import 'dart:developer';
 import 'package:twain/providers/auth_providers.dart';
 import 'package:twain/screens/login_screen.dart';
 import 'package:twain/screens/home_screen.dart';
-import 'package:twain/screens/welcome_screen.dart';
 
 class AuthGate extends ConsumerWidget {
   const AuthGate({super.key});
