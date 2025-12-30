@@ -1,4 +1,4 @@
-package com.judahben149.twain.twain
+package com.judahben149.twain
 
 import io.flutter.embedding.android.FlutterActivity
 
