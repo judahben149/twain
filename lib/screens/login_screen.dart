@@ -71,8 +71,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           _errorMessage = 'Google sign-in was cancelled';
           _isLoading = false;
         });
+      } else {
+        // Success! Reset loading state and let AuthGate handle navigation
+        setState(() {
+          _isLoading = false;
+        });
       }
-      // If successful, AuthGate will handle navigation
     } catch (e) {
       setState(() {
         _errorMessage = 'Failed to sign in with Google';
