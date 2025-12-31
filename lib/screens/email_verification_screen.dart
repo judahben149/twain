@@ -59,7 +59,10 @@ class _EmailVerificationScreenState
       await authService.verifyEmailOTP(widget.email, _code);
 
       // Success! User is now verified and signed in
-      // AuthGate will handle navigation to HomeScreen
+      if (mounted) {
+        // Pop all screens and let AuthGate handle navigation to HomeScreen
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
     } catch (e) {
       setState(() {
         _errorMessage = 'Invalid or expired code';

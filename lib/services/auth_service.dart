@@ -15,11 +15,59 @@ class AuthService {
 
   // Stream of TwainUser with data from database
   Stream<TwainUser?> twainUserStream() {
-    return _supabase.auth.onAuthStateChange.asyncMap((data) async {
+    return _supabase.auth.onAuthStateChange.asyncExpand((data) async* {
       final user = data.session?.user;
-      if (user == null) return null;
+      if (user == null) {
+        print('twainUserStream: No user in auth state');
+        yield null;
+        return;
+      }
 
-      return await _getUserFromSupabase(user.id);
+      print('twainUserStream: Auth state changed for user ${user.id}');
+
+      // First, immediately fetch and yield current user data
+      final currentUser = await _getUserFromSupabase(user.id);
+      print('twainUserStream: Initial fetch returned: ${currentUser?.displayName ?? "null"}');
+      yield currentUser;
+
+      // Then stream real-time changes from the users table for this specific user
+      print('twainUserStream: Starting database stream for user ${user.id}');
+      yield* _supabase
+          .from('users')
+          .stream(primaryKey: ['id'])
+          .eq('id', user.id)
+          .map((rows) {
+            print('twainUserStream: Database stream emitted ${rows.length} rows');
+            if (rows.isEmpty) return null;
+            final data = rows.first;
+            final twainUser = TwainUser(
+              id: data['id'],
+              email: data['email'],
+              displayName: data['display_name'],
+              avatarUrl: data['avatar_url'],
+              pairId: data['pair_id'],
+              fcmToken: data['fcm_token'],
+              deviceId: data['device_id'],
+              status: data['status'],
+              createdAt: DateTime.parse(data['created_at']),
+              updatedAt: DateTime.parse(data['updated_at']),
+              preferences: data['preferences'],
+              metaData: data['metadata'],
+            );
+            print('twainUserStream: Mapped to TwainUser with displayName: ${twainUser.displayName}');
+            return twainUser;
+          })
+          .distinct((prev, next) {
+            // Only emit when the user actually changes to avoid duplicate emissions
+            final isSame = prev?.id == next?.id &&
+                   prev?.displayName == next?.displayName &&
+                   prev?.avatarUrl == next?.avatarUrl &&
+                   prev?.updatedAt == next?.updatedAt;
+            if (isSame) {
+              print('twainUserStream: Filtered duplicate emission');
+            }
+            return isSame;
+          });
     });
   }
 
@@ -167,32 +215,40 @@ class AuthService {
 
   // Create or update user in database
   Future<void> _createOrUpdateUser(User user) async {
-    final existingUser = await _supabase
-        .from('users')
-        .select()
-        .eq('id', user.id)
-        .maybeSingle();
+    try {
+      final existingUser = await _supabase
+          .from('users')
+          .select()
+          .eq('id', user.id)
+          .maybeSingle();
 
-    if (existingUser == null) {
-      // Create new user
-      await _supabase.from('users').insert({
-        'id': user.id,
-        'email': user.email!,
-        'display_name': user.userMetadata?['display_name'] ??
-                       user.userMetadata?['full_name'] ??
-                       user.userMetadata?['name'] ??
-                       user.email!.split('@')[0],
-        'avatar_url': user.userMetadata?['avatar_url'] ??
-                     user.userMetadata?['picture'],
-      });
-    } else {
-      // Update existing user's updated_at timestamp
-      // The trigger in database will handle this automatically
-      await _supabase.from('users').update({
-        'avatar_url': user.userMetadata?['avatar_url'] ??
-                     user.userMetadata?['picture'] ??
-                     existingUser['avatar_url'],
-      }).eq('id', user.id);
+      if (existingUser == null) {
+        // Create new user
+        print('Creating new user in database: ${user.id}');
+        await _supabase.from('users').insert({
+          'id': user.id,
+          'email': user.email!,
+          'display_name': user.userMetadata?['display_name'] ??
+                         user.userMetadata?['full_name'] ??
+                         user.userMetadata?['name'] ??
+                         user.email!.split('@')[0],
+          'avatar_url': user.userMetadata?['avatar_url'] ??
+                       user.userMetadata?['picture'],
+        });
+        print('User created successfully in database');
+      } else {
+        // Update existing user's updated_at timestamp
+        // The trigger in database will handle this automatically
+        print('Updating existing user in database: ${user.id}');
+        await _supabase.from('users').update({
+          'avatar_url': user.userMetadata?['avatar_url'] ??
+                       user.userMetadata?['picture'] ??
+                       existingUser['avatar_url'],
+        }).eq('id', user.id);
+      }
+    } catch (e) {
+      print('Error in _createOrUpdateUser: $e');
+      rethrow;
     }
   }
 
