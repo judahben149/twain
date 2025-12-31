@@ -463,6 +463,44 @@ class QRScannerScreen extends StatefulWidget {
 }
 
 class _QRScannerScreenState extends State<QRScannerScreen> {
+  MobileScannerController? _controller;
+  bool _isProcessing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = MobileScannerController();
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  void _handleBarcode(BarcodeCapture capture) async {
+    // Prevent multiple detections
+    if (_isProcessing) return;
+
+    final List<Barcode> barcodes = capture.barcodes;
+    for (final barcode in barcodes) {
+      if (barcode.rawValue != null && !_isProcessing) {
+        setState(() {
+          _isProcessing = true;
+        });
+
+        // Stop the scanner
+        await _controller?.stop();
+
+        // Pop with the result
+        if (mounted) {
+          Navigator.pop(context, barcode.rawValue);
+        }
+        return;
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -471,16 +509,22 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
       ),
-      body: MobileScanner(
-        onDetect: (capture) {
-          final List<Barcode> barcodes = capture.barcodes;
-          for (final barcode in barcodes) {
-            if (barcode.rawValue != null) {
-              Navigator.pop(context, barcode.rawValue);
-              return;
-            }
-          }
-        },
+      body: Stack(
+        children: [
+          MobileScanner(
+            controller: _controller,
+            onDetect: _handleBarcode,
+          ),
+          if (_isProcessing)
+            Container(
+              color: Colors.black54,
+              child: const Center(
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
