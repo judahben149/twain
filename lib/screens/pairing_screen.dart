@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:qr_code_scanner/qr_code_scanner.dart';
 import 'package:twain/constants/app_colours.dart';
 import 'package:twain/providers/auth_providers.dart';
 import 'package:twain/screens/home_screen.dart';
@@ -463,13 +463,17 @@ class QRScannerScreen extends StatefulWidget {
 }
 
 class _QRScannerScreenState extends State<QRScannerScreen> {
-  MobileScannerController? _controller;
+  final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
+  QRViewController? _controller;
   bool _isProcessing = false;
 
   @override
-  void initState() {
-    super.initState();
-    _controller = MobileScannerController();
+  void reassemble() {
+    super.reassemble();
+    if (_controller != null) {
+      _controller!.pauseCamera();
+      _controller!.resumeCamera();
+    }
   }
 
   @override
@@ -478,27 +482,26 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
     super.dispose();
   }
 
-  void _handleBarcode(BarcodeCapture capture) async {
-    // Prevent multiple detections
-    if (_isProcessing) return;
+  void _onQRViewCreated(QRViewController controller) {
+    _controller = controller;
+    controller.scannedDataStream.listen((scanData) async {
+      // Prevent multiple detections
+      if (_isProcessing) return;
 
-    final List<Barcode> barcodes = capture.barcodes;
-    for (final barcode in barcodes) {
-      if (barcode.rawValue != null && !_isProcessing) {
+      if (scanData.code != null && !_isProcessing) {
         setState(() {
           _isProcessing = true;
         });
 
-        // Stop the scanner
-        await _controller?.stop();
+        // Pause the camera
+        await controller.pauseCamera();
 
         // Pop with the result
         if (mounted) {
-          Navigator.pop(context, barcode.rawValue);
+          Navigator.pop(context, scanData.code);
         }
-        return;
       }
-    }
+    });
   }
 
   @override
@@ -511,9 +514,16 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
       ),
       body: Stack(
         children: [
-          MobileScanner(
-            controller: _controller,
-            onDetect: _handleBarcode,
+          QRView(
+            key: qrKey,
+            onQRViewCreated: _onQRViewCreated,
+            overlay: QrScannerOverlayShape(
+              borderColor: const Color(0xFF9C27B0),
+              borderRadius: 10,
+              borderLength: 30,
+              borderWidth: 10,
+              cutOutSize: 250,
+            ),
           ),
           if (_isProcessing)
             Container(
