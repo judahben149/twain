@@ -338,4 +338,85 @@ class AuthService {
 
     return await _getUserFromSupabase(currentUserData!.pairId!);
   }
+
+  // Generate a unique invite code for the current user
+  Future<String> generateInviteCode() async {
+    try {
+      final user = currentUser;
+      if (user == null) throw Exception('No user logged in');
+
+      print('Generating invite code for user: ${user.id}');
+
+      // Generate a random 6-character code
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Removed confusing chars
+      final random = DateTime.now().microsecondsSinceEpoch;
+      String code = '';
+
+      // Generate code based on timestamp and randomness
+      for (int i = 0; i < 6; i++) {
+        code += chars[(random + i * 7) % chars.length];
+      }
+
+      print('Generated code: $code, checking for collisions...');
+
+      // Check if code already exists, if so generate a new one
+      final existing = await _supabase
+          .from('users')
+          .select()
+          .eq('invite_code', code)
+          .maybeSingle();
+
+      if (existing != null) {
+        print('Code collision detected, generating new code...');
+        // Recursively generate a new code if collision
+        return generateInviteCode();
+      }
+
+      print('No collision, storing code in database...');
+
+      // Store the code in the user's record
+      await _supabase.from('users').update({
+        'invite_code': code,
+      }).eq('id', user.id);
+
+      print('Successfully generated and stored invite code: $code for user ${user.id}');
+      return code;
+    } catch (e) {
+      print('Error generating invite code: $e');
+      rethrow;
+    }
+  }
+
+  // Pair with another user using their invite code
+  Future<void> pairWithCode(String code) async {
+    try {
+      final user = currentUser;
+      if (user == null) throw Exception('No user logged in');
+
+      final normalizedCode = code.trim().toUpperCase();
+      print('Attempting to pair with code: $normalizedCode');
+
+      // Call the database function to pair both users
+      // This uses SECURITY DEFINER to bypass RLS and update both users
+      await _supabase.rpc('pair_users_by_code', params: {
+        'invite_code_param': normalizedCode,
+      });
+
+      print('Successfully paired with user using code: $normalizedCode');
+    } catch (e) {
+      print('Error pairing with code: $e');
+
+      // Parse PostgreSQL errors into user-friendly messages
+      final errorMessage = e.toString();
+      if (errorMessage.contains('Invalid invite code')) {
+        throw Exception('Invalid invite code');
+      } else if (errorMessage.contains('Cannot pair with yourself')) {
+        throw Exception('You cannot pair with yourself');
+      } else if (errorMessage.contains('already paired')) {
+        throw Exception('This user is already paired with someone else');
+      } else {
+        rethrow;
+      }
+    }
+  }
 }
