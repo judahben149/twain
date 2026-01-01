@@ -62,6 +62,7 @@ class AuthService {
             final isSame = prev?.id == next?.id &&
                    prev?.displayName == next?.displayName &&
                    prev?.avatarUrl == next?.avatarUrl &&
+                   prev?.pairId == next?.pairId &&
                    prev?.updatedAt == next?.updatedAt;
             if (isSame) {
               print('twainUserStream: Filtered duplicate emission');
@@ -118,6 +119,9 @@ class AuthService {
 
       final user = response.user;
       if (user == null) return null;
+
+      // Ensure user record exists in database
+      await _createOrUpdateUser(user);
 
       return await _getUserFromSupabase(user.id);
     } catch (e) {
@@ -323,9 +327,18 @@ class AuthService {
     final user = currentUser;
     if (user == null) throw Exception('No user logged in');
 
-    await _supabase.from('users').update({
-      'pair_id': null,
-    }).eq('id', user.id);
+    print('unpair: Starting disconnect process');
+
+    try {
+      // Call SECURITY DEFINER function to unpair both users and clean up data
+      // This bypasses RLS to update both users
+      await _supabase.rpc('unpair_users');
+
+      print('unpair: Successfully unpaired users');
+    } catch (e) {
+      print('unpair: Error during unpair: $e');
+      rethrow;
+    }
   }
 
   // Get paired user

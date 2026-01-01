@@ -5,6 +5,7 @@ import 'package:twain/providers/auth_providers.dart';
 import 'package:twain/screens/login_screen.dart';
 import 'package:twain/screens/home_screen.dart';
 import 'package:twain/screens/pairing_screen.dart';
+import 'package:twain/widgets/pair_monitor.dart';
 
 class AuthGate extends ConsumerWidget {
   const AuthGate({super.key});
@@ -17,14 +18,9 @@ class AuthGate extends ConsumerWidget {
       data: (user) {
         if (user != null) {
           log('User is logged in');
-          // Check if user has a partner
-          if (user.pairId == null) {
-            log('User is not paired, showing pairing screen');
-            return const PairingScreen();
-          } else {
-            log('User is paired, showing home screen');
-            return const HomeScreen();
-          }
+          // Always show home screen when logged in
+          // HomeScreen will handle paired vs unpaired UI
+          return const PairMonitor(child: HomeScreen());
         } else {
           log('User is not logged in');
           return const LoginScreen();

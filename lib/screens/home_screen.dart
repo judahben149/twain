@@ -4,6 +4,9 @@ import 'package:twain/constants/app_colours.dart';
 import 'package:twain/providers/auth_providers.dart';
 import 'package:twain/services/auth_service.dart';
 import 'package:twain/screens/sticky_notes_screen.dart';
+import 'package:twain/screens/user_profile_screen.dart';
+import 'package:twain/screens/partner_profile_screen.dart';
+import 'package:twain/screens/pairing_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -13,6 +16,51 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
+  void _handleFeatureTap({
+    required BuildContext context,
+    required bool isPaired,
+    required VoidCallback onPaired,
+  }) {
+    if (isPaired) {
+      onPaired();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.lock_outline, color: Colors.white, size: 20),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Connect with your partner to unlock this feature',
+                  style: TextStyle(fontSize: 15),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFF9C27B0),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          duration: const Duration(seconds: 4),
+          action: SnackBarAction(
+            label: 'Get Paired',
+            textColor: Colors.white,
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const PairingScreen(),
+                ),
+              );
+            },
+          ),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentUser = ref.watch(twainUserProvider).value;
@@ -40,9 +88,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           const Color(0xFFE8D5F2),
                           const Color(0xFFFCE4EC),
                         ],
-                        onTap: () {
-                          // TODO: Navigate to wallpaper sync
-                        },
+                        onTap: () => _handleFeatureTap(
+                          context: context,
+                          isPaired: currentUser?.pairId != null,
+                          onPaired: () {
+                            // TODO: Navigate to wallpaper sync
+                          },
+                        ),
                       ),
                       const SizedBox(height: 16),
                       _buildFeatureCard(
@@ -54,9 +106,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           const Color(0xFFFFF9C4),
                           const Color(0xFFC8E6C9),
                         ],
-                        onTap: () {
-                          // TODO: Navigate to shared board
-                        },
+                        onTap: () => _handleFeatureTap(
+                          context: context,
+                          isPaired: currentUser?.pairId != null,
+                          onPaired: () {
+                            // TODO: Navigate to shared board
+                          },
+                        ),
                       ),
                       const SizedBox(height: 16),
                       _buildFeatureCard(
@@ -68,14 +124,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           const Color(0xFFFCE4EC),
                           const Color(0xFFE1BEE7),
                         ],
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const StickyNotesScreen(),
-                            ),
-                          );
-                        },
+                        onTap: () => _handleFeatureTap(
+                          context: context,
+                          isPaired: currentUser?.pairId != null,
+                          onPaired: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const StickyNotesScreen(),
+                              ),
+                            );
+                          },
+                        ),
                       ),
                       const SizedBox(height: 24),
                     ],
@@ -174,6 +234,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildConnectionCard(dynamic currentUser) {
+    final isPaired = currentUser?.pairId != null;
     final pairedUserAsync = ref.watch(pairedUserProvider);
 
     return Container(
@@ -189,73 +250,166 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ],
       ),
-      child: Column(
-        children: [
-          const Text(
-            'Connected with',
-            style: TextStyle(
-              fontSize: 16,
-              color: AppColors.textSecondary3,
-              fontWeight: FontWeight.w500,
-            ),
+      child: isPaired
+          ? _buildPairedContent(currentUser, pairedUserAsync)
+          : _buildUnpairedContent(currentUser),
+    );
+  }
+
+  Widget _buildPairedContent(dynamic currentUser, AsyncValue<dynamic> pairedUserAsync) {
+    return Column(
+      children: [
+        const Text(
+          'Connected with',
+          style: TextStyle(
+            fontSize: 16,
+            color: AppColors.textSecondary3,
+            fontWeight: FontWeight.w500,
           ),
-          const SizedBox(height: 24),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Current user avatar
-              _buildAvatar(
-                label: currentUser?.displayName?.substring(0, 2).toUpperCase() ?? 'YO',
-                name: 'You',
-                color: const Color(0xFF9C27B0),
-              ),
-              const SizedBox(width: 16),
-              // Connection dots
-              Row(
-                children: List.generate(
-                  3,
-                  (index) => Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 3),
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      shape: BoxShape.circle,
-                    ),
+        ),
+        const SizedBox(height: 24),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Current user avatar
+            _buildAvatar(
+              label: currentUser?.displayName?.substring(0, 2).toUpperCase() ?? 'YO',
+              name: 'You',
+              color: const Color(0xFF9C27B0),
+              onTap: currentUser != null
+                  ? () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              UserProfileScreen(user: currentUser),
+                        ),
+                      );
+                    }
+                  : null,
+            ),
+            const SizedBox(width: 16),
+            // Connection dots
+            Row(
+              children: List.generate(
+                3,
+                (index) => Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    shape: BoxShape.circle,
                   ),
                 ),
               ),
-              const SizedBox(width: 16),
-              // Partner avatar
-              pairedUserAsync.when(
-                data: (partner) => _buildAvatar(
-                  label: partner?.displayName?.substring(0, 2).toUpperCase() ?? 'PA',
-                  name: partner?.displayName ?? 'Partner',
-                  color: const Color(0xFFE91E63),
-                ),
-                loading: () => const SizedBox(
-                  width: 80,
-                  height: 80,
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-                error: (_, __) => _buildAvatar(
-                  label: 'PA',
-                  name: 'Partner',
-                  color: const Color(0xFFE91E63),
+            ),
+            const SizedBox(width: 16),
+            // Partner avatar
+            pairedUserAsync.when(
+              data: (partner) => _buildAvatar(
+                label: partner?.displayName?.substring(0, 2).toUpperCase() ?? 'PA',
+                name: partner?.displayName ?? 'Partner',
+                color: const Color(0xFFE91E63),
+                onTap: partner != null
+                    ? () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                PartnerProfileScreen(partner: partner),
+                          ),
+                        );
+                      }
+                    : null,
+              ),
+              loading: () => const SizedBox(
+                width: 80,
+                height: 80,
+                child: Center(child: CircularProgressIndicator()),
+              ),
+              error: (_, __) => _buildAvatar(
+                label: 'PA',
+                name: 'Partner',
+                color: const Color(0xFFE91E63),
+                onTap: null,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        Text(
+          'Last active: 2 min ago',
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.grey.shade600,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildUnpairedContent(dynamic currentUser) {
+    return Column(
+      children: [
+        Icon(
+          Icons.favorite_border,
+          size: 60,
+          color: Colors.grey.shade400,
+        ),
+        const SizedBox(height: 16),
+        const Text(
+          'Not Connected',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: AppColors.black,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Connect with your partner to unlock all features',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.grey.shade600,
+          ),
+        ),
+        const SizedBox(height: 24),
+        ElevatedButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const PairingScreen(),
+              ),
+            );
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF9C27B0),
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            elevation: 2,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.link, size: 20),
+              const SizedBox(width: 8),
+              const Text(
+                'Get Paired',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 20),
-          Text(
-            'Last active: 2 min ago',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade600,
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -263,44 +417,48 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     required String label,
     required String name,
     required Color color,
+    VoidCallback? onTap,
   }) {
-    return Column(
-      children: [
-        Container(
-          width: 80,
-          height: 80,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: color,
-            boxShadow: [
-              BoxShadow(
-                color: color.withOpacity(0.3),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Center(
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color,
+              boxShadow: [
+                BoxShadow(
+                  color: color.withOpacity(0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Center(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          name,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: AppColors.black,
+          const SizedBox(height: 8),
+          Text(
+            name,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppColors.black,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 

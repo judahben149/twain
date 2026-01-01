@@ -60,7 +60,9 @@ class _EmailVerificationScreenState
 
       // Success! User is now verified and signed in
       if (mounted) {
-        // Pop all screens and let AuthGate handle navigation to HomeScreen
+        // Invalidate provider to force AuthGate to rebuild
+        ref.invalidate(twainUserProvider);
+        // Pop all screens and let AuthGate handle navigation to PairingScreen
         Navigator.of(context).popUntil((route) => route.isFirst);
       }
     } catch (e) {

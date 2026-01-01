@@ -47,12 +47,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       final authService = ref.read(authServiceProvider);
       await authService.signInWithEmailPassword(email, password);
-      // Navigation will be handled by AuthGate automatically
+
+      // Invalidate the auth provider to force AuthGate to rebuild
+      if (mounted) {
+        ref.invalidate(twainUserProvider);
+        setState(() {
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Invalid email or password';
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Invalid email or password';
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -67,15 +76,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final user = await authService.signInWithGoogle();
 
       if (user == null) {
-        setState(() {
-          _errorMessage = 'Google sign-in was cancelled';
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _errorMessage = 'Google sign-in was cancelled';
+            _isLoading = false;
+          });
+        }
       } else {
-        // Success! Reset loading state and let AuthGate handle navigation
-        setState(() {
-          _isLoading = false;
-        });
+        // Invalidate the auth provider to force AuthGate to rebuild
+        if (mounted) {
+          ref.invalidate(twainUserProvider);
+          setState(() {
+            _isLoading = false;
+          });
+        }
       }
     } catch (e) {
       setState(() {
@@ -114,9 +128,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          SizedBox(height: topSpacing),
-                          _buildBackButton(context),
-                          SizedBox(height: headerSpacing),
+                          SizedBox(height: topSpacing + headerSpacing),
                           _buildHeader(),
                           SizedBox(height: fieldSpacing),
                           if (_errorMessage != null) ...[

@@ -26,9 +26,22 @@ final pairedUserProvider = StreamProvider.autoDispose<TwainUser?>((ref) {
       print('pairedUserProvider: No pair_id, returning null');
       return null;
     }
-    final partner = await auth.getPairedUser();
-    print('pairedUserProvider: Got partner = ${partner?.displayName}');
-    return partner;
+
+    try {
+      // Add timeout to prevent infinite loading
+      final partner = await auth.getPairedUser().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          print('pairedUserProvider: Timeout fetching partner');
+          return null;
+        },
+      );
+      print('pairedUserProvider: Got partner = ${partner?.displayName}');
+      return partner;
+    } catch (e) {
+      print('pairedUserProvider: Error fetching partner: $e');
+      return null;
+    }
   });
 });
 
