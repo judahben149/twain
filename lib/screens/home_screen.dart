@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:twain/constants/app_colours.dart';
 import 'package:twain/providers/auth_providers.dart';
 import 'package:twain/services/auth_service.dart';
+import 'package:twain/screens/sticky_notes_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -68,7 +69,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           const Color(0xFFE1BEE7),
                         ],
                         onTap: () {
-                          // TODO: Navigate to sticky notes
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const StickyNotesScreen(),
+                            ),
+                          );
                         },
                       ),
                       const SizedBox(height: 24),
@@ -168,88 +174,88 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildConnectionCard(dynamic currentUser) {
-    return FutureBuilder(
-      future: ref.read(authServiceProvider).getPairedUser(),
-      builder: (context, snapshot) {
-        final partner = snapshot.data;
-        final isLoading = snapshot.connectionState == ConnectionState.waiting;
+    final pairedUserAsync = ref.watch(pairedUserProvider);
 
-        return Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.9),
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 20,
-                offset: const Offset(0, 4),
-              ),
-            ],
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
           ),
-          child: Column(
+        ],
+      ),
+      child: Column(
+        children: [
+          const Text(
+            'Connected with',
+            style: TextStyle(
+              fontSize: 16,
+              color: AppColors.textSecondary3,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text(
-                'Connected with',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: AppColors.textSecondary3,
-                  fontWeight: FontWeight.w500,
-                ),
+              // Current user avatar
+              _buildAvatar(
+                label: currentUser?.displayName?.substring(0, 2).toUpperCase() ?? 'YO',
+                name: 'You',
+                color: const Color(0xFF9C27B0),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(width: 16),
+              // Connection dots
               Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Current user avatar
-                  _buildAvatar(
-                    label: currentUser?.displayName?.substring(0, 2).toUpperCase() ?? 'YO',
-                    name: 'You',
-                    color: const Color(0xFF9C27B0),
-                  ),
-                  const SizedBox(width: 16),
-                  // Connection dots
-                  Row(
-                    children: List.generate(
-                      3,
-                      (index) => Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 3),
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade300,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
+                children: List.generate(
+                  3,
+                  (index) => Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      shape: BoxShape.circle,
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  // Partner avatar
-                  isLoading
-                      ? const SizedBox(
-                          width: 80,
-                          height: 80,
-                          child: Center(child: CircularProgressIndicator()),
-                        )
-                      : _buildAvatar(
-                          label: partner?.displayName?.substring(0, 2).toUpperCase() ?? 'PA',
-                          name: partner?.displayName ?? 'Partner',
-                          color: const Color(0xFFE91E63),
-                        ),
-                ],
+                ),
               ),
-              const SizedBox(height: 20),
-              Text(
-                'Last active: 2 min ago',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey.shade600,
+              const SizedBox(width: 16),
+              // Partner avatar
+              pairedUserAsync.when(
+                data: (partner) => _buildAvatar(
+                  label: partner?.displayName?.substring(0, 2).toUpperCase() ?? 'PA',
+                  name: partner?.displayName ?? 'Partner',
+                  color: const Color(0xFFE91E63),
+                ),
+                loading: () => const SizedBox(
+                  width: 80,
+                  height: 80,
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+                error: (_, __) => _buildAvatar(
+                  label: 'PA',
+                  name: 'Partner',
+                  color: const Color(0xFFE91E63),
                 ),
               ),
             ],
           ),
-        );
-      },
+          const SizedBox(height: 20),
+          Text(
+            'Last active: 2 min ago',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey.shade600,
+            ),
+          ),
+        ],
+      ),
     );
   }
 

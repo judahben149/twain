@@ -331,12 +331,53 @@ class AuthService {
   // Get paired user
   Future<TwainUser?> getPairedUser() async {
     final user = currentUser;
-    if (user == null) return null;
+    if (user == null) {
+      print('getPairedUser: No current user');
+      return null;
+    }
 
+    print('getPairedUser: Getting current user data for ${user.id}');
     final currentUserData = await _getUserFromSupabase(user.id);
-    if (currentUserData?.pairId == null) return null;
+    print('getPairedUser: Current user pair_id = ${currentUserData?.pairId}');
 
-    return await _getUserFromSupabase(currentUserData!.pairId!);
+    if (currentUserData?.pairId == null) {
+      print('getPairedUser: No pair_id found');
+      return null;
+    }
+
+    // Find the other user with the same pair_id
+    print('getPairedUser: Searching for partner with pair_id = ${currentUserData!.pairId} and id != ${user.id}');
+    final partnerData = await _supabase
+        .from('users')
+        .select()
+        .eq('pair_id', currentUserData.pairId!)
+        .neq('id', user.id)
+        .maybeSingle();
+
+    print('getPairedUser: Query returned: ${partnerData?.toString()}');
+
+    if (partnerData == null) {
+      print('getPairedUser: No partner found');
+      return null;
+    }
+
+    final partner = TwainUser(
+      id: partnerData['id'],
+      email: partnerData['email'],
+      displayName: partnerData['display_name'],
+      avatarUrl: partnerData['avatar_url'],
+      pairId: partnerData['pair_id'],
+      fcmToken: partnerData['fcm_token'],
+      deviceId: partnerData['device_id'],
+      status: partnerData['status'],
+      createdAt: DateTime.parse(partnerData['created_at']),
+      updatedAt: DateTime.parse(partnerData['updated_at']),
+      preferences: partnerData['preferences'],
+      metaData: partnerData['metadata'],
+    );
+
+    print('getPairedUser: Returning partner: ${partner.displayName}');
+    return partner;
   }
 
   // Generate a unique invite code for the current user
