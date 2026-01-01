@@ -105,6 +105,20 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Listen for successful pairing (when pair_id becomes non-null)
+    ref.listen(twainUserProvider, (previous, next) {
+      next.whenData((user) {
+        if (user?.pairId != null && mounted) {
+          // Pairing successful! Navigate to home screen
+          print('PairingScreen: Pairing successful, navigating to home screen');
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+          );
+        }
+      });
+    });
+
     return Scaffold(
       body: Container(
         decoration: _buildGradientBackground(),
