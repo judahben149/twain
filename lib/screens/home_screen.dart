@@ -24,6 +24,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (isPaired) {
       onPaired();
     } else {
+      // Clear any existing snackbars first
+      ScaffoldMessenger.of(context).clearSnackBars();
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Row(
@@ -48,6 +51,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             label: 'Get Paired',
             textColor: Colors.white,
             onPressed: () {
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -56,6 +60,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               );
             },
           ),
+          dismissDirection: DismissDirection.horizontal,
         ),
       );
     }
