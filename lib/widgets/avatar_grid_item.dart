@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:twain/services/avatar_service.dart';
 
 /// Individual avatar tile in the grid
@@ -43,18 +44,62 @@ class AvatarGridItem extends StatelessWidget {
               : null,
         ),
         child: ClipOval(
-          child: SvgPicture.network(
-            avatar.url,
-            fit: BoxFit.cover,
-            placeholderBuilder: (context) => Container(
-              color: Colors.grey.shade200,
-              child: const Center(
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Color(0xFF9C27B0),
-                ),
-              ),
-            ),
+          child: FutureBuilder<FileInfo?>(
+            future: DefaultCacheManager().getFileFromCache(avatar.url),
+            builder: (context, cacheSnapshot) {
+              if (cacheSnapshot.connectionState == ConnectionState.done) {
+                // If we have cached file, use it
+                if (cacheSnapshot.hasData && cacheSnapshot.data != null) {
+                  return SvgPicture.file(
+                    cacheSnapshot.data!.file,
+                    fit: BoxFit.cover,
+                    placeholderBuilder: (context) => Container(
+                      color: Colors.grey.shade200,
+                      child: const Center(
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Color(0xFF9C27B0),
+                        ),
+                      ),
+                    ),
+                  );
+                }
+              }
+
+              // Otherwise, load from network and cache
+              return FutureBuilder(
+                future: DefaultCacheManager().downloadFile(avatar.url),
+                builder: (context, downloadSnapshot) {
+                  if (downloadSnapshot.connectionState == ConnectionState.done &&
+                      downloadSnapshot.hasData) {
+                    return SvgPicture.file(
+                      downloadSnapshot.data!.file,
+                      fit: BoxFit.cover,
+                      placeholderBuilder: (context) => Container(
+                        color: Colors.grey.shade200,
+                        child: const Center(
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Color(0xFF9C27B0),
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+
+                  // Show placeholder while loading
+                  return Container(
+                    color: Colors.grey.shade200,
+                    child: const Center(
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Color(0xFF9C27B0),
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
           ),
         ),
       ),

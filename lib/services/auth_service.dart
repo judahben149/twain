@@ -3,9 +3,13 @@ import 'package:google_sign_in/google_sign_in.dart' as google_sign_in;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:twain/models/twain_user.dart';
 import 'package:twain/supabase_config.dart';
+import 'package:twain/repositories/user_repository.dart';
 
 class AuthService {
   final _supabase = Supabase.instance.client;
+  final UserRepository? _userRepository;
+
+  AuthService({UserRepository? userRepository}) : _userRepository = userRepository;
 
   // Get current user
   User? get currentUser => _supabase.auth.currentUser;
@@ -25,50 +29,59 @@ class AuthService {
 
       print('twainUserStream: Auth state changed for user ${user.id}');
 
-      // First, immediately fetch and yield current user data
-      final currentUser = await _getUserFromSupabase(user.id);
-      print('twainUserStream: Initial fetch returned: ${currentUser?.displayName ?? "null"}');
-      yield currentUser;
+      // If repository is available, use cache-first strategy
+      if (_userRepository != null) {
+        print('twainUserStream: Using UserRepository with cache-first strategy');
+        yield* _userRepository!.watchCurrentUser(user.id);
+      } else {
+        // Fallback to direct Supabase stream (original behavior)
+        print('twainUserStream: No repository, using direct Supabase stream');
 
-      // Then stream real-time changes from the users table for this specific user
-      print('twainUserStream: Starting database stream for user ${user.id}');
-      yield* _supabase
-          .from('users')
-          .stream(primaryKey: ['id'])
-          .eq('id', user.id)
-          .map((rows) {
-            print('twainUserStream: Database stream emitted ${rows.length} rows');
-            if (rows.isEmpty) return null;
-            final data = rows.first;
-            final twainUser = TwainUser(
-              id: data['id'],
-              email: data['email'],
-              displayName: data['display_name'],
-              avatarUrl: data['avatar_url'],
-              pairId: data['pair_id'],
-              fcmToken: data['fcm_token'],
-              deviceId: data['device_id'],
-              status: data['status'],
-              createdAt: DateTime.parse(data['created_at']),
-              updatedAt: DateTime.parse(data['updated_at']),
-              preferences: data['preferences'],
-              metaData: data['metadata'],
-            );
-            print('twainUserStream: Mapped to TwainUser with displayName: ${twainUser.displayName}');
-            return twainUser;
-          })
-          .distinct((prev, next) {
-            // Only emit when the user actually changes to avoid duplicate emissions
-            final isSame = prev?.id == next?.id &&
-                   prev?.displayName == next?.displayName &&
-                   prev?.avatarUrl == next?.avatarUrl &&
-                   prev?.pairId == next?.pairId &&
-                   prev?.updatedAt == next?.updatedAt;
-            if (isSame) {
-              print('twainUserStream: Filtered duplicate emission');
-            }
-            return isSame;
-          });
+        // First, immediately fetch and yield current user data
+        final currentUser = await _getUserFromSupabase(user.id);
+        print('twainUserStream: Initial fetch returned: ${currentUser?.displayName ?? "null"}');
+        yield currentUser;
+
+        // Then stream real-time changes from the users table for this specific user
+        print('twainUserStream: Starting database stream for user ${user.id}');
+        yield* _supabase
+            .from('users')
+            .stream(primaryKey: ['id'])
+            .eq('id', user.id)
+            .map((rows) {
+              print('twainUserStream: Database stream emitted ${rows.length} rows');
+              if (rows.isEmpty) return null;
+              final data = rows.first;
+              final twainUser = TwainUser(
+                id: data['id'],
+                email: data['email'],
+                displayName: data['display_name'],
+                avatarUrl: data['avatar_url'],
+                pairId: data['pair_id'],
+                fcmToken: data['fcm_token'],
+                deviceId: data['device_id'],
+                status: data['status'],
+                createdAt: DateTime.parse(data['created_at']),
+                updatedAt: DateTime.parse(data['updated_at']),
+                preferences: data['preferences'],
+                metaData: data['metadata'],
+              );
+              print('twainUserStream: Mapped to TwainUser with displayName: ${twainUser.displayName}');
+              return twainUser;
+            })
+            .distinct((prev, next) {
+              // Only emit when the user actually changes to avoid duplicate emissions
+              final isSame = prev?.id == next?.id &&
+                     prev?.displayName == next?.displayName &&
+                     prev?.avatarUrl == next?.avatarUrl &&
+                     prev?.pairId == next?.pairId &&
+                     prev?.updatedAt == next?.updatedAt;
+              if (isSame) {
+                print('twainUserStream: Filtered duplicate emission');
+              }
+              return isSame;
+            });
+      }
     });
   }
 
@@ -209,6 +222,12 @@ class AuthService {
   // Sign out
   Future<void> signOut() async {
     try {
+      // Clear cached data before signing out
+      if (_userRepository != null) {
+        await _userRepository!.clearAllCache();
+        print('signOut: Cleared user cache');
+      }
+
       await google_sign_in.GoogleSignIn.instance.signOut();
       await _supabase.auth.signOut();
     } catch (e) {
@@ -330,6 +349,13 @@ class AuthService {
     print('unpair: Starting disconnect process');
 
     try {
+      // Clear partner cache before unpairing
+      // Note: We clear all cache since sticky notes will also be deleted
+      if (_userRepository != null) {
+        await _userRepository!.clearAllCache();
+        print('unpair: Cleared user cache');
+      }
+
       // Call SECURITY DEFINER function to unpair both users and clean up data
       // This bypasses RLS to update both users
       await _supabase.rpc('unpair_users');
@@ -404,52 +430,61 @@ class AuthService {
 
       print('pairedUserStream: Current user has pair_id ${currentUser!.pairId}');
 
-      // Stream real-time changes from the users table for the partner
-      yield* _supabase
-          .from('users')
-          .stream(primaryKey: ['id'])
-          .eq('pair_id', currentUser.pairId!)
-          .map((rows) {
-            print('pairedUserStream: Database stream emitted ${rows.length} rows');
+      // If repository is available, use cache-first strategy
+      if (_userRepository != null) {
+        print('pairedUserStream: Using UserRepository with cache-first strategy');
+        yield* _userRepository!.watchPairedUser(currentUser.id, currentUser.pairId);
+      } else {
+        // Fallback to direct Supabase stream (original behavior)
+        print('pairedUserStream: No repository, using direct Supabase stream');
 
-            // Filter out the current user from the results
-            final partnerRows = rows.where((row) => row['id'] != currentUser.id).toList();
+        // Stream real-time changes from the users table for the partner
+        yield* _supabase
+            .from('users')
+            .stream(primaryKey: ['id'])
+            .eq('pair_id', currentUser.pairId!)
+            .map((rows) {
+              print('pairedUserStream: Database stream emitted ${rows.length} rows');
 
-            if (partnerRows.isEmpty) {
-              print('pairedUserStream: No partner found after filtering');
-              return null;
-            }
+              // Filter out the current user from the results
+              final partnerRows = rows.where((row) => row['id'] != currentUser.id).toList();
 
-            final data = partnerRows.first;
-            final partner = TwainUser(
-              id: data['id'],
-              email: data['email'],
-              displayName: data['display_name'],
-              avatarUrl: data['avatar_url'],
-              pairId: data['pair_id'],
-              fcmToken: data['fcm_token'],
-              deviceId: data['device_id'],
-              status: data['status'],
-              createdAt: DateTime.parse(data['created_at']),
-              updatedAt: DateTime.parse(data['updated_at']),
-              preferences: data['preferences'],
-              metaData: data['metadata'],
-            );
-            print('pairedUserStream: Mapped to partner with displayName: ${partner.displayName}, avatarUrl: ${partner.avatarUrl}');
-            return partner;
-          })
-          .distinct((prev, next) {
-            // Only emit when partner data actually changes
-            final isSame = prev?.id == next?.id &&
-                prev?.displayName == next?.displayName &&
-                prev?.avatarUrl == next?.avatarUrl &&
-                prev?.pairId == next?.pairId &&
-                prev?.updatedAt == next?.updatedAt;
-            if (isSame) {
-              print('pairedUserStream: Filtered duplicate emission');
-            }
-            return isSame;
-          });
+              if (partnerRows.isEmpty) {
+                print('pairedUserStream: No partner found after filtering');
+                return null;
+              }
+
+              final data = partnerRows.first;
+              final partner = TwainUser(
+                id: data['id'],
+                email: data['email'],
+                displayName: data['display_name'],
+                avatarUrl: data['avatar_url'],
+                pairId: data['pair_id'],
+                fcmToken: data['fcm_token'],
+                deviceId: data['device_id'],
+                status: data['status'],
+                createdAt: DateTime.parse(data['created_at']),
+                updatedAt: DateTime.parse(data['updated_at']),
+                preferences: data['preferences'],
+                metaData: data['metadata'],
+              );
+              print('pairedUserStream: Mapped to partner with displayName: ${partner.displayName}, avatarUrl: ${partner.avatarUrl}');
+              return partner;
+            })
+            .distinct((prev, next) {
+              // Only emit when partner data actually changes
+              final isSame = prev?.id == next?.id &&
+                  prev?.displayName == next?.displayName &&
+                  prev?.avatarUrl == next?.avatarUrl &&
+                  prev?.pairId == next?.pairId &&
+                  prev?.updatedAt == next?.updatedAt;
+              if (isSame) {
+                print('pairedUserStream: Filtered duplicate emission');
+              }
+              return isSame;
+            });
+      }
     });
   }
 

@@ -1,8 +1,12 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:twain/models/sticky_note.dart';
+import 'package:twain/repositories/sticky_notes_repository.dart';
 
 class StickyNotesService {
   final _supabase = Supabase.instance.client;
+  final StickyNotesRepository? _repository;
+
+  StickyNotesService({StickyNotesRepository? repository}) : _repository = repository;
 
   // Get current user
   User? get currentUser => _supabase.auth.currentUser;
@@ -33,32 +37,41 @@ class StickyNotesService {
 
     print('Streaming sticky notes for pair: $pairId');
 
-    await for (final data in _supabase
-        .from('sticky_notes')
-        .stream(primaryKey: ['id'])
-        .eq('pair_id', pairId)
-        .order('created_at', ascending: false)) {
-      print('Sticky notes stream emitted: ${data.length} notes');
+    // If repository is available, use cache-first strategy
+    if (_repository != null) {
+      print('StickyNotesService: Using repository with cache-first strategy');
+      yield* _repository.watchNotes(pairId);
+    } else {
+      // Fallback to direct Supabase stream (original behavior)
+      print('StickyNotesService: No repository, using direct Supabase stream');
 
-      // Fetch sender names for all notes
-      final notesWithNames = await Future.wait(
-        data.map((noteData) async {
-          final senderData = await _supabase
-              .from('users')
-              .select('display_name')
-              .eq('id', noteData['sender_id'])
-              .maybeSingle();
+      await for (final data in _supabase
+          .from('sticky_notes')
+          .stream(primaryKey: ['id'])
+          .eq('pair_id', pairId)
+          .order('created_at', ascending: false)) {
+        print('Sticky notes stream emitted: ${data.length} notes');
 
-          return {
-            ...noteData,
-            'sender_name': senderData?['display_name'],
-          };
-        }).toList(),
-      );
+        // Fetch sender names for all notes
+        final notesWithNames = await Future.wait(
+          data.map((noteData) async {
+            final senderData = await _supabase
+                .from('users')
+                .select('display_name')
+                .eq('id', noteData['sender_id'])
+                .maybeSingle();
 
-      yield notesWithNames
-          .map((json) => StickyNote.fromJson(json as Map<String, dynamic>))
-          .toList();
+            return {
+              ...noteData,
+              'sender_name': senderData?['display_name'],
+            };
+          }).toList(),
+        );
+
+        yield notesWithNames
+            .map((json) => StickyNote.fromJson(json))
+            .toList();
+      }
     }
   }
 

@@ -1,10 +1,41 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:twain/services/auth_service.dart';
+import 'package:twain/services/database_service.dart';
 import 'package:twain/services/sticky_notes_service.dart';
 import 'package:twain/models/sticky_note.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:twain/models/twain_user.dart';
+import 'package:twain/repositories/user_repository.dart';
+import 'package:twain/repositories/sticky_notes_repository.dart';
 
-final authServiceProvider = Provider<AuthService>((ref) => AuthService());
+// Database service provider (singleton)
+final databaseServiceProvider = Provider<DatabaseService>((ref) {
+  return DatabaseService();
+});
+
+// User repository provider
+final userRepositoryProvider = Provider<UserRepository>((ref) {
+  final dbService = ref.watch(databaseServiceProvider);
+  return UserRepository(
+    dbService: dbService,
+    supabase: Supabase.instance.client,
+  );
+});
+
+// Sticky notes repository provider
+final stickyNotesRepositoryProvider = Provider<StickyNotesRepository>((ref) {
+  final dbService = ref.watch(databaseServiceProvider);
+  return StickyNotesRepository(
+    dbService: dbService,
+    supabase: Supabase.instance.client,
+  );
+});
+
+// Auth service provider with repository
+final authServiceProvider = Provider<AuthService>((ref) {
+  final userRepository = ref.watch(userRepositoryProvider);
+  return AuthService(userRepository: userRepository);
+});
 
 final authUserProvider = StreamProvider.autoDispose((ref) {
   final auth = ref.watch(authServiceProvider);
@@ -22,10 +53,11 @@ final pairedUserProvider = StreamProvider.autoDispose<TwainUser?>((ref) {
   return auth.pairedUserStream();
 });
 
-// Sticky Notes providers
-final stickyNotesServiceProvider = Provider<StickyNotesService>(
-  (ref) => StickyNotesService(),
-);
+// Sticky Notes service provider with repository
+final stickyNotesServiceProvider = Provider<StickyNotesService>((ref) {
+  final repository = ref.watch(stickyNotesRepositoryProvider);
+  return StickyNotesService(repository: repository);
+});
 
 final stickyNotesStreamProvider = StreamProvider.autoDispose<List<StickyNote>>((ref) {
   final service = ref.watch(stickyNotesServiceProvider);
