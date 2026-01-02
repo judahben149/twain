@@ -393,6 +393,66 @@ class AuthService {
     return partner;
   }
 
+  // Stream of paired user with real-time updates
+  Stream<TwainUser?> pairedUserStream() {
+    return twainUserStream().asyncExpand((currentUser) async* {
+      if (currentUser?.pairId == null) {
+        print('pairedUserStream: No pair_id, yielding null');
+        yield null;
+        return;
+      }
+
+      print('pairedUserStream: Current user has pair_id ${currentUser!.pairId}');
+
+      // Stream real-time changes from the users table for the partner
+      yield* _supabase
+          .from('users')
+          .stream(primaryKey: ['id'])
+          .eq('pair_id', currentUser.pairId!)
+          .map((rows) {
+            print('pairedUserStream: Database stream emitted ${rows.length} rows');
+
+            // Filter out the current user from the results
+            final partnerRows = rows.where((row) => row['id'] != currentUser.id).toList();
+
+            if (partnerRows.isEmpty) {
+              print('pairedUserStream: No partner found after filtering');
+              return null;
+            }
+
+            final data = partnerRows.first;
+            final partner = TwainUser(
+              id: data['id'],
+              email: data['email'],
+              displayName: data['display_name'],
+              avatarUrl: data['avatar_url'],
+              pairId: data['pair_id'],
+              fcmToken: data['fcm_token'],
+              deviceId: data['device_id'],
+              status: data['status'],
+              createdAt: DateTime.parse(data['created_at']),
+              updatedAt: DateTime.parse(data['updated_at']),
+              preferences: data['preferences'],
+              metaData: data['metadata'],
+            );
+            print('pairedUserStream: Mapped to partner with displayName: ${partner.displayName}, avatarUrl: ${partner.avatarUrl}');
+            return partner;
+          })
+          .distinct((prev, next) {
+            // Only emit when partner data actually changes
+            final isSame = prev?.id == next?.id &&
+                prev?.displayName == next?.displayName &&
+                prev?.avatarUrl == next?.avatarUrl &&
+                prev?.pairId == next?.pairId &&
+                prev?.updatedAt == next?.updatedAt;
+            if (isSame) {
+              print('pairedUserStream: Filtered duplicate emission');
+            }
+            return isSame;
+          });
+    });
+  }
+
   // Generate a unique invite code for the current user
   Future<String> generateInviteCode() async {
     try {
