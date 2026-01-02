@@ -92,7 +92,7 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
   @override
   Widget build(BuildContext context) {
     final currentUser = ref.watch(twainUserProvider).value;
-    final notesStream = ref.watch(stickyNotesStreamProvider);
+    final notesAsync = ref.watch(stickyNotesStreamProvider);
 
     return Scaffold(
       body: Container(
@@ -102,7 +102,7 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
             children: [
               _buildHeader(),
               Expanded(
-                child: notesStream.when(
+                child: notesAsync.when(
                   data: (notes) {
                     if (notes.isEmpty) {
                       return _buildEmptyState();
@@ -126,9 +126,35 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
                       },
                     );
                   },
-                  loading: () => const Center(
-                    child: CircularProgressIndicator(),
-                  ),
+                  loading: () {
+                    // Show cached data if available, otherwise show spinner
+                    final previousValue = notesAsync.valueOrNull;
+                    if (previousValue != null && previousValue.isNotEmpty) {
+                      // Show cached data while loading new data
+                      return ListView.builder(
+                        controller: _scrollController,
+                        reverse: true,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24.0,
+                          vertical: 16.0,
+                        ),
+                        itemCount: previousValue.length,
+                        itemBuilder: (context, index) {
+                          final note = previousValue[index];
+                          final isCurrentUser = note.senderId == currentUser?.id;
+                          return _buildNoteCard(
+                            note,
+                            isCurrentUser,
+                            _getNoteColor(index),
+                          );
+                        },
+                      );
+                    }
+                    // No cached data, show loading spinner
+                    return const Center(
+                      child: CircularProgressIndicator(),
+                    );
+                  },
                   error: (error, stack) => Center(
                     child: Text('Error loading notes: $error'),
                   ),

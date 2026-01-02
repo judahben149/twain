@@ -59,7 +59,9 @@ final stickyNotesServiceProvider = Provider<StickyNotesService>((ref) {
   return StickyNotesService(repository: repository);
 });
 
-final stickyNotesStreamProvider = StreamProvider.autoDispose<List<StickyNote>>((ref) {
+// Keep sticky notes cached in memory (don't auto-dispose)
+// This provides instant loading on subsequent visits
+final stickyNotesStreamProvider = StreamProvider<List<StickyNote>>((ref) {
   final service = ref.watch(stickyNotesServiceProvider);
   return service.streamNotes();
 });
