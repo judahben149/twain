@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:twain/constants/app_colours.dart';
 import 'package:twain/models/twain_user.dart';
 import 'package:twain/providers/auth_providers.dart';
+import 'package:twain/widgets/main_avatar.dart';
 
 class PartnerProfileScreen extends ConsumerStatefulWidget {
   final TwainUser partner;
@@ -235,6 +236,9 @@ class _PartnerProfileScreenState extends ConsumerState<PartnerProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Watch for real-time updates to the partner
+    final partnerAsync = ref.watch(pairedUserProvider);
+
     return Scaffold(
       body: Container(
         decoration: _buildGradientBackground(),
@@ -243,19 +247,28 @@ class _PartnerProfileScreenState extends ConsumerState<PartnerProfileScreen> {
             children: [
               _buildHeader(),
               Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 24),
-                      _buildAvatar(),
-                      const SizedBox(height: 24),
-                      _buildInfoCard(),
-                      const SizedBox(height: 32),
-                      _buildDisconnectButton(),
-                      const SizedBox(height: 24),
-                    ],
-                  ),
+                child: partnerAsync.when(
+                  data: (partner) {
+                    if (partner == null) {
+                      return const Center(child: Text('No partner found'));
+                    }
+                    return SingleChildScrollView(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 24),
+                          _buildAvatar(partner),
+                          const SizedBox(height: 24),
+                          _buildInfoCard(partner),
+                          const SizedBox(height: 32),
+                          _buildDisconnectButton(),
+                          const SizedBox(height: 24),
+                        ],
+                      ),
+                    );
+                  },
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                  error: (error, stack) => Center(child: Text('Error: $error')),
                 ),
               ),
             ],
@@ -304,13 +317,12 @@ class _PartnerProfileScreenState extends ConsumerState<PartnerProfileScreen> {
     );
   }
 
-  Widget _buildAvatar() {
+  Widget _buildAvatar(TwainUser partner) {
     return Container(
       width: 120,
       height: 120,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: const Color(0xFFE91E63),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFFE91E63).withOpacity(0.3),
@@ -319,20 +331,16 @@ class _PartnerProfileScreenState extends ConsumerState<PartnerProfileScreen> {
           ),
         ],
       ),
-      child: Center(
-        child: Text(
-          widget.partner.displayName?.substring(0, 2).toUpperCase() ?? 'PA',
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 48,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+      child: TwainAvatar(
+        user: partner,
+        size: 120,
+        color: const Color(0xFFE91E63),
+        showBorder: true,
       ),
     );
   }
 
-  Widget _buildInfoCard() {
+  Widget _buildInfoCard(TwainUser partner) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -352,20 +360,20 @@ class _PartnerProfileScreenState extends ConsumerState<PartnerProfileScreen> {
           _buildInfoRow(
             icon: Icons.person_outline,
             label: 'Display Name',
-            value: widget.partner.displayName ?? 'Not set',
+            value: partner.displayName ?? 'Not set',
           ),
           const SizedBox(height: 20),
           _buildInfoRow(
             icon: Icons.calendar_today_outlined,
             label: 'Paired Since',
-            value: _formatDate(widget.partner.updatedAt),
+            value: _formatDate(partner.updatedAt),
           ),
-          if (widget.partner.status != null) ...[
+          if (partner.status != null) ...[
             const SizedBox(height: 20),
             _buildInfoRow(
               icon: Icons.info_outline,
               label: 'Status',
-              value: widget.partner.status!,
+              value: partner.status!,
             ),
           ],
         ],
