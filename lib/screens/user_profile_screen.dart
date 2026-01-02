@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:twain/constants/app_colours.dart';
 import 'package:twain/models/twain_user.dart';
+import 'package:twain/providers/auth_providers.dart';
+import 'package:twain/screens/avatar_selector_screen.dart';
+import 'package:twain/widgets/main_avatar.dart';
 
 class UserProfileScreen extends ConsumerWidget {
   final TwainUser user;
@@ -13,6 +16,9 @@ class UserProfileScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Watch for real-time updates to the current user
+    final currentUserAsync = ref.watch(twainUserProvider);
+
     return Scaffold(
       body: Container(
         decoration: _buildGradientBackground(),
@@ -21,16 +27,25 @@ class UserProfileScreen extends ConsumerWidget {
             children: [
               _buildHeader(context),
               Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 24),
-                      _buildAvatar(),
-                      const SizedBox(height: 24),
-                      _buildInfoCard(),
-                    ],
-                  ),
+                child: currentUserAsync.when(
+                  data: (currentUser) {
+                    if (currentUser == null) {
+                      return const Center(child: Text('No user logged in'));
+                    }
+                    return SingleChildScrollView(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 24),
+                          _buildAvatar(context, currentUser),
+                          const SizedBox(height: 24),
+                          _buildInfoCard(currentUser),
+                        ],
+                      ),
+                    );
+                  },
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                  error: (error, stack) => Center(child: Text('Error: $error')),
                 ),
               ),
             ],
@@ -79,35 +94,59 @@ class UserProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildAvatar() {
-    return Container(
-      width: 120,
-      height: 120,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: const Color(0xFF9C27B0),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF9C27B0).withOpacity(0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+  Widget _buildAvatar(BuildContext context, TwainUser user) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const AvatarSelectorScreen(),
+          ),
+        );
+      },
+      child: Stack(
+        children: [
+          Container(
+            width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF9C27B0).withOpacity(0.3),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: TwainAvatar(
+              user: user,
+              size: 120,
+              showBorder: true,
+            ),
+          ),
+          Positioned(
+            bottom: 0,
+            right: 0,
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Color(0xFF9C27B0),
+                shape: BoxShape.circle,
+              ),
+              padding: const EdgeInsets.all(8),
+              child: const Icon(
+                Icons.edit,
+                color: Colors.white,
+                size: 16,
+              ),
+            ),
           ),
         ],
-      ),
-      child: Center(
-        child: Text(
-          user.displayName?.substring(0, 2).toUpperCase() ?? 'YO',
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 48,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
       ),
     );
   }
 
-  Widget _buildInfoCard() {
+  Widget _buildInfoCard(TwainUser user) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(

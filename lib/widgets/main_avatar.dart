@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:twain/models/twain_user.dart';
 
 class TwainAvatar extends StatelessWidget {
@@ -27,7 +28,7 @@ class TwainAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bgColor = color ?? Colors.deepPurple;
-    final borderColor = bgColor.withValues(0.3);
+    final borderColor = bgColor.withValues(alpha: 0.3);
     final initials = _getInitials(user.displayName);
 
     return Container(
@@ -41,14 +42,30 @@ class TwainAvatar extends StatelessWidget {
       ),
       child: ClipOval(
         child: user.avatarUrl != null && user.avatarUrl!.isNotEmpty
-            ? Image.network(
-                user.avatarUrl!,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _buildInitialCircle(bgColor, initials),
-              )
+            ? _buildAvatarImage(user.avatarUrl!, bgColor, initials)
             : _buildInitialCircle(bgColor, initials),
       ),
     );
+  }
+
+  Widget _buildAvatarImage(String url, Color bgColor, String initials) {
+    // Check if URL is SVG (Dicebear avatars)
+    final isSvg = url.contains('dicebear') || url.endsWith('.svg');
+
+    if (isSvg) {
+      return SvgPicture.network(
+        url,
+        fit: BoxFit.cover,
+        placeholderBuilder: (context) => _buildInitialCircle(bgColor, initials),
+      );
+    } else {
+      // For future photo uploads (non-SVG images)
+      return Image.network(
+        url,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _buildInitialCircle(bgColor, initials),
+      );
+    }
   }
 
   Widget _buildInitialCircle(Color bgColor, String initials) {

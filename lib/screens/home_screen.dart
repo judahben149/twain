@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:twain/constants/app_colours.dart';
+import 'package:twain/models/twain_user.dart';
 import 'package:twain/providers/auth_providers.dart';
 import 'package:twain/services/auth_service.dart';
 import 'package:twain/screens/sticky_notes_screen.dart';
 import 'package:twain/screens/user_profile_screen.dart';
 import 'package:twain/screens/partner_profile_screen.dart';
 import 'package:twain/screens/pairing_screen.dart';
+import 'package:twain/widgets/main_avatar.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -277,12 +279,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             // Current user avatar
-            _buildAvatar(
-              label: currentUser?.displayName?.substring(0, 2).toUpperCase() ?? 'YO',
-              name: 'You',
-              color: const Color(0xFF9C27B0),
-              onTap: currentUser != null
-                  ? () {
+            currentUser != null
+                ? _buildAvatarWithTwainAvatar(
+                    user: currentUser,
+                    name: 'You',
+                    color: const Color(0xFF9C27B0),
+                    onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -290,9 +292,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               UserProfileScreen(user: currentUser),
                         ),
                       );
-                    }
-                  : null,
-            ),
+                    },
+                  )
+                : _buildAvatar(
+                    label: 'YO',
+                    name: 'You',
+                    color: const Color(0xFF9C27B0),
+                    onTap: null,
+                  ),
             const SizedBox(width: 16),
             // Connection dots
             Row(
@@ -312,12 +319,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             const SizedBox(width: 16),
             // Partner avatar
             pairedUserAsync.when(
-              data: (partner) => _buildAvatar(
-                label: partner?.displayName?.substring(0, 2).toUpperCase() ?? 'PA',
-                name: partner?.displayName ?? 'Partner',
-                color: const Color(0xFFE91E63),
-                onTap: partner != null
-                    ? () {
+              data: (partner) => partner != null
+                  ? _buildAvatarWithTwainAvatar(
+                      user: partner,
+                      name: partner.displayName ?? 'Partner',
+                      color: const Color(0xFFE91E63),
+                      onTap: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -325,9 +332,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 PartnerProfileScreen(partner: partner),
                           ),
                         );
-                      }
-                    : null,
-              ),
+                      },
+                    )
+                  : _buildAvatar(
+                      label: 'PA',
+                      name: 'Partner',
+                      color: const Color(0xFFE91E63),
+                      onTap: null,
+                    ),
               loading: () => const SizedBox(
                 width: 80,
                 height: 80,
@@ -415,6 +427,50 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildAvatarWithTwainAvatar({
+    required TwainUser user,
+    required String name,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: color.withOpacity(0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: TwainAvatar(
+              user: user,
+              size: 80,
+              color: color,
+              showBorder: true,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            name,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppColors.black,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
