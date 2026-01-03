@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:timeago/timeago.dart' as timeago;
+import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import 'package:twain/constants/app_colours.dart';
 import 'package:twain/models/sticky_note.dart';
 import 'package:twain/providers/auth_providers.dart';
@@ -55,10 +56,10 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
       _selectedColor = 'FFF9C4'; // Reset to default
 
       // Scroll to bottom after sending
-      Future.delayed(const Duration(milliseconds: 100), () {
+      Future.delayed(const Duration(milliseconds: 300), () {
         if (_scrollController.hasClients) {
           _scrollController.animateTo(
-            0,
+            _scrollController.position.maxScrollExtent,
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeOut,
           );
@@ -126,6 +127,46 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
     }
   }
 
+  String _formatDateHeader(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final noteDate = DateTime(date.year, date.month, date.day);
+
+    if (noteDate == today) {
+      return 'Today';
+    } else if (noteDate == yesterday) {
+      return 'Yesterday';
+    } else if (now.year == date.year) {
+      return DateFormat('d MMM').format(date);
+    } else {
+      return DateFormat('d MMM yyyy').format(date);
+    }
+  }
+
+  String _formatTime(DateTime dateTime) {
+    return DateFormat('h:mm a').format(dateTime);
+  }
+
+  Map<String, List<StickyNote>> _groupNotesByDate(List<StickyNote> notes) {
+    final Map<String, List<StickyNote>> grouped = {};
+
+    for (final note in notes) {
+      final dateKey = DateFormat('yyyy-MM-dd').format(note.createdAt);
+      if (!grouped.containsKey(dateKey)) {
+        grouped[dateKey] = [];
+      }
+      grouped[dateKey]!.add(note);
+    }
+
+    // Sort notes within each date group (oldest to newest)
+    grouped.forEach((key, noteList) {
+      noteList.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    });
+
+    return grouped;
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentUser = ref.watch(twainUserProvider).value;
@@ -144,47 +185,144 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
                     if (notes.isEmpty) {
                       return _buildEmptyState();
                     }
-                    return ListView.builder(
-                      controller: _scrollController,
-                      reverse: true,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24.0,
-                        vertical: 16.0,
-                      ),
-                      itemCount: notes.length,
-                      itemBuilder: (context, index) {
-                        final note = notes[index];
-                        final isCurrentUser = note.senderId == currentUser?.id;
-                        return _buildNoteCard(
-                          note,
-                          isCurrentUser,
-                          _parseColor(note.color),
+
+                    // Group notes by date
+                    final groupedNotes = _groupNotesByDate(notes);
+                    final sortedDates = groupedNotes.keys.toList()
+                      ..sort(); // Oldest to newest
+
+                    // Scroll to bottom after build
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (_scrollController.hasClients) {
+                        _scrollController.jumpTo(
+                          _scrollController.position.maxScrollExtent,
                         );
-                      },
+                      }
+                    });
+
+                    return CustomScrollView(
+                      controller: _scrollController,
+                      slivers: [
+                        const SliverToBoxAdapter(
+                          child: SizedBox(height: 16),
+                        ),
+                        for (final dateKey in sortedDates) ...[
+                          // Date header
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding: const EdgeInsets.only(
+                                left: 20.0,
+                                right: 16.0,
+                                top: 8.0,
+                                bottom: 12.0,
+                              ),
+                              child: Text(
+                                _formatDateHeader(DateTime.parse(dateKey)),
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey.shade700,
+                                ),
+                              ),
+                            ),
+                          ),
+                          // List of notes for this date
+                          SliverList(
+                            delegate: SliverChildBuilderDelegate(
+                              (context, index) {
+                                final note = groupedNotes[dateKey]![index];
+                                final isCurrentUser = note.senderId == currentUser?.id;
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 20.0,
+                                    vertical: 6.0,
+                                  ),
+                                  child: _buildNoteCard(
+                                    note,
+                                    isCurrentUser,
+                                    _parseColor(note.color),
+                                  ),
+                                );
+                              },
+                              childCount: groupedNotes[dateKey]!.length,
+                            ),
+                          ),
+                          // Add spacing after each date group
+                          const SliverToBoxAdapter(
+                            child: SizedBox(height: 16),
+                          ),
+                        ],
+                      ],
                     );
                   },
                   loading: () {
                     // Show cached data if available, otherwise show spinner
                     final previousValue = notesAsync.valueOrNull;
                     if (previousValue != null && previousValue.isNotEmpty) {
-                      // Show cached data while loading new data
-                      return ListView.builder(
-                        controller: _scrollController,
-                        reverse: true,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24.0,
-                          vertical: 16.0,
-                        ),
-                        itemCount: previousValue.length,
-                        itemBuilder: (context, index) {
-                          final note = previousValue[index];
-                          final isCurrentUser = note.senderId == currentUser?.id;
-                          return _buildNoteCard(
-                            note,
-                            isCurrentUser,
-                            _parseColor(note.color),
+                      // Group cached notes by date
+                      final groupedNotes = _groupNotesByDate(previousValue);
+                      final sortedDates = groupedNotes.keys.toList()
+                        ..sort(); // Oldest to newest
+
+                      // Scroll to bottom after build
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (_scrollController.hasClients) {
+                          _scrollController.jumpTo(
+                            _scrollController.position.maxScrollExtent,
                           );
-                        },
+                        }
+                      });
+
+                      return CustomScrollView(
+                        controller: _scrollController,
+                        slivers: [
+                          const SliverToBoxAdapter(
+                            child: SizedBox(height: 16),
+                          ),
+                          for (final dateKey in sortedDates) ...[
+                            SliverToBoxAdapter(
+                              child: Padding(
+                                padding: const EdgeInsets.only(
+                                  left: 20.0,
+                                  right: 16.0,
+                                  top: 8.0,
+                                  bottom: 12.0,
+                                ),
+                                child: Text(
+                                  _formatDateHeader(DateTime.parse(dateKey)),
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.grey.shade700,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            SliverList(
+                              delegate: SliverChildBuilderDelegate(
+                                (context, index) {
+                                  final note = groupedNotes[dateKey]![index];
+                                  final isCurrentUser = note.senderId == currentUser?.id;
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 20.0,
+                                      vertical: 6.0,
+                                    ),
+                                    child: _buildNoteCard(
+                                      note,
+                                      isCurrentUser,
+                                      _parseColor(note.color),
+                                    ),
+                                  );
+                                },
+                                childCount: groupedNotes[dateKey]!.length,
+                              ),
+                            ),
+                            const SliverToBoxAdapter(
+                              child: SizedBox(height: 16),
+                            ),
+                          ],
+                        ],
                       );
                     }
                     // No cached data, show loading spinner
@@ -244,6 +382,94 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
     );
   }
 
+  void _showColorPicker() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Choose a color',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey.shade800,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Wrap(
+              spacing: 16,
+              runSpacing: 16,
+              alignment: WrapAlignment.center,
+              children: _availableColors.map((colorData) {
+                final hexColor = colorData['hex'] as String;
+                final colorName = colorData['name'] as String;
+                final isSelected = _selectedColor == hexColor;
+                return GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _selectedColor = hexColor;
+                    });
+                    Navigator.pop(context);
+                  },
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          color: _parseColor(hexColor),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isSelected
+                                ? const Color(0xFFE91E63)
+                                : Colors.grey.shade300,
+                            width: isSelected ? 3 : 1,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: isSelected
+                            ? const Icon(
+                                Icons.check,
+                                color: Colors.black54,
+                                size: 28,
+                              )
+                            : null,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        colorName,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade700,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildMessageInput() {
     return Container(
       padding: const EdgeInsets.all(24.0),
@@ -257,99 +483,82 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
           ),
         ],
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      child: Row(
         children: [
-          // Color picker
-          SizedBox(
-            height: 50,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: _availableColors.length,
-              itemBuilder: (context, index) {
-                final colorData = _availableColors[index];
-                final hexColor = colorData['hex'] as String;
-                final isSelected = _selectedColor == hexColor;
-                return GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _selectedColor = hexColor;
-                    });
-                  },
-                  child: Container(
-                    margin: const EdgeInsets.only(right: 12),
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: _parseColor(hexColor),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: isSelected
-                            ? const Color(0xFFE91E63)
-                            : Colors.grey.shade300,
-                        width: isSelected ? 3 : 1,
-                      ),
-                    ),
-                  ),
-                );
-              },
+          Expanded(
+            child: TextField(
+              controller: _messageController,
+              decoration: InputDecoration(
+                hintText: 'Type a sweet message...',
+                hintStyle: TextStyle(
+                  color: Colors.grey.shade400,
+                  fontSize: 16,
+                ),
+                filled: true,
+                fillColor: Colors.grey.shade100,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(25),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
+              ),
+              maxLines: null,
+              textCapitalization: TextCapitalization.sentences,
+              onSubmitted: (_) => _sendMessage(),
             ),
           ),
-          const SizedBox(height: 12),
-          // Message input
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _messageController,
-                  decoration: InputDecoration(
-                    hintText: 'Type a sweet message...',
-                    hintStyle: TextStyle(
-                      color: Colors.grey.shade400,
-                      fontSize: 16,
-                    ),
-                    filled: true,
-                    fillColor: Colors.grey.shade100,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(25),
-                      borderSide: BorderSide.none,
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 12,
-                    ),
+          const SizedBox(width: 8),
+          // Color picker button
+          GestureDetector(
+            onTap: _showColorPicker,
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: _parseColor(_selectedColor),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.grey.shade300,
+                  width: 2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
                   ),
-                  maxLines: null,
-                  textCapitalization: TextCapitalization.sentences,
-                  onSubmitted: (_) => _sendMessage(),
-                ),
+                ],
               ),
-              const SizedBox(width: 12),
-              Container(
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [
-                      Color(0xFFE91E63),
-                      Color(0xFF9C27B0),
-                    ],
-                  ),
-                  shape: BoxShape.circle,
-                ),
-                child: IconButton(
-                  icon: _isSending
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Icon(Icons.send, color: Colors.white),
-                  onPressed: _isSending ? null : _sendMessage,
-                ),
+              child: Icon(
+                Icons.palette,
+                color: Colors.black54,
+                size: 20,
               ),
-            ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Send button
+          Container(
+            decoration: const BoxDecoration(
+              color: Color(0xFFE91E63),
+              shape: BoxShape.circle,
+            ),
+            child: IconButton(
+              icon: _isSending
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Icon(Icons.send, color: Colors.white),
+              onPressed: _isSending ? null : _sendMessage,
+            ),
           ),
         ],
       ),
@@ -360,94 +569,123 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
     final currentUserId = ref.watch(twainUserProvider).value?.id;
     final partner = ref.watch(pairedUserProvider).value;
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
-      child: GestureDetector(
-        onTap: () {
-          // Navigate to detail screen
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => StickyNoteDetailScreen(note: note),
+    return GestureDetector(
+      onTap: () {
+        // Navigate to detail screen
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => StickyNoteDetailScreen(note: note),
+          ),
+        );
+      },
+      child: Stack(
+        children: [
+          // Main note container
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(4),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.15),
+                  blurRadius: 8,
+                  offset: const Offset(2, 3),
+                ),
+              ],
             ),
-          );
-        },
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                note.message,
-                style: const TextStyle(
-                  fontSize: 16,
-                  color: AppColors.black,
-                  height: 1.4,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Message with handwriting font
+                Text(
+                  note.message,
+                  style: GoogleFonts.patrickHand(
+                    fontSize: 19,
+                    color: AppColors.black,
+                    height: 1.3,
+                    fontWeight: FontWeight.w400,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                '${isCurrentUser ? 'You' : note.senderName ?? 'Partner'} • ${timeago.format(note.createdAt)}',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.grey.shade700,
-                  fontWeight: FontWeight.w500,
+                const SizedBox(height: 12),
+                // Sender and timestamp
+                Text(
+                  '${isCurrentUser ? 'You' : note.senderName ?? 'Partner'} • ${_formatTime(note.createdAt)}',
+                  style: GoogleFonts.patrickHand(
+                    fontSize: 14,
+                    color: Colors.grey.shade700,
+                    fontWeight: FontWeight.w400,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  // Likes section
-                  _buildLikesSection(note, currentUserId, partner),
-                  // Reply count
-                  if (note.hasReplies)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.05),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.chat_bubble_outline,
-                            size: 14,
-                            color: Colors.grey.shade700,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${note.replyCount}',
-                            style: TextStyle(
-                              fontSize: 12,
+                const SizedBox(height: 12),
+                // Footer row
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Likes section
+                    _buildLikesSection(note, currentUserId, partner),
+                    // Reply count
+                    if (note.hasReplies)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.chat_bubble_outline,
+                              size: 14,
                               color: Colors.grey.shade700,
-                              fontWeight: FontWeight.w600,
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 4),
+                            Text(
+                              '${note.replyCount}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade700,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           ),
-        ),
+          // Bent corner effect (top-right corner)
+          Positioned(
+            top: 0,
+            right: 0,
+            child: ClipPath(
+              clipper: _BentCornerClipper(),
+              child: Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.black.withOpacity(0.1),
+                      Colors.black.withOpacity(0.05),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -576,4 +814,20 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
       ),
     );
   }
+}
+
+// Custom clipper for the bent corner effect
+class _BentCornerClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path();
+    path.moveTo(0, 0);
+    path.lineTo(size.width, 0);
+    path.lineTo(size.width, size.height);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }

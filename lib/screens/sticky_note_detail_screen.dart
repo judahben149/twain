@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:timeago/timeago.dart' as timeago;
+import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import 'package:twain/constants/app_colours.dart';
 import 'package:twain/models/sticky_note.dart';
 import 'package:twain/models/sticky_note_reply.dart';
@@ -216,55 +217,98 @@ class _StickyNoteDetailScreenState
     }
   }
 
+  String _formatTime(DateTime dateTime) {
+    return DateFormat('h:mm a').format(dateTime);
+  }
+
+  String _formatDateTime(DateTime dateTime) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final noteDate = DateTime(dateTime.year, dateTime.month, dateTime.day);
+
+    if (noteDate == today) {
+      return 'Today, ${_formatTime(dateTime)}';
+    } else {
+      return '${DateFormat('d MMM').format(dateTime)}, ${_formatTime(dateTime)}';
+    }
+  }
+
   Widget _buildMainNoteCard(
     StickyNote note,
     bool isCurrentUser,
     String? currentUserId,
     partner,
   ) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: _parseColor(note.color),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+    return Stack(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: _parseColor(note.color),
+            borderRadius: BorderRadius.circular(4),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.15),
+                blurRadius: 12,
+                offset: const Offset(2, 4),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Message
-          Text(
-            note.message,
-            style: const TextStyle(
-              fontSize: 18,
-              color: AppColors.black,
-              height: 1.5,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Message with handwriting font
+              Text(
+                note.message,
+                style: GoogleFonts.patrickHand(
+                  fontSize: 22,
+                  color: AppColors.black,
+                  height: 1.4,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Sender and timestamp
+              Text(
+                '${isCurrentUser ? 'You' : note.senderName ?? 'Partner'} • ${_formatDateTime(note.createdAt)}',
+                style: GoogleFonts.patrickHand(
+                  fontSize: 15,
+                  color: Colors.grey.shade700,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Likes section
+              _buildLikesSection(note, currentUserId, partner),
+            ],
+          ),
+        ),
+        // Bent corner effect
+        Positioned(
+          top: 0,
+          right: 0,
+          child: ClipPath(
+            clipper: _BentCornerClipper(),
+            child: Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Colors.black.withOpacity(0.1),
+                    Colors.black.withOpacity(0.05),
+                  ],
+                ),
+              ),
             ),
           ),
-          const SizedBox(height: 16),
-
-          // Sender and timestamp
-          Text(
-            '${isCurrentUser ? 'You' : note.senderName ?? 'Partner'} • ${timeago.format(note.createdAt)}',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade700,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // Likes section
-          _buildLikesSection(note, currentUserId, partner),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -392,23 +436,25 @@ class _StickyNoteDetailScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Reply message
+            // Reply message with handwriting font
             Text(
               reply.message,
-              style: const TextStyle(
-                fontSize: 15,
+              style: GoogleFonts.patrickHand(
+                fontSize: 16,
                 color: AppColors.black,
-                height: 1.4,
+                height: 1.3,
+                fontWeight: FontWeight.w400,
               ),
             ),
             const SizedBox(height: 8),
 
             // Sender and timestamp
             Text(
-              '${isCurrentUser ? 'You' : reply.senderName ?? 'Partner'} • ${timeago.format(reply.createdAt)}',
-              style: TextStyle(
-                fontSize: 12,
+              '${isCurrentUser ? 'You' : reply.senderName ?? 'Partner'} • ${_formatTime(reply.createdAt)}',
+              style: GoogleFonts.patrickHand(
+                fontSize: 13,
                 color: Colors.grey.shade600,
+                fontWeight: FontWeight.w400,
               ),
             ),
           ],
@@ -501,4 +547,20 @@ class _StickyNoteDetailScreenState
       ),
     );
   }
+}
+
+// Custom clipper for the bent corner effect
+class _BentCornerClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path();
+    path.moveTo(0, 0);
+    path.lineTo(size.width, 0);
+    path.lineTo(size.width, size.height);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }
