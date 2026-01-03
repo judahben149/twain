@@ -4,6 +4,7 @@ import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:twain/models/twain_user.dart';
 import 'package:twain/models/sticky_note.dart';
+import 'package:twain/models/sticky_note_reply.dart';
 
 class DatabaseService {
   static final DatabaseService _instance = DatabaseService._internal();
@@ -25,7 +26,7 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -59,10 +60,27 @@ class DatabaseService {
         sender_id TEXT NOT NULL,
         sender_name TEXT,
         message TEXT NOT NULL,
-        is_liked INTEGER NOT NULL DEFAULT 0,
+        color TEXT NOT NULL DEFAULT 'FFF9C4',
+        liked_by_user_ids TEXT NOT NULL DEFAULT '[]',
+        reply_count INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
         cached_at INTEGER NOT NULL
+      )
+    ''');
+
+    // Create sticky_note_replies table
+    await db.execute('''
+      CREATE TABLE sticky_note_replies (
+        id TEXT PRIMARY KEY,
+        note_id TEXT NOT NULL,
+        sender_id TEXT NOT NULL,
+        sender_name TEXT,
+        message TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        cached_at INTEGER NOT NULL,
+        FOREIGN KEY (note_id) REFERENCES sticky_notes(id) ON DELETE CASCADE
       )
     ''');
 
@@ -79,13 +97,74 @@ class DatabaseService {
     await db.execute('CREATE INDEX idx_users_pair_id ON users(pair_id)');
     await db.execute('CREATE INDEX idx_sticky_notes_pair_id ON sticky_notes(pair_id)');
     await db.execute('CREATE INDEX idx_sticky_notes_created_at ON sticky_notes(created_at DESC)');
+    await db.execute('CREATE INDEX idx_sticky_note_replies_note_id ON sticky_note_replies(note_id)');
+    await db.execute('CREATE INDEX idx_sticky_note_replies_created_at ON sticky_note_replies(created_at ASC)');
 
     print('Database tables created successfully');
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     print('Database upgrade from version $oldVersion to $newVersion');
-    // Future migrations will be handled here
+
+    if (oldVersion < 2) {
+      print('Migrating database from v1 to v2...');
+
+      // 1. Create new sticky_notes table with updated schema
+      await db.execute('''
+        CREATE TABLE sticky_notes_new (
+          id TEXT PRIMARY KEY,
+          pair_id TEXT NOT NULL,
+          sender_id TEXT NOT NULL,
+          sender_name TEXT,
+          message TEXT NOT NULL,
+          color TEXT NOT NULL DEFAULT 'FFF9C4',
+          liked_by_user_ids TEXT NOT NULL DEFAULT '[]',
+          reply_count INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          cached_at INTEGER NOT NULL
+        )
+      ''');
+
+      // 2. Copy data from old table to new (is_liked will be discarded, color gets default)
+      await db.execute('''
+        INSERT INTO sticky_notes_new
+          (id, pair_id, sender_id, sender_name, message, color, created_at, updated_at, cached_at)
+        SELECT
+          id, pair_id, sender_id, sender_name, message, 'FFF9C4', created_at, updated_at, cached_at
+        FROM sticky_notes
+      ''');
+
+      // 3. Drop old table
+      await db.execute('DROP TABLE sticky_notes');
+
+      // 4. Rename new table
+      await db.execute('ALTER TABLE sticky_notes_new RENAME TO sticky_notes');
+
+      // 5. Recreate indexes
+      await db.execute('CREATE INDEX idx_sticky_notes_pair_id ON sticky_notes(pair_id)');
+      await db.execute('CREATE INDEX idx_sticky_notes_created_at ON sticky_notes(created_at DESC)');
+
+      // 6. Create sticky_note_replies table
+      await db.execute('''
+        CREATE TABLE sticky_note_replies (
+          id TEXT PRIMARY KEY,
+          note_id TEXT NOT NULL,
+          sender_id TEXT NOT NULL,
+          sender_name TEXT,
+          message TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          cached_at INTEGER NOT NULL,
+          FOREIGN KEY (note_id) REFERENCES sticky_notes(id) ON DELETE CASCADE
+        )
+      ''');
+
+      await db.execute('CREATE INDEX idx_sticky_note_replies_note_id ON sticky_note_replies(note_id)');
+      await db.execute('CREATE INDEX idx_sticky_note_replies_created_at ON sticky_note_replies(created_at ASC)');
+
+      print('Database migration to v2 completed successfully');
+    }
   }
 
   // User operations
@@ -199,7 +278,9 @@ class DatabaseService {
         'sender_id': note.senderId,
         'sender_name': note.senderName,
         'message': note.message,
-        'is_liked': note.isLiked ? 1 : 0,
+        'color': note.color,
+        'liked_by_user_ids': jsonEncode(note.likedByUserIds),
+        'reply_count': note.replyCount,
         'created_at': note.createdAt.toIso8601String(),
         'updated_at': note.updatedAt.toIso8601String(),
         'cached_at': now,
@@ -222,7 +303,9 @@ class DatabaseService {
           'sender_id': note.senderId,
           'sender_name': note.senderName,
           'message': note.message,
-          'is_liked': note.isLiked ? 1 : 0,
+          'color': note.color,
+          'liked_by_user_ids': jsonEncode(note.likedByUserIds),
+          'reply_count': note.replyCount,
           'created_at': note.createdAt.toIso8601String(),
           'updated_at': note.updatedAt.toIso8601String(),
           'cached_at': now,
@@ -245,13 +328,23 @@ class DatabaseService {
     );
 
     return results.map((data) {
+      List<String> likedByUserIds = [];
+      try {
+        final likedByJson = data['liked_by_user_ids'] as String;
+        likedByUserIds = List<String>.from(jsonDecode(likedByJson) as List);
+      } catch (e) {
+        print('Error parsing liked_by_user_ids: $e');
+      }
+
       return StickyNote(
         id: data['id'],
         pairId: data['pair_id'],
         senderId: data['sender_id'],
         senderName: data['sender_name'],
         message: data['message'],
-        isLiked: data['is_liked'] == 1,
+        color: data['color'] ?? 'FFF9C4',
+        likedByUserIds: likedByUserIds,
+        replyCount: data['reply_count'] ?? 0,
         createdAt: DateTime.parse(data['created_at']),
         updatedAt: DateTime.parse(data['updated_at']),
       );
@@ -282,6 +375,95 @@ class DatabaseService {
     final db = await database;
     await db.delete('sticky_notes');
     print('All sticky notes cleared from database');
+  }
+
+  // Sticky note replies operations
+  Future<void> saveStickyNoteReply(StickyNoteReply reply) async {
+    final db = await database;
+    final now = DateTime.now().millisecondsSinceEpoch;
+
+    await db.insert(
+      'sticky_note_replies',
+      {
+        'id': reply.id,
+        'note_id': reply.noteId,
+        'sender_id': reply.senderId,
+        'sender_name': reply.senderName,
+        'message': reply.message,
+        'created_at': reply.createdAt.toIso8601String(),
+        'updated_at': reply.updatedAt.toIso8601String(),
+        'cached_at': now,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<void> saveStickyNoteReplies(List<StickyNoteReply> replies) async {
+    final db = await database;
+    final batch = db.batch();
+    final now = DateTime.now().millisecondsSinceEpoch;
+
+    for (final reply in replies) {
+      batch.insert(
+        'sticky_note_replies',
+        {
+          'id': reply.id,
+          'note_id': reply.noteId,
+          'sender_id': reply.senderId,
+          'sender_name': reply.senderName,
+          'message': reply.message,
+          'created_at': reply.createdAt.toIso8601String(),
+          'updated_at': reply.updatedAt.toIso8601String(),
+          'cached_at': now,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    }
+
+    await batch.commit(noResult: true);
+    print('${replies.length} sticky note replies saved to database');
+  }
+
+  Future<List<StickyNoteReply>> getRepliesByNoteId(String noteId) async {
+    final db = await database;
+    final List<Map<String, dynamic>> results = await db.query(
+      'sticky_note_replies',
+      where: 'note_id = ?',
+      whereArgs: [noteId],
+      orderBy: 'created_at ASC',
+    );
+
+    return results.map((data) {
+      return StickyNoteReply(
+        id: data['id'],
+        noteId: data['note_id'],
+        senderId: data['sender_id'],
+        senderName: data['sender_name'],
+        message: data['message'],
+        createdAt: DateTime.parse(data['created_at']),
+        updatedAt: DateTime.parse(data['updated_at']),
+      );
+    }).toList();
+  }
+
+  Future<void> deleteStickyNoteReply(String replyId) async {
+    final db = await database;
+    await db.delete(
+      'sticky_note_replies',
+      where: 'id = ?',
+      whereArgs: [replyId],
+    );
+    print('Sticky note reply $replyId deleted from database');
+  }
+
+  Future<void> clearRepliesByNoteId(String noteId) async {
+    final db = await database;
+    await db.delete(
+      'sticky_note_replies',
+      where: 'note_id = ?',
+      whereArgs: [noteId],
+    );
+    print('Replies for note $noteId cleared from database');
   }
 
   // Metadata operations

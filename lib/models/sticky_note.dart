@@ -4,7 +4,9 @@ class StickyNote {
   final String senderId;
   final String? senderName;
   final String message;
-  final bool isLiked;
+  final String color;
+  final List<String> likedByUserIds;
+  final int replyCount;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -14,19 +16,30 @@ class StickyNote {
     required this.senderId,
     this.senderName,
     required this.message,
-    required this.isLiked,
+    required this.color,
+    required this.likedByUserIds,
+    required this.replyCount,
     required this.createdAt,
     required this.updatedAt,
   });
 
   factory StickyNote.fromJson(Map<String, dynamic> json) {
+    List<String> likedByUserIds = [];
+    if (json['liked_by_user_ids'] != null) {
+      if (json['liked_by_user_ids'] is List) {
+        likedByUserIds = List<String>.from(json['liked_by_user_ids'] as List);
+      }
+    }
+
     return StickyNote(
       id: json['id'] as String,
       pairId: json['pair_id'] as String,
       senderId: json['sender_id'] as String,
       senderName: json['sender_name'] as String?,
       message: json['message'] as String,
-      isLiked: json['is_liked'] as bool? ?? false,
+      color: json['color'] as String? ?? 'FFF9C4', // Default yellow
+      likedByUserIds: likedByUserIds,
+      replyCount: json['reply_count'] as int? ?? 0,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
     );
@@ -38,7 +51,9 @@ class StickyNote {
       'pair_id': pairId,
       'sender_id': senderId,
       'message': message,
-      'is_liked': isLiked,
+      'color': color,
+      'liked_by_user_ids': likedByUserIds,
+      'reply_count': replyCount,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
@@ -50,7 +65,9 @@ class StickyNote {
     String? senderId,
     String? senderName,
     String? message,
-    bool? isLiked,
+    String? color,
+    List<String>? likedByUserIds,
+    int? replyCount,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -60,9 +77,18 @@ class StickyNote {
       senderId: senderId ?? this.senderId,
       senderName: senderName ?? this.senderName,
       message: message ?? this.message,
-      isLiked: isLiked ?? this.isLiked,
+      color: color ?? this.color,
+      likedByUserIds: likedByUserIds ?? this.likedByUserIds,
+      replyCount: replyCount ?? this.replyCount,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }
+
+  // Helper methods
+  bool isLikedBy(String? userId) => userId != null && likedByUserIds.contains(userId);
+
+  int get likeCount => likedByUserIds.length;
+
+  bool get hasReplies => replyCount > 0;
 }

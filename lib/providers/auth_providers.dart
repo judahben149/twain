@@ -3,6 +3,7 @@ import 'package:twain/services/auth_service.dart';
 import 'package:twain/services/database_service.dart';
 import 'package:twain/services/sticky_notes_service.dart';
 import 'package:twain/models/sticky_note.dart';
+import 'package:twain/models/sticky_note_reply.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:twain/models/twain_user.dart';
 import 'package:twain/repositories/user_repository.dart';
@@ -64,4 +65,11 @@ final stickyNotesServiceProvider = Provider<StickyNotesService>((ref) {
 final stickyNotesStreamProvider = StreamProvider<List<StickyNote>>((ref) {
   final service = ref.watch(stickyNotesServiceProvider);
   return service.streamNotes();
+});
+
+// Stream provider for replies to a specific note (use family for per-note streams)
+final stickyNoteRepliesStreamProvider =
+    StreamProvider.family<List<StickyNoteReply>, String>((ref, noteId) {
+  final service = ref.watch(stickyNotesServiceProvider);
+  return service.streamReplies(noteId);
 });
