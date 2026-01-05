@@ -23,56 +23,68 @@ class StickyNotesRepository {
     print('StickyNotesRepository: Yielding ${cachedNotes.length} cached notes');
     yield cachedNotes;
 
-    // Step 2: Subscribe to multiple tables using a StreamController
-    final controller = StreamController<List<StickyNote>>();
+    // Step 2: Subscribe to multiple tables using a broadcast StreamController
+    final controller = StreamController<List<StickyNote>>.broadcast();
 
-    // Helper function to fetch enriched notes
-    Future<List<StickyNote>> fetchEnrichedNotes() async {
-      final data = await _supabase
-          .from('sticky_notes')
-          .select()
-          .eq('pair_id', pairId)
-          .order('created_at', ascending: false);
+    // Helper function to fetch enriched notes with error handling
+    Future<void> fetchAndEmit() async {
+      try {
+        final data = await _supabase
+            .from('sticky_notes')
+            .select()
+            .eq('pair_id', pairId)
+            .order('created_at', ascending: false);
 
-      final enrichedNotes = await Future.wait(
-        data.map((noteData) async {
-          // Get sender name and avatar
-          final senderData = await _supabase
-              .from('users')
-              .select('display_name, avatar_url')
-              .eq('id', noteData['sender_id'])
-              .maybeSingle();
+        final enrichedNotes = await Future.wait(
+          data.map((noteData) async {
+            // Get sender name and avatar
+            final senderData = await _supabase
+                .from('users')
+                .select('display_name, avatar_url')
+                .eq('id', noteData['sender_id'])
+                .maybeSingle();
 
-          // Get likes with user info
-          final likesData = await _supabase
-              .from('sticky_note_likes')
-              .select('user_id')
-              .eq('note_id', noteData['id']);
+            // Get likes with user info
+            final likesData = await _supabase
+                .from('sticky_note_likes')
+                .select('user_id')
+                .eq('note_id', noteData['id']);
 
-          final likedByUserIds = likesData
-              .map((like) => like['user_id'] as String)
-              .toList();
+            final likedByUserIds = likesData
+                .map((like) => like['user_id'] as String)
+                .toList();
 
-          // Get reply count
-          final repliesData = await _supabase
-              .from('sticky_note_replies')
-              .select('id')
-              .eq('note_id', noteData['id']);
+            // Get reply count
+            final repliesData = await _supabase
+                .from('sticky_note_replies')
+                .select('id')
+                .eq('note_id', noteData['id']);
 
-          return {
-            ...noteData,
-            'sender_name': senderData?['display_name'],
-            'liked_by_user_ids': likedByUserIds,
-            'reply_count': repliesData.length,
-          };
-        }).toList(),
-      );
+            return {
+              ...noteData,
+              'sender_name': senderData?['display_name'],
+              'liked_by_user_ids': likedByUserIds,
+              'reply_count': repliesData.length,
+            };
+          }).toList(),
+        );
 
-      return enrichedNotes.map((json) => StickyNote.fromJson(json)).toList();
+        final notes = enrichedNotes.map((json) => StickyNote.fromJson(json)).toList();
+        await _dbService.saveStickyNotes(notes);
+
+        if (!controller.isClosed) {
+          controller.add(notes);
+        }
+      } catch (e) {
+        print('StickyNotesRepository: Error fetching notes: $e');
+        if (!controller.isClosed) {
+          controller.addError(e);
+        }
+      }
     }
 
     // Subscribe to sticky_notes changes
-    final notesChannel = _supabase
+    _supabase
         .channel('sticky_notes_$pairId')
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
@@ -83,65 +95,46 @@ class StickyNotesRepository {
             column: 'pair_id',
             value: pairId,
           ),
-          callback: (payload) async {
-            print('StickyNotesRepository: Notes table changed');
-            final notes = await fetchEnrichedNotes();
-            await _dbService.saveStickyNotes(notes);
-            controller.add(notes);
+          callback: (payload) {
+            print('StickyNotesRepository: Notes table changed - ${payload.eventType}');
+            fetchAndEmit();
           },
         )
         .subscribe();
 
     // Subscribe to sticky_note_likes changes
-    final likesChannel = _supabase
+    _supabase
         .channel('sticky_note_likes_$pairId')
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
           table: 'sticky_note_likes',
-          callback: (payload) async {
-            print('StickyNotesRepository: Likes table changed');
-            final notes = await fetchEnrichedNotes();
-            await _dbService.saveStickyNotes(notes);
-            controller.add(notes);
+          callback: (payload) {
+            print('StickyNotesRepository: Likes table changed - ${payload.eventType}');
+            fetchAndEmit();
           },
         )
         .subscribe();
 
     // Subscribe to sticky_note_replies changes
-    final repliesChannel = _supabase
+    _supabase
         .channel('sticky_note_replies_$pairId')
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
           table: 'sticky_note_replies',
-          callback: (payload) async {
-            print('StickyNotesRepository: Replies table changed');
-            final notes = await fetchEnrichedNotes();
-            await _dbService.saveStickyNotes(notes);
-            controller.add(notes);
+          callback: (payload) {
+            print('StickyNotesRepository: Replies table changed - ${payload.eventType}');
+            fetchAndEmit();
           },
         )
         .subscribe();
 
     // Initial fetch after subscriptions are set up
-    try {
-      final initialNotes = await fetchEnrichedNotes();
-      await _dbService.saveStickyNotes(initialNotes);
-      controller.add(initialNotes);
-    } catch (e) {
-      print('Error fetching initial notes: $e');
-    }
+    await fetchAndEmit();
 
-    // Yield from controller
-    await for (final notes in controller.stream) {
-      yield notes;
-    }
-
-    // Cleanup
-    await notesChannel.unsubscribe();
-    await likesChannel.unsubscribe();
-    await repliesChannel.unsubscribe();
+    // Yield from controller stream
+    yield* controller.stream;
   }
 
   // Get cached notes (one-time fetch, no streaming)
@@ -185,53 +178,80 @@ class StickyNotesRepository {
     print('StickyNotesRepository: Yielding ${cachedReplies.length} cached replies');
     yield cachedReplies;
 
-    // Step 2: Subscribe to Supabase real-time stream with automatic reconnection
-    var shouldReconnect = true;
-    while (shouldReconnect) {
+    // Step 2: Use broadcast controller for real-time updates
+    final controller = StreamController<List<StickyNoteReply>>.broadcast();
+
+    // Helper function to fetch and emit replies
+    Future<void> fetchAndEmitReplies() async {
       try {
-        await for (final data in _supabase
+        final data = await _supabase
             .from('sticky_note_replies')
-            .stream(primaryKey: ['id'])
+            .select()
             .eq('note_id', noteId)
-            .order('created_at', ascending: true)) {
-          print('StickyNotesRepository: Reply stream emitted ${data.length} replies');
+            .order('created_at', ascending: true);
 
-          // Fetch sender names for all replies
-          final repliesWithNames = await Future.wait(
-            data.map((replyData) async {
-              final senderData = await _supabase
-                  .from('users')
-                  .select('display_name')
-                  .eq('id', replyData['sender_id'])
-                  .maybeSingle();
+        print('StickyNotesRepository: Fetched ${data.length} replies for note $noteId');
 
-              return {
-                ...replyData,
-                'sender_name': senderData?['display_name'],
-              };
-            }).toList(),
-          );
+        // Fetch sender names for all replies
+        final repliesWithNames = await Future.wait(
+          data.map((replyData) async {
+            final senderData = await _supabase
+                .from('users')
+                .select('display_name')
+                .eq('id', replyData['sender_id'])
+                .maybeSingle();
 
-          // Convert to StickyNoteReply objects
-          final replies = repliesWithNames
-              .map((json) => StickyNoteReply.fromJson(json))
-              .toList();
+            return {
+              ...replyData,
+              'sender_name': senderData?['display_name'],
+            };
+          }).toList(),
+        );
 
-          // Cache all replies
-          await _dbService.saveStickyNoteReplies(replies);
-          print('StickyNotesRepository: Updated cache with ${replies.length} replies');
+        // Convert to StickyNoteReply objects
+        final replies = repliesWithNames
+            .map((json) => StickyNoteReply.fromJson(json))
+            .toList();
 
-          yield replies;
+        // Cache all replies
+        await _dbService.saveStickyNoteReplies(replies);
+        print('StickyNotesRepository: Updated cache with ${replies.length} replies');
+
+        if (!controller.isClosed) {
+          controller.add(replies);
         }
       } catch (error) {
-        print('StickyNotesRepository: Reply stream error (likely offline): $error');
-        print('StickyNotesRepository: Will retry connection in 5 seconds...');
-
-        // Wait before retrying
-        await Future.delayed(const Duration(seconds: 5));
-        print('StickyNotesRepository: Attempting to reconnect...');
+        print('StickyNotesRepository: Error fetching replies: $error');
+        if (!controller.isClosed) {
+          controller.addError(error);
+        }
       }
     }
+
+    // Subscribe to sticky_note_replies changes
+    _supabase
+        .channel('replies_$noteId')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'sticky_note_replies',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'note_id',
+            value: noteId,
+          ),
+          callback: (payload) {
+            print('StickyNotesRepository: Replies changed for note $noteId - ${payload.eventType}');
+            fetchAndEmitReplies();
+          },
+        )
+        .subscribe();
+
+    // Initial fetch
+    await fetchAndEmitReplies();
+
+    // Yield from controller stream
+    yield* controller.stream;
   }
 
   // Cache a single reply

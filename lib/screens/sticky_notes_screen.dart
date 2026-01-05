@@ -235,7 +235,7 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
                                 return Padding(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 20.0,
-                                    vertical: 6.0,
+                                    vertical: 8.0,
                                   ),
                                   child: _buildNoteCard(
                                     note,
@@ -306,7 +306,7 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
                                   return Padding(
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 20.0,
-                                      vertical: 6.0,
+                                      vertical: 8.0,
                                     ),
                                     child: _buildNoteCard(
                                       note,
@@ -584,7 +584,10 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
           // Main note container
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 20,
+            ),
             decoration: BoxDecoration(
               color: color,
               borderRadius: BorderRadius.circular(4),
