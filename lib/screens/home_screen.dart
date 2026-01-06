@@ -8,6 +8,8 @@ import 'package:twain/screens/sticky_notes_screen.dart';
 import 'package:twain/screens/user_profile_screen.dart';
 import 'package:twain/screens/partner_profile_screen.dart';
 import 'package:twain/screens/pairing_screen.dart';
+import 'package:twain/screens/wallpaper_screen.dart';
+import 'package:twain/screens/shared_board_screen.dart';
 import 'package:twain/widgets/main_avatar.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -99,7 +101,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           context: context,
                           isPaired: currentUser?.pairId != null,
                           onPaired: () {
-                            // TODO: Navigate to wallpaper sync
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const WallpaperScreen(),
+                              ),
+                            );
                           },
                         ),
                       ),
@@ -117,7 +124,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           context: context,
                           isPaired: currentUser?.pairId != null,
                           onPaired: () {
-                            // TODO: Navigate to shared board
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const SharedBoardScreen(),
+                              ),
+                            );
                           },
                         ),
                       ),

@@ -5,6 +5,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:twain/models/twain_user.dart';
 import 'package:twain/models/sticky_note.dart';
 import 'package:twain/models/sticky_note_reply.dart';
+import 'package:twain/models/wallpaper.dart';
+import 'package:twain/models/shared_board_photo.dart';
 
 class DatabaseService {
   static final DatabaseService _instance = DatabaseService._internal();
@@ -26,7 +28,7 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -84,6 +86,37 @@ class DatabaseService {
       )
     ''');
 
+    // Create wallpapers table
+    await db.execute('''
+      CREATE TABLE wallpapers (
+        id TEXT PRIMARY KEY,
+        pair_id TEXT NOT NULL,
+        sender_id TEXT NOT NULL,
+        image_url TEXT NOT NULL,
+        source_type TEXT NOT NULL,
+        apply_to TEXT NOT NULL,
+        status TEXT NOT NULL,
+        applied_at TEXT,
+        created_at TEXT NOT NULL
+      )
+    ''');
+
+    // Create shared_board_photos table
+    await db.execute('''
+      CREATE TABLE shared_board_photos (
+        id TEXT PRIMARY KEY,
+        pair_id TEXT NOT NULL,
+        uploader_id TEXT NOT NULL,
+        image_url TEXT NOT NULL,
+        thumbnail_url TEXT,
+        file_size INTEGER NOT NULL,
+        mime_type TEXT NOT NULL,
+        width INTEGER,
+        height INTEGER,
+        created_at TEXT NOT NULL
+      )
+    ''');
+
     // Create metadata table
     await db.execute('''
       CREATE TABLE metadata (
@@ -99,6 +132,10 @@ class DatabaseService {
     await db.execute('CREATE INDEX idx_sticky_notes_created_at ON sticky_notes(created_at DESC)');
     await db.execute('CREATE INDEX idx_sticky_note_replies_note_id ON sticky_note_replies(note_id)');
     await db.execute('CREATE INDEX idx_sticky_note_replies_created_at ON sticky_note_replies(created_at ASC)');
+    await db.execute('CREATE INDEX idx_wallpapers_pair_id ON wallpapers(pair_id)');
+    await db.execute('CREATE INDEX idx_wallpapers_created_at ON wallpapers(created_at DESC)');
+    await db.execute('CREATE INDEX idx_shared_board_photos_pair_id ON shared_board_photos(pair_id)');
+    await db.execute('CREATE INDEX idx_shared_board_photos_created_at ON shared_board_photos(created_at DESC)');
 
     print('Database tables created successfully');
   }
@@ -164,6 +201,49 @@ class DatabaseService {
       await db.execute('CREATE INDEX idx_sticky_note_replies_created_at ON sticky_note_replies(created_at ASC)');
 
       print('Database migration to v2 completed successfully');
+    }
+
+    if (oldVersion < 3) {
+      print('Migrating database from v2 to v3...');
+
+      // Create wallpapers table
+      await db.execute('''
+        CREATE TABLE wallpapers (
+          id TEXT PRIMARY KEY,
+          pair_id TEXT NOT NULL,
+          sender_id TEXT NOT NULL,
+          image_url TEXT NOT NULL,
+          source_type TEXT NOT NULL,
+          apply_to TEXT NOT NULL,
+          status TEXT NOT NULL,
+          applied_at TEXT,
+          created_at TEXT NOT NULL
+        )
+      ''');
+
+      // Create shared_board_photos table
+      await db.execute('''
+        CREATE TABLE shared_board_photos (
+          id TEXT PRIMARY KEY,
+          pair_id TEXT NOT NULL,
+          uploader_id TEXT NOT NULL,
+          image_url TEXT NOT NULL,
+          thumbnail_url TEXT,
+          file_size INTEGER NOT NULL,
+          mime_type TEXT NOT NULL,
+          width INTEGER,
+          height INTEGER,
+          created_at TEXT NOT NULL
+        )
+      ''');
+
+      // Create indexes
+      await db.execute('CREATE INDEX idx_wallpapers_pair_id ON wallpapers(pair_id)');
+      await db.execute('CREATE INDEX idx_wallpapers_created_at ON wallpapers(created_at DESC)');
+      await db.execute('CREATE INDEX idx_shared_board_photos_pair_id ON shared_board_photos(pair_id)');
+      await db.execute('CREATE INDEX idx_shared_board_photos_created_at ON shared_board_photos(created_at DESC)');
+
+      print('Database migration to v3 completed successfully');
     }
   }
 
@@ -492,6 +572,99 @@ class DatabaseService {
 
     if (results.isEmpty) return null;
     return results.first['value'] as String?;
+  }
+
+  // Wallpaper operations
+  Future<void> saveWallpapers(List<Wallpaper> wallpapers) async {
+    final db = await database;
+    final batch = db.batch();
+
+    for (final wallpaper in wallpapers) {
+      batch.insert(
+        'wallpapers',
+        wallpaper.toDatabase(),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    }
+
+    await batch.commit(noResult: true);
+    print('${wallpapers.length} wallpapers saved to database');
+  }
+
+  Future<List<Wallpaper>> getWallpapersByPairId(String pairId) async {
+    final db = await database;
+    final List<Map<String, dynamic>> results = await db.query(
+      'wallpapers',
+      where: 'pair_id = ?',
+      whereArgs: [pairId],
+      orderBy: 'created_at DESC',
+    );
+
+    return results.map((map) => Wallpaper.fromDatabase(map)).toList();
+  }
+
+  Future<void> updateWallpaperStatus(String id, String status) async {
+    final db = await database;
+    await db.update(
+      'wallpapers',
+      {
+        'status': status,
+        'applied_at': status == 'applied' ? DateTime.now().toIso8601String() : null,
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<void> clearWallpapers() async {
+    final db = await database;
+    await db.delete('wallpapers');
+    print('All wallpapers cleared from database');
+  }
+
+  // Shared board photos operations
+  Future<void> saveSharedBoardPhotos(List<SharedBoardPhoto> photos) async {
+    final db = await database;
+    final batch = db.batch();
+
+    for (final photo in photos) {
+      batch.insert(
+        'shared_board_photos',
+        photo.toDatabase(),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    }
+
+    await batch.commit(noResult: true);
+    print('${photos.length} shared board photos saved to database');
+  }
+
+  Future<List<SharedBoardPhoto>> getSharedBoardPhotosByPairId(String pairId) async {
+    final db = await database;
+    final List<Map<String, dynamic>> results = await db.query(
+      'shared_board_photos',
+      where: 'pair_id = ?',
+      whereArgs: [pairId],
+      orderBy: 'created_at DESC',
+    );
+
+    return results.map((map) => SharedBoardPhoto.fromDatabase(map)).toList();
+  }
+
+  Future<void> deleteSharedBoardPhoto(String id) async {
+    final db = await database;
+    await db.delete(
+      'shared_board_photos',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    print('Shared board photo $id deleted from database');
+  }
+
+  Future<void> clearSharedBoardPhotos() async {
+    final db = await database;
+    await db.delete('shared_board_photos');
+    print('All shared board photos cleared from database');
   }
 
   // Clear all data
