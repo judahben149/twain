@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:twain/widgets/auth_gate.dart';
+import 'package:twain/navigation/app_navigator.dart';
 import 'package:twain/providers/wallpaper_providers.dart';
-
+import 'package:twain/services/notification_router.dart';
+import 'package:twain/widgets/auth_gate.dart';
 
 class MyApp extends ConsumerStatefulWidget {
   const MyApp({super.key});
@@ -16,22 +17,23 @@ class _MyAppState extends ConsumerState<MyApp> {
   @override
   void initState() {
     super.initState();
-    _initializeFCM();
+    _initializeServices();
   }
 
-  Future<void> _initializeFCM() async {
+  Future<void> _initializeServices() async {
     try {
       final fcmService = ref.read(fcmServiceProvider);
       await fcmService.initialize();
-      print('MyApp: FCM initialized successfully');
+      await NotificationRouter.initialize(ref);
     } catch (e) {
-      print('MyApp: Error initializing FCM: $e');
+      debugPrint('MyApp: Error during initialization: $e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: appNavigatorKey,
       title: 'Twain',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.pink),

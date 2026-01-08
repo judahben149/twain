@@ -17,133 +17,41 @@ class StickyNotesRepository {
 
   Stream<List<StickyNote>> watchNotes(String pairId) {
     return Stream.multi((controller) async {
-      print('StickyNotesRepository: Starting watchNotes for pairId: $pairId');
-
+      final cached = await _dbService.getStickyNotesByPairId(pairId);
       if (!controller.isClosed) {
-        final cached = await _dbService.getStickyNotesByPairId(pairId);
-        print(
-          'StickyNotesRepository: Yielding ${cached.length} cached notes',
-        );
         controller.add(cached);
       }
 
-      var isFetching = false;
-      var hasPendingFetch = false;
+      var fetchInProgress = false;
+      var pendingFetch = false;
 
       Future<void> fetchAndEmit() async {
         if (controller.isClosed) return;
-        if (isFetching) {
-          hasPendingFetch = true;
+        if (fetchInProgress) {
+          pendingFetch = true;
           return;
         }
 
-        isFetching = true;
+        fetchInProgress = true;
         do {
-          hasPendingFetch = false;
+          pendingFetch = false;
           try {
-            final noteRows = await _supabase
-                .from('sticky_notes')
-                .select()
-                .eq('pair_id', pairId)
-                .order('created_at', ascending: false);
-
-            final noteIds = <String>[];
-            final senderIds = <String>{};
-
-            for (final row in noteRows) {
-              final id = row['id'] as String?;
-              final senderId = row['sender_id'] as String?;
-              if (id != null) {
-                noteIds.add(id);
-              }
-              if (senderId != null) {
-                senderIds.add(senderId);
-              }
-            }
-
-            final senderById = <String, Map<String, dynamic>>{};
-            if (senderIds.isNotEmpty) {
-              final senders = await _supabase
-                  .from('users')
-                  .select('id, display_name, avatar_url')
-                  .inFilter('id', senderIds.toList());
-
-              for (final sender in senders) {
-                final id = sender['id'] as String?;
-                if (id != null) {
-                  senderById[id] = sender;
-                }
-              }
-            }
-
-            final likesByNote = <String, Set<String>>{};
-            if (noteIds.isNotEmpty) {
-              final likes = await _supabase
-                  .from('sticky_note_likes')
-                  .select('note_id, user_id')
-                  .inFilter('note_id', noteIds);
-
-              for (final like in likes) {
-                final noteId = like['note_id'] as String?;
-                final userId = like['user_id'] as String?;
-                if (noteId == null || userId == null) continue;
-                likesByNote.putIfAbsent(noteId, () => <String>{}).add(userId);
-              }
-            }
-
-            final repliesCountByNote = <String, int>{};
-            if (noteIds.isNotEmpty) {
-              final replies = await _supabase
-                  .from('sticky_note_replies')
-                  .select('note_id')
-                  .inFilter('note_id', noteIds);
-
-              for (final reply in replies) {
-                final noteId = reply['note_id'] as String?;
-                if (noteId == null) continue;
-                repliesCountByNote[noteId] =
-                    (repliesCountByNote[noteId] ?? 0) + 1;
-              }
-            }
-
-            final notes = noteRows.map((row) {
-              final id = row['id'] as String;
-              final senderId = row['sender_id'] as String;
-              final sender = senderById[senderId];
-              final likedBy = likesByNote[id];
-
-              return StickyNote(
-                id: id,
-                pairId: row['pair_id'] as String,
-                senderId: senderId,
-                senderName: sender?['display_name'] as String?,
-                message: row['message'] as String,
-                color: row['color'] as String? ?? 'FFF9C4',
-                likedByUserIds:
-                    likedBy?.toList(growable: false) ?? const <String>[],
-                replyCount: repliesCountByNote[id] ?? 0,
-                createdAt: DateTime.parse(row['created_at'] as String),
-                updatedAt: DateTime.parse(row['updated_at'] as String),
-              );
-            }).toList();
-
+            final notes = await _fetchNotes(pairId);
             await _dbService.saveStickyNotes(notes);
             if (!controller.isClosed) {
               controller.add(notes);
             }
           } catch (error, stack) {
-            print('StickyNotesRepository: Error fetching notes: $error');
             if (!controller.isClosed) {
               controller.addError(error, stack);
             }
           }
-        } while (hasPendingFetch && !controller.isClosed);
-
-        isFetching = false;
+        } while (pendingFetch && !controller.isClosed);
+        fetchInProgress = false;
       }
 
       final notesChannel = _supabase
-          .channel('sticky_notes_$pairId')
+          .channel('sticky_notes_repo_$pairId')
           .onPostgresChanges(
             event: PostgresChangeEvent.all,
             schema: 'public',
@@ -153,150 +61,84 @@ class StickyNotesRepository {
               column: 'pair_id',
               value: pairId,
             ),
-            callback: (payload) {
-              print(
-                'StickyNotesRepository: Notes table changed - ${payload.eventType}',
-              );
-              unawaited(fetchAndEmit());
-            },
+            callback: (_) => unawaited(fetchAndEmit()),
           )
           .subscribe();
 
       final likesChannel = _supabase
-          .channel('sticky_note_likes_watch_$pairId')
+          .channel('sticky_note_likes_repo_$pairId')
           .onPostgresChanges(
             event: PostgresChangeEvent.all,
             schema: 'public',
             table: 'sticky_note_likes',
-            callback: (payload) {
-              print(
-                'StickyNotesRepository: Likes table changed - ${payload.eventType}',
-              );
-              unawaited(fetchAndEmit());
-            },
+            callback: (_) => unawaited(fetchAndEmit()),
           )
           .subscribe();
 
       final repliesChannel = _supabase
-          .channel('sticky_note_replies_watch_$pairId')
+          .channel('sticky_note_replies_repo_$pairId')
           .onPostgresChanges(
             event: PostgresChangeEvent.all,
             schema: 'public',
             table: 'sticky_note_replies',
-            callback: (payload) {
-              print(
-                'StickyNotesRepository: Replies table changed - ${payload.eventType}',
-              );
-              unawaited(fetchAndEmit());
-            },
+            callback: (_) => unawaited(fetchAndEmit()),
           )
           .subscribe();
 
       await fetchAndEmit();
 
       controller.onCancel = () async {
-        for (final channel in [
-          notesChannel,
-          likesChannel,
-          repliesChannel,
-        ]) {
-          try {
-            await _supabase.removeChannel(channel);
-          } catch (error) {
-            print(
-              'StickyNotesRepository: Error removing channel ${channel.topic}: $error',
-            );
-          }
-        }
+        try {
+          await _supabase.removeChannel(notesChannel);
+        } catch (_) {}
+        try {
+          await _supabase.removeChannel(likesChannel);
+        } catch (_) {}
+        try {
+          await _supabase.removeChannel(repliesChannel);
+        } catch (_) {}
       };
     });
   }
 
   Stream<List<StickyNoteReply>> watchReplies(String noteId) {
     return Stream.multi((controller) async {
-      print('StickyNotesRepository: Starting watchReplies for noteId: $noteId');
-
+      final cached = await _dbService.getRepliesByNoteId(noteId);
       if (!controller.isClosed) {
-        final cached = await _dbService.getRepliesByNoteId(noteId);
-        print(
-          'StickyNotesRepository: Yielding ${cached.length} cached replies',
-        );
         controller.add(cached);
       }
 
-      var isFetching = false;
-      var hasPendingFetch = false;
+      var fetchInProgress = false;
+      var pendingFetch = false;
 
       Future<void> fetchAndEmit() async {
         if (controller.isClosed) return;
-        if (isFetching) {
-          hasPendingFetch = true;
+        if (fetchInProgress) {
+          pendingFetch = true;
           return;
         }
 
-        isFetching = true;
+        fetchInProgress = true;
         do {
-          hasPendingFetch = false;
+          pendingFetch = false;
           try {
-            final replyRows = await _supabase
-                .from('sticky_note_replies')
-                .select()
-                .eq('note_id', noteId)
-                .order('created_at', ascending: true);
-
-            final senderIds = <String>{};
-            for (final row in replyRows) {
-              final senderId = row['sender_id'] as String?;
-              if (senderId != null) {
-                senderIds.add(senderId);
-              }
-            }
-
-            final senderNames = <String, String?>{};
-            if (senderIds.isNotEmpty) {
-              final senders = await _supabase
-                  .from('users')
-                  .select('id, display_name')
-                  .inFilter('id', senderIds.toList());
-
-              for (final sender in senders) {
-                final id = sender['id'] as String?;
-                if (id != null) {
-                  senderNames[id] = sender['display_name'] as String?;
-                }
-              }
-            }
-
-            final replies = replyRows.map((row) {
-              final senderId = row['sender_id'] as String;
-              return StickyNoteReply(
-                id: row['id'] as String,
-                noteId: row['note_id'] as String,
-                senderId: senderId,
-                senderName: senderNames[senderId],
-                message: row['message'] as String,
-                createdAt: DateTime.parse(row['created_at'] as String),
-                updatedAt: DateTime.parse(row['updated_at'] as String),
-              );
-            }).toList();
-
+            final replies = await _fetchReplies(noteId);
             await _dbService.saveStickyNoteReplies(replies);
             if (!controller.isClosed) {
               controller.add(replies);
             }
           } catch (error, stack) {
-            print('StickyNotesRepository: Error fetching replies: $error');
             if (!controller.isClosed) {
               controller.addError(error, stack);
             }
           }
-        } while (hasPendingFetch && !controller.isClosed);
+        } while (pendingFetch && !controller.isClosed);
 
-        isFetching = false;
+        fetchInProgress = false;
       }
 
       final repliesChannel = _supabase
-          .channel('sticky_note_replies_$noteId')
+          .channel('sticky_note_replies_stream_$noteId')
           .onPostgresChanges(
             event: PostgresChangeEvent.all,
             schema: 'public',
@@ -306,12 +148,7 @@ class StickyNotesRepository {
               column: 'note_id',
               value: noteId,
             ),
-            callback: (payload) {
-              print(
-                'StickyNotesRepository: Replies changed for note $noteId - ${payload.eventType}',
-              );
-              unawaited(fetchAndEmit());
-            },
+            callback: (_) => unawaited(fetchAndEmit()),
           )
           .subscribe();
 
@@ -320,13 +157,141 @@ class StickyNotesRepository {
       controller.onCancel = () async {
         try {
           await _supabase.removeChannel(repliesChannel);
-        } catch (error) {
-          print(
-            'StickyNotesRepository: Error removing replies channel: $error',
-          );
-        }
+        } catch (_) {}
       };
     });
+  }
+
+  Future<List<StickyNote>> _fetchNotes(String pairId) async {
+    final data = await _supabase
+        .from('sticky_notes')
+        .select()
+        .eq('pair_id', pairId)
+        .order('created_at', ascending: false);
+
+    if (data.isEmpty) return [];
+
+    final senderIds = <String>{};
+    final noteIds = <String>[];
+
+    for (final row in data) {
+      final map = Map<String, dynamic>.from(row as Map);
+      noteIds.add(map['id'] as String);
+      final senderId = map['sender_id'] as String?;
+      if (senderId != null) senderIds.add(senderId);
+    }
+
+    final senderById = <String, Map<String, dynamic>>{};
+    if (senderIds.isNotEmpty) {
+      final senders = await _supabase
+          .from('users')
+          .select('id, display_name, avatar_url')
+          .inFilter('id', senderIds.toList());
+      for (final row in senders) {
+        final map = Map<String, dynamic>.from(row as Map);
+        final id = map['id'] as String?;
+        if (id != null) {
+          senderById[id] = map;
+        }
+      }
+    }
+
+    final likedBy = <String, Set<String>>{};
+    if (noteIds.isNotEmpty) {
+      final likes = await _supabase
+          .from('sticky_note_likes')
+          .select('note_id, user_id')
+          .inFilter('note_id', noteIds);
+      for (final row in likes) {
+        final map = Map<String, dynamic>.from(row as Map);
+        final noteId = map['note_id'] as String?;
+        final userId = map['user_id'] as String?;
+        if (noteId == null || userId == null) continue;
+        likedBy.putIfAbsent(noteId, () => <String>{}).add(userId);
+      }
+    }
+
+    final repliesCount = <String, int>{};
+    if (noteIds.isNotEmpty) {
+      final replies = await _supabase
+          .from('sticky_note_replies')
+          .select('note_id')
+          .inFilter('note_id', noteIds);
+      for (final row in replies) {
+        final map = Map<String, dynamic>.from(row as Map);
+        final noteId = map['note_id'] as String?;
+        if (noteId == null) continue;
+        repliesCount[noteId] = (repliesCount[noteId] ?? 0) + 1;
+      }
+    }
+
+    return data.map((row) {
+      final map = Map<String, dynamic>.from(row as Map);
+      final noteId = map['id'] as String;
+      final senderId = map['sender_id'] as String;
+      final sender = senderById[senderId];
+      final likedUsers = likedBy[noteId];
+
+      return StickyNote(
+        id: noteId,
+        pairId: map['pair_id'] as String,
+        senderId: senderId,
+        senderName: sender?['display_name'] as String?,
+        message: map['message'] as String,
+        color: map['color'] as String? ?? 'FFF9C4',
+        likedByUserIds:
+            likedUsers != null ? List<String>.from(likedUsers) : const [],
+        replyCount: repliesCount[noteId] ?? 0,
+        createdAt: DateTime.parse(map['created_at'] as String),
+        updatedAt: DateTime.parse(map['updated_at'] as String),
+      );
+    }).toList();
+  }
+
+  Future<List<StickyNoteReply>> _fetchReplies(String noteId) async {
+    final data = await _supabase
+        .from('sticky_note_replies')
+        .select()
+        .eq('note_id', noteId)
+        .order('created_at', ascending: true);
+
+    if (data.isEmpty) return [];
+
+    final senderIds = <String>{};
+    for (final row in data) {
+      final map = Map<String, dynamic>.from(row as Map);
+      final senderId = map['sender_id'] as String?;
+      if (senderId != null) senderIds.add(senderId);
+    }
+
+    final senderById = <String, String?>{};
+    if (senderIds.isNotEmpty) {
+      final senders = await _supabase
+          .from('users')
+          .select('id, display_name')
+          .inFilter('id', senderIds.toList());
+      for (final row in senders) {
+        final map = Map<String, dynamic>.from(row as Map);
+        final id = map['id'] as String?;
+        if (id != null) {
+          senderById[id] = map['display_name'] as String?;
+        }
+      }
+    }
+
+    return data.map((row) {
+      final map = Map<String, dynamic>.from(row as Map);
+      final senderId = map['sender_id'] as String;
+      return StickyNoteReply(
+        id: map['id'] as String,
+        noteId: map['note_id'] as String,
+        senderId: senderId,
+        senderName: senderById[senderId],
+        message: map['message'] as String,
+        createdAt: DateTime.parse(map['created_at'] as String),
+        updatedAt: DateTime.parse(map['updated_at'] as String),
+      );
+    }).toList();
   }
 
   Future<List<StickyNote>> getCachedNotes(String pairId) async {
@@ -342,12 +307,10 @@ class StickyNotesRepository {
   }
 
   Future<void> clearAllCache() async {
-    print('StickyNotesRepository: Clearing all sticky notes cache');
     await _dbService.clearAllStickyNotes();
   }
 
   Future<void> clearCacheForPair(String pairId) async {
-    print('StickyNotesRepository: Clearing cache for pair $pairId');
     await _dbService.clearStickyNotesByPairId(pairId);
   }
 

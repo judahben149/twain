@@ -5,6 +5,7 @@ import android.app.WallpaperManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.BitmapFactory
+import android.graphics.Color
 import android.os.Build
 import android.util.Log
 import androidx.annotation.NonNull
@@ -16,7 +17,9 @@ import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.PluginRegistry
 
-/** Registers the wallpaper method channel so Dart can trigger native wallpaper changes. */
+/**
+ * Native implementation backing wallpaper setting and custom notifications.
+ */
 class WallpaperSyncPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     private lateinit var appContext: Context
     private var channel: MethodChannel? = null
@@ -24,7 +27,11 @@ class WallpaperSyncPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     override fun onAttachedToEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
         appContext = binding.applicationContext
         setupChannel(binding.binaryMessenger)
-        ensureNotificationChannel()
+        ensureNotificationChannel(
+            DEFAULT_CHANNEL_ID,
+            DEFAULT_CHANNEL_NAME,
+            DEFAULT_CHANNEL_DESCRIPTION
+        )
     }
 
     override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
@@ -52,15 +59,31 @@ class WallpaperSyncPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
             "showNotification" -> {
                 val title = call.argument<String>("title") ?: ""
                 val body = call.argument<String>("body") ?: ""
-                showNotification(title, body)
+                val channelId = call.argument<String>("channelId") ?: DEFAULT_CHANNEL_ID
+                val channelName = call.argument<String>("channelName") ?: DEFAULT_CHANNEL_NAME
+                val channelDescription =
+                    call.argument<String>("channelDescription") ?: DEFAULT_CHANNEL_DESCRIPTION
+                val payload = call.argument<String>("payload")
+                val colorHex = call.argument<String>("color")
+
+                showNotification(
+                    title = title,
+                    body = body,
+                    channelId = channelId,
+                    channelName = channelName,
+                    channelDescription = channelDescription,
+                    payload = payload,
+                    colorHex = colorHex
+                )
                 result.success(null)
             }
+
             else -> result.notImplemented()
         }
     }
 
     private fun setupChannel(messenger: BinaryMessenger) {
-        channel = MethodChannel(messenger, CHANNEL_NAME).also {
+        channel = MethodChannel(messenger, DEFAULT_METHOD_CHANNEL).also {
             it.setMethodCallHandler(this)
         }
     }
@@ -88,16 +111,30 @@ class WallpaperSyncPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
         }
     }
 
-    private fun showNotification(title: String, body: String) {
-        val intent = appContext.packageManager.getLaunchIntentForPackage(appContext.packageName)
+    private fun showNotification(
+        title: String,
+        body: String,
+        channelId: String,
+        channelName: String,
+        channelDescription: String,
+        payload: String?,
+        colorHex: String?
+    ) {
+        ensureNotificationChannel(channelId, channelName, channelDescription)
+
+        val intent =
+            appContext.packageManager.getLaunchIntentForPackage(appContext.packageName)?.apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                payload?.let { putExtra(EXTRA_NOTIFICATION_PAYLOAD, it) }
+            }
+
         val pendingIntent = intent?.let {
-            it.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             val flags =
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
             PendingIntent.getActivity(appContext, 0, it, flags)
         }
 
-        val notification = NotificationCompat.Builder(appContext, CHANNEL_ID)
+        val notification = NotificationCompat.Builder(appContext, channelId)
             .setSmallIcon(appContext.applicationInfo.icon)
             .setContentTitle(title.ifEmpty { DEFAULT_TITLE })
             .setContentText(body.ifEmpty { DEFAULT_BODY })
@@ -108,6 +145,11 @@ class WallpaperSyncPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
                 if (pendingIntent != null) {
                     setContentIntent(pendingIntent)
                 }
+                colorHex?.let { hex ->
+                    parseColorSafely(hex)?.let { parsedColor ->
+                        setColor(parsedColor)
+                    }
+                }
             }
             .build()
 
@@ -117,31 +159,47 @@ class WallpaperSyncPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
         )
     }
 
-    private fun ensureNotificationChannel() {
+    private fun ensureNotificationChannel(
+        channelId: String,
+        channelName: String,
+        channelDescription: String
+    ) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
 
         val manager = NotificationManagerCompat.from(appContext)
-        val channel = manager.getNotificationChannel(CHANNEL_ID)
-        if (channel != null) return
+        val existing = manager.getNotificationChannel(channelId)
+        if (existing != null) return
 
         val newChannel = android.app.NotificationChannel(
-            CHANNEL_ID,
-            CHANNEL_NAME,
+            channelId,
+            channelName,
             android.app.NotificationManager.IMPORTANCE_HIGH
         ).apply {
-            description = CHANNEL_DESCRIPTION
+            description = channelDescription
         }
 
         manager.createNotificationChannel(newChannel)
     }
 
+    private fun parseColorSafely(hex: String): Int? {
+        return try {
+            val normalized = if (hex.startsWith("#")) hex else "#$hex"
+            Color.parseColor(normalized)
+        } catch (error: IllegalArgumentException) {
+            Log.e(LOG_TAG, "Invalid color provided for notification: $hex")
+            null
+        }
+    }
+
     companion object {
-        private const val CHANNEL_NAME = "com.twain.app/wallpaper"
-        private const val CHANNEL_ID = "twain_wallpaper_updates"
-        private const val CHANNEL_DESCRIPTION =
+        private const val DEFAULT_METHOD_CHANNEL = "com.twain.app/wallpaper"
+        private const val DEFAULT_CHANNEL_ID = "twain_wallpaper_updates"
+        private const val DEFAULT_CHANNEL_NAME = "Wallpaper Updates"
+        private const val DEFAULT_CHANNEL_DESCRIPTION =
             "Notifications when your partner sends a new wallpaper."
         private const val DEFAULT_TITLE = "Twain Wallpaper"
         private const val DEFAULT_BODY = "You have a new wallpaper from your partner."
+        private const val EXTRA_NOTIFICATION_PAYLOAD = "notification_payload"
         private const val LOG_TAG = "WallpaperSyncPlugin"
         private val notificationId = java.util.concurrent.atomic.AtomicInteger(1000)
 
@@ -150,7 +208,11 @@ class WallpaperSyncPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
             val plugin = WallpaperSyncPlugin()
             plugin.appContext = registrar.context().applicationContext
             plugin.setupChannel(registrar.messenger())
-            plugin.ensureNotificationChannel()
+            plugin.ensureNotificationChannel(
+                DEFAULT_CHANNEL_ID,
+                DEFAULT_CHANNEL_NAME,
+                DEFAULT_CHANNEL_DESCRIPTION
+            )
             registrar.publish(plugin)
         }
     }
