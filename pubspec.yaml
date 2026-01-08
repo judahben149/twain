@@ -43,6 +43,7 @@ dependencies:
   sqflite: ^2.3.0
   path: ^1.8.3
   path_provider: ^2.1.1
+  shared_preferences: ^2.3.2
   cached_network_image: ^3.3.1
 
   # Image handling
@@ -52,6 +53,9 @@ dependencies:
   # Firebase Cloud Messaging
   firebase_core: ^2.24.2
   firebase_messaging: ^14.7.9
+
+  wallpaper_sync_plugin:
+    path: packages/wallpaper_sync_plugin
 
   # HTTP requests
   http: ^1.1.0

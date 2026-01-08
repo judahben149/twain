@@ -2,10 +2,9 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
+import 'package:wallpaper_sync_plugin/wallpaper_sync_plugin.dart';
 
 class WallpaperManagerService {
-  static const platform = MethodChannel('com.twain.app/wallpaper');
-
   static Future<void> setWallpaper(String imageUrl) async {
     print('WallpaperManagerService: Setting wallpaper from URL: $imageUrl');
 
@@ -29,9 +28,7 @@ class WallpaperManagerService {
       print('WallpaperManagerService: Saved to temp file: ${file.path}');
 
       // Call platform method
-      await platform.invokeMethod('setWallpaper', {
-        'imagePath': file.path,
-      });
+      await WallpaperSyncPlugin.setWallpaper(file.path);
 
       print('WallpaperManagerService: Wallpaper set successfully');
     } catch (e) {
@@ -43,7 +40,7 @@ class WallpaperManagerService {
   // Test method to check if the platform channel is available
   static Future<bool> isAvailable() async {
     try {
-      await platform.invokeMethod('ping');
+      await WallpaperSyncPlugin.ping();
       return true;
     } on PlatformException catch (e) {
       print('WallpaperManagerService: Platform channel not available: $e');

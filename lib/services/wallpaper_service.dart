@@ -5,6 +5,7 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:twain/models/wallpaper.dart';
 import 'package:twain/models/shared_board_photo.dart';
 import 'package:twain/repositories/wallpaper_repository.dart';
+import 'package:twain/services/wallpaper_manager_service.dart';
 
 class WallpaperService {
   final SupabaseClient _supabase;
@@ -109,14 +110,25 @@ class WallpaperService {
     print('Source: $sourceType, Apply to: $applyTo');
 
     // Create wallpaper record (triggers Edge Function → FCM)
-    await _supabase.from('wallpapers').insert({
+    final inserted = await _supabase.from('wallpapers').insert({
       'pair_id': pairId,
       'sender_id': user.id,
       'image_url': imageUrl,
       'source_type': sourceType,
       'apply_to': applyTo,
       'status': 'pending',
-    });
+    }).select().single();
+
+    final wallpaper = Wallpaper.fromJson(inserted);
+
+    if (Platform.isAndroid) {
+      try {
+        await WallpaperManagerService.setWallpaper(imageUrl);
+        print('WallpaperService: Applied wallpaper locally for sender device');
+      } catch (e) {
+        print('WallpaperService: Failed to apply wallpaper locally: $e');
+      }
+    }
 
     print('Wallpaper record created, FCM notification will be triggered');
   }
