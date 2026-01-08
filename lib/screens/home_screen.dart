@@ -367,12 +367,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ],
         ),
         const SizedBox(height: 20),
-        Text(
-          'Last active: 2 min ago',
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.grey.shade600,
+        pairedUserAsync.when(
+          data: (partner) => partner != null
+              ? _buildPresenceBadge(partner)
+              : _buildPresencePlaceholder(),
+          loading: () => const SizedBox(
+            height: 24,
+            child: Center(
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation(Color(0xFF9C27B0)),
+              ),
+            ),
           ),
+          error: (_, __) => _buildPresenceError(),
         ),
       ],
     );
@@ -533,6 +541,90 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildPresenceBadge(TwainUser partner) {
+    final status = (partner.status ?? '').toLowerCase();
+    final lastActive = partner.lastActiveAt ?? partner.updatedAt;
+    final now = DateTime.now();
+    final minutesSinceActive =
+        now.isAfter(lastActive) ? now.difference(lastActive).inMinutes : 0;
+
+    Color color;
+    String text;
+
+    if (status == 'online') {
+      color = const Color(0xFFE91E63);
+      text = 'Online now';
+    } else {
+      color = minutesSinceActive <= 59
+          ? const Color(0xFF9C27B0)
+          : Colors.grey.shade600;
+      text = 'Last active: ${_formatRelativeTime(lastActive)}';
+    }
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          text,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPresencePlaceholder() {
+    return Text(
+      'Status unavailable',
+      style: TextStyle(
+        fontSize: 14,
+        color: Colors.grey.shade600,
+      ),
+    );
+  }
+
+  Widget _buildPresenceError() {
+    return Text(
+      'Status unavailable',
+      style: TextStyle(
+        fontSize: 14,
+        color: Colors.grey.shade600,
+      ),
+    );
+  }
+
+  String _formatRelativeTime(DateTime timestamp) {
+    final now = DateTime.now();
+    if (timestamp.isAfter(now)) return 'just now';
+
+    final diff = now.difference(timestamp);
+
+    if (diff.inMinutes < 1) {
+      return 'just now';
+    } else if (diff.inMinutes < 60) {
+      final minutes = diff.inMinutes;
+      return '$minutes min${minutes == 1 ? '' : 's'} ago';
+    } else if (diff.inHours < 24) {
+      final hours = diff.inHours;
+      return '$hours hour${hours == 1 ? '' : 's'} ago';
+    } else {
+      final days = diff.inDays;
+      return '$days day${days == 1 ? '' : 's'} ago';
+    }
   }
 
   Widget _buildFeatureCard({

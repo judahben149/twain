@@ -28,7 +28,7 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 3,
+      version: 4,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -46,6 +46,7 @@ class DatabaseService {
         fcm_token TEXT,
         device_id TEXT,
         status TEXT,
+        last_active_at TEXT,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
         preferences TEXT,
@@ -245,6 +246,23 @@ class DatabaseService {
 
       print('Database migration to v3 completed successfully');
     }
+
+    if (oldVersion < 4) {
+      print('Migrating database from v3 to v4...');
+      try {
+        await db.execute('ALTER TABLE users ADD COLUMN last_active_at TEXT');
+      } catch (error) {
+        print('Migration to v4: last_active_at column already exists? $error');
+      }
+
+      await db.execute('''
+        UPDATE users
+        SET last_active_at = updated_at
+        WHERE last_active_at IS NULL
+      ''');
+
+      print('Database migration to v4 completed successfully');
+    }
   }
 
   // User operations
@@ -263,6 +281,7 @@ class DatabaseService {
         'fcm_token': user.fcmToken,
         'device_id': user.deviceId,
         'status': user.status,
+        'last_active_at': user.lastActiveAt?.toIso8601String(),
         'created_at': user.createdAt.toIso8601String(),
         'updated_at': user.updatedAt.toIso8601String(),
         'preferences': user.preferences != null ? jsonEncode(user.preferences) : null,
@@ -295,6 +314,9 @@ class DatabaseService {
       fcmToken: data['fcm_token'],
       deviceId: data['device_id'],
       status: data['status'],
+      lastActiveAt: data['last_active_at'] != null
+          ? DateTime.tryParse(data['last_active_at'])
+          : null,
       createdAt: DateTime.parse(data['created_at']),
       updatedAt: DateTime.parse(data['updated_at']),
       preferences: data['preferences'] != null ? jsonDecode(data['preferences']) : null,
@@ -322,6 +344,9 @@ class DatabaseService {
       fcmToken: data['fcm_token'],
       deviceId: data['device_id'],
       status: data['status'],
+      lastActiveAt: data['last_active_at'] != null
+          ? DateTime.tryParse(data['last_active_at'])
+          : null,
       createdAt: DateTime.parse(data['created_at']),
       updatedAt: DateTime.parse(data['updated_at']),
       preferences: data['preferences'] != null ? jsonDecode(data['preferences']) : null,

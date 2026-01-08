@@ -48,6 +48,7 @@ class UserRepository {
           }
 
           final data = rows.first;
+          final lastActiveString = data['last_active_at'] as String?;
           final user = TwainUser(
             id: data['id'],
             email: data['email'],
@@ -57,6 +58,9 @@ class UserRepository {
             fcmToken: data['fcm_token'],
             deviceId: data['device_id'],
             status: data['status'],
+            lastActiveAt: lastActiveString != null
+                ? DateTime.tryParse(lastActiveString)
+                : null,
             createdAt: DateTime.parse(data['created_at']),
             updatedAt: DateTime.parse(data['updated_at']),
             preferences: data['preferences'],
@@ -115,6 +119,7 @@ class UserRepository {
           }
 
           final data = partnerRows.first;
+          final lastActiveString = data['last_active_at'] as String?;
           final partner = TwainUser(
             id: data['id'],
             email: data['email'],
@@ -124,6 +129,9 @@ class UserRepository {
             fcmToken: data['fcm_token'],
             deviceId: data['device_id'],
             status: data['status'],
+            lastActiveAt: lastActiveString != null
+                ? DateTime.tryParse(lastActiveString)
+                : null,
             createdAt: DateTime.parse(data['created_at']),
             updatedAt: DateTime.parse(data['updated_at']),
             preferences: data['preferences'],

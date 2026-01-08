@@ -8,6 +8,7 @@ class TwainUser {
   final String? fcmToken;
   final String? deviceId;
   final String? status;
+  final DateTime? lastActiveAt;
   final DateTime createdAt;
   final DateTime updatedAt;
   final Map<String, dynamic>? preferences;
@@ -22,6 +23,7 @@ class TwainUser {
     this.fcmToken,
     this.deviceId,
     this.status,
+    this.lastActiveAt,
     required this.createdAt,
     required this.updatedAt,
     this.preferences,
@@ -38,6 +40,9 @@ class TwainUser {
       fcmToken: json['fcm_token'] as String?,
       deviceId: json['device_id'] as String?,
       status: json['status'] as String?,
+      lastActiveAt: json['last_active_at'] != null
+          ? DateTime.tryParse(json['last_active_at'] as String)
+          : null,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
       preferences: json['preferences'] as Map<String, dynamic>?,
@@ -55,6 +60,7 @@ class TwainUser {
       'fcm_token': fcmToken,
       'device_id': deviceId,
       'status': status,
+      'last_active_at': lastActiveAt?.toIso8601String(),
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
       'preferences': preferences,
@@ -71,6 +77,7 @@ class TwainUser {
     String? fcmToken,
     String? deviceId,
     String? status,
+    DateTime? lastActiveAt,
     DateTime? createdAt,
     DateTime? updatedAt,
     Map<String, dynamic>? preferences,
@@ -85,6 +92,7 @@ class TwainUser {
       fcmToken: fcmToken ?? this.fcmToken,
       deviceId: deviceId ?? this.deviceId,
       status: status ?? this.status,
+      lastActiveAt: lastActiveAt ?? this.lastActiveAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       preferences: preferences ?? this.preferences,

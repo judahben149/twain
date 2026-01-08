@@ -257,6 +257,8 @@ class AuthService {
                          user.email!.split('@')[0],
           'avatar_url': user.userMetadata?['avatar_url'] ??
                        user.userMetadata?['picture'],
+          'status': 'online',
+          'last_active_at': DateTime.now().toUtc().toIso8601String(),
         });
         print('User created successfully in database');
       } else {
@@ -286,6 +288,8 @@ class AuthService {
 
       if (data == null) return null;
 
+      final lastActiveString = data['last_active_at'] as String?;
+
       return TwainUser(
         id: data['id'],
         email: data['email'],
@@ -295,6 +299,8 @@ class AuthService {
         fcmToken: data['fcm_token'],
         deviceId: data['device_id'],
         status: data['status'],
+        lastActiveAt:
+            lastActiveString != null ? DateTime.tryParse(lastActiveString) : null,
         createdAt: DateTime.parse(data['created_at']),
         updatedAt: DateTime.parse(data['updated_at']),
         preferences: data['preferences'],
@@ -313,6 +319,7 @@ class AuthService {
     String? status,
     String? fcmToken,
     String? deviceId,
+    DateTime? lastActiveAt,
     Map<String, dynamic>? preferences,
     Map<String, dynamic>? metadata,
   }) async {
@@ -325,10 +332,31 @@ class AuthService {
     if (status != null) updates['status'] = status;
     if (fcmToken != null) updates['fcm_token'] = fcmToken;
     if (deviceId != null) updates['device_id'] = deviceId;
+    if (lastActiveAt != null) {
+      updates['last_active_at'] = lastActiveAt.toUtc().toIso8601String();
+    }
     if (preferences != null) updates['preferences'] = preferences;
     if (metadata != null) updates['metadata'] = metadata;
 
     await _supabase.from('users').update(updates).eq('id', user.id);
+  }
+
+  Future<void> setPresenceOnline() => _updatePresence('online');
+
+  Future<void> setPresenceAway() => _updatePresence('away');
+
+  Future<void> _updatePresence(String status) async {
+    final user = currentUser;
+    if (user == null) return;
+
+    try {
+      await _supabase.from('users').update({
+        'status': status,
+        'last_active_at': DateTime.now().toUtc().toIso8601String(),
+      }).eq('id', user.id);
+    } catch (error) {
+      print('Error updating presence: $error');
+    }
   }
 
   // Pair with another user
@@ -409,6 +437,9 @@ class AuthService {
       fcmToken: partnerData['fcm_token'],
       deviceId: partnerData['device_id'],
       status: partnerData['status'],
+      lastActiveAt: partnerData['last_active_at'] != null
+          ? DateTime.tryParse(partnerData['last_active_at'])
+          : null,
       createdAt: DateTime.parse(partnerData['created_at']),
       updatedAt: DateTime.parse(partnerData['updated_at']),
       preferences: partnerData['preferences'],
