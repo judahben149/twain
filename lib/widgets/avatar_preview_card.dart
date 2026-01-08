@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:twain/models/twain_user.dart';
-import 'package:twain/widgets/main_avatar.dart';
+import 'package:twain/widgets/stable_avatar.dart';
 
 /// Preview card showing current avatar at top of selector screen
 class AvatarPreviewCard extends StatelessWidget {
@@ -42,7 +42,7 @@ class AvatarPreviewCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          TwainAvatar(
+          StableTwainAvatar(
             user: user,
             size: 120,
             showBorder: true,

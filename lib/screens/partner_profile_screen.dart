@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:twain/constants/app_colours.dart';
 import 'package:twain/models/twain_user.dart';
 import 'package:twain/providers/auth_providers.dart';
-import 'package:twain/widgets/main_avatar.dart';
+import 'package:twain/widgets/stable_avatar.dart';
 
 class PartnerProfileScreen extends ConsumerStatefulWidget {
   final TwainUser partner;
@@ -331,7 +331,7 @@ class _PartnerProfileScreenState extends ConsumerState<PartnerProfileScreen> {
           ),
         ],
       ),
-      child: TwainAvatar(
+      child: StableTwainAvatar(
         user: partner,
         size: 120,
         color: const Color(0xFFE91E63),

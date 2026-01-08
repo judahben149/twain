@@ -10,7 +10,7 @@ import 'package:twain/screens/partner_profile_screen.dart';
 import 'package:twain/screens/pairing_screen.dart';
 import 'package:twain/screens/wallpaper_screen.dart';
 import 'package:twain/screens/shared_board_screen.dart';
-import 'package:twain/widgets/main_avatar.dart';
+import 'package:twain/widgets/stable_avatar.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -473,7 +473,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               ],
             ),
-            child: TwainAvatar(
+            child: StableTwainAvatar(
               user: user,
               size: 80,
               color: color,

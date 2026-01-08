@@ -4,7 +4,7 @@ import 'package:twain/constants/app_colours.dart';
 import 'package:twain/models/twain_user.dart';
 import 'package:twain/providers/auth_providers.dart';
 import 'package:twain/screens/avatar_selector_screen.dart';
-import 'package:twain/widgets/main_avatar.dart';
+import 'package:twain/widgets/stable_avatar.dart';
 
 class UserProfileScreen extends ConsumerWidget {
   final TwainUser user;
@@ -119,7 +119,7 @@ class UserProfileScreen extends ConsumerWidget {
                 ),
               ],
             ),
-            child: TwainAvatar(
+            child: StableTwainAvatar(
               user: user,
               size: 120,
               showBorder: true,
