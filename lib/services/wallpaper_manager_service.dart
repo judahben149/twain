@@ -37,6 +37,37 @@ class WallpaperManagerService {
     }
   }
 
+  /// Download Unsplash image to temporary directory
+  /// Returns the local file path
+  Future<String> downloadUnsplashImage(String url, String id) async {
+    print('WallpaperManagerService: Downloading Unsplash image from: $url');
+
+    try {
+      // Download image
+      final response = await http.get(Uri.parse(url));
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to download image: ${response.statusCode}');
+      }
+
+      final bytes = response.bodyBytes;
+      print('WallpaperManagerService: Downloaded ${bytes.length} bytes');
+
+      // Save to temporary directory with unique filename
+      final tempDir = await getTemporaryDirectory();
+      final file = File('${tempDir.path}/unsplash_$id.jpg');
+      await file.writeAsBytes(bytes);
+
+      print(
+          'WallpaperManagerService: Saved Unsplash image to: ${file.path}');
+
+      return file.path;
+    } catch (e) {
+      print('WallpaperManagerService: Error downloading Unsplash image: $e');
+      throw Exception('Failed to download wallpaper: $e');
+    }
+  }
+
   // Test method to check if the platform channel is available
   static Future<bool> isAvailable() async {
     try {

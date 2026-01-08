@@ -2,18 +2,23 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:twain/constants/app_colours.dart';
+import 'package:twain/models/unsplash_wallpaper.dart';
 import 'package:twain/providers/wallpaper_providers.dart';
+import 'package:twain/providers/unsplash_providers.dart';
+import 'package:twain/services/wallpaper_manager_service.dart';
 
 class WallpaperPreviewScreen extends ConsumerStatefulWidget {
   final String? imageUrl;
   final File? imageFile;
   final String sourceType;
+  final UnsplashWallpaper? unsplashWallpaper; // Optional: for Unsplash wallpapers
 
   const WallpaperPreviewScreen({
     super.key,
     this.imageUrl,
     this.imageFile,
-    required this.sourceType,
+    this.sourceType = 'shared_board',
+    this.unsplashWallpaper,
   }) : assert(
           imageUrl != null || imageFile != null,
           'Either imageUrl or imageFile must be provided',
@@ -301,11 +306,76 @@ class _WallpaperPreviewScreenState
 
     try {
       final service = ref.read(wallpaperServiceProvider);
+      final wallpaperManager = WallpaperManagerService();
 
       String imageUrl;
 
+      // Handle Unsplash wallpapers - download full resolution first
+      if (widget.unsplashWallpaper != null) {
+        // Show downloading message
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                ),
+                SizedBox(width: 16),
+                Text('Downloading wallpaper...'),
+              ],
+            ),
+            duration: Duration(seconds: 30),
+          ),
+        );
+
+        // Download full resolution image to temp directory
+        final localPath = await wallpaperManager.downloadUnsplashImage(
+          widget.unsplashWallpaper!.fullUrl,
+          widget.unsplashWallpaper!.id,
+        );
+
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+        // Upload to shared board (this makes it accessible to both users)
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                ),
+                SizedBox(width: 16),
+                Text('Uploading photo...'),
+              ],
+            ),
+            duration: Duration(seconds: 30),
+          ),
+        );
+
+        final photo = await service.uploadToSharedBoard(File(localPath));
+        imageUrl = photo.imageUrl;
+
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+        // Trigger Unsplash download tracking (API requirement)
+        ref.read(unsplashProvider.notifier).trackDownload(widget.unsplashWallpaper!);
+      }
       // If image is from device (File), upload it first
-      if (widget.imageFile != null) {
+      else if (widget.imageFile != null) {
         // Show uploading message
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(

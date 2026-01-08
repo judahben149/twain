@@ -9,6 +9,7 @@ import 'package:twain/providers/wallpaper_providers.dart';
 import 'package:twain/providers/auth_providers.dart';
 import 'package:twain/screens/shared_board_screen.dart';
 import 'package:twain/screens/wallpaper_preview_screen.dart';
+import 'package:twain/screens/unsplash_browser_screen.dart';
 import 'package:twain/services/wallpaper_manager_service.dart';
 
 class WallpaperScreen extends ConsumerStatefulWidget {
@@ -124,6 +125,38 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                       color: Color(0xFFE91E63),
                       width: 2,
                     ),
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                // Browse Wallpapers Button (Unsplash)
+                ElevatedButton.icon(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const UnsplashBrowserScreen(),
+                    ),
+                  ),
+                  icon: const Icon(Icons.explore_outlined, size: 22),
+                  label: const Text(
+                    'Browse Wallpapers',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF9C27B0),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 16,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 2,
                   ),
                 ),
               ],

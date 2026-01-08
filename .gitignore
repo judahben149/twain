@@ -49,3 +49,8 @@ android/app/google-services.json
 ios/Runner/GoogleService-Info.plist
 
 android/key.properties
+
+# Environment variables (contains API keys and secrets)
+.env
+.env.*
+!.env.example
