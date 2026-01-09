@@ -10,6 +10,7 @@ import 'package:twain/providers/auth_providers.dart';
 import 'package:twain/screens/shared_board_screen.dart';
 import 'package:twain/screens/wallpaper_preview_screen.dart';
 import 'package:twain/screens/unsplash_browser_screen.dart';
+import 'package:twain/screens/folders_list_screen.dart';
 import 'package:twain/services/wallpaper_manager_service.dart';
 
 class WallpaperScreen extends ConsumerStatefulWidget {
@@ -157,6 +158,40 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     elevation: 2,
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                // Rotation Folders Button
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const FoldersListScreen(),
+                    ),
+                  ),
+                  icon: const Icon(Icons.folder_outlined, size: 22),
+                  label: const Text(
+                    'Rotation Folders',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF4CAF50),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 16,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    side: const BorderSide(
+                      color: Color(0xFF4CAF50),
+                      width: 2,
+                    ),
                   ),
                 ),
               ],

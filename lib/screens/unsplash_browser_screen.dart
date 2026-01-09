@@ -285,7 +285,7 @@ class _UnsplashBrowserScreenState
           crossAxisCount: 2,
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
-          childAspectRatio: 9 / 16, // Portrait aspect ratio for wallpapers
+          childAspectRatio: 0.7, // Fallback ratio, overridden by AspectRatio widget
         ),
         itemCount:
             state.wallpapers.length + (state.isLoadingMore ? 1 : 0),
@@ -312,69 +312,79 @@ class _UnsplashBrowserScreenState
 
   /// Build wallpaper card in grid
   Widget _buildWallpaperCard(UnsplashWallpaper wallpaper) {
+    // Calculate aspect ratio from image dimensions
+    final aspectRatio = wallpaper.height > 0
+        ? wallpaper.width / wallpaper.height
+        : 0.7; // Fallback for portrait
+
     return GestureDetector(
       onTap: () => _onWallpaperTap(wallpaper),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: Stack(
-            children: [
-              CachedNetworkImage(
-                imageUrl: wallpaper.smallUrl, // Use small (~400px) for better quality
-                fit: BoxFit.cover,
-                placeholder: (context, url) => Container(
-                  color: Colors.grey[200],
-                  child: const Center(
-                    child: CircularProgressIndicator(
-                      color: Color(0xFFE91E63),
-                      strokeWidth: 2,
-                    ),
-                  ),
-                ),
-                errorWidget: (context, url, error) => Container(
-                  color: Colors.grey[300],
-                  child: const Center(
-                    child: Icon(
-                      Icons.broken_image_outlined,
-                      size: 40,
-                      color: Colors.grey,
-                    ),
-                  ),
-                ),
+      child: AspectRatio(
+        aspectRatio: aspectRatio,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               ),
-              // Quality badge (HD/4K)
-              if (wallpaper.qualityBadge != null)
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.75),
-                      borderRadius: BorderRadius.circular(6),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Stack(
+              children: [
+                CachedNetworkImage(
+                  imageUrl: wallpaper.smallUrl, // Use small (~400px) for better quality
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  height: double.infinity,
+                  placeholder: (context, url) => Container(
+                    color: Colors.grey[200],
+                    child: const Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFFE91E63),
+                        strokeWidth: 2,
+                      ),
                     ),
-                    child: Text(
-                      wallpaper.qualityBadge!,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5,
+                  ),
+                  errorWidget: (context, url, error) => Container(
+                    color: Colors.grey[300],
+                    child: const Center(
+                      child: Icon(
+                        Icons.broken_image_outlined,
+                        size: 40,
+                        color: Colors.grey,
                       ),
                     ),
                   ),
                 ),
-            ],
+                // Quality badge (HD/4K)
+                if (wallpaper.qualityBadge != null)
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.75),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        wallpaper.qualityBadge!,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
