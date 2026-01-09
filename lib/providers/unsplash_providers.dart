@@ -33,7 +33,7 @@ class UnsplashState {
     this.hasMore = true,
     this.currentPage = 1,
     this.error,
-    this.currentFilter = UnsplashFilter.random,
+    this.currentFilter = UnsplashFilter.editorial, // Default to Editorial
     this.currentCategory,
   });
 

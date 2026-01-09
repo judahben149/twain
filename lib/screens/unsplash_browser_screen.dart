@@ -105,7 +105,7 @@ class _UnsplashBrowserScreenState
     );
   }
 
-  /// Build filter chips (Random, Editorial, Popular, Categories)
+  /// Build filter chips (Editorial, Popular, Categories, Random)
   Widget _buildFilterChips(UnsplashState state) {
     return Container(
       color: Colors.white,
@@ -114,17 +114,6 @@ class _UnsplashBrowserScreenState
         scrollDirection: Axis.horizontal,
         child: Row(
           children: [
-            _buildFilterChip(
-              label: 'Random',
-              isSelected: state.currentFilter == UnsplashFilter.random,
-              onTap: () {
-                setState(() => _selectedCategory = null);
-                ref
-                    .read(unsplashProvider.notifier)
-                    .switchFilter(UnsplashFilter.random);
-              },
-            ),
-            const SizedBox(width: 8),
             _buildFilterChip(
               label: 'Editorial',
               isSelected: state.currentFilter == UnsplashFilter.editorial,
@@ -151,6 +140,17 @@ class _UnsplashBrowserScreenState
               label: _selectedCategory ?? 'Categories',
               isSelected: state.currentFilter == UnsplashFilter.category,
               onTap: _showCategorySheet,
+            ),
+            const SizedBox(width: 8),
+            _buildFilterChip(
+              label: 'Random',
+              isSelected: state.currentFilter == UnsplashFilter.random,
+              onTap: () {
+                setState(() => _selectedCategory = null);
+                ref
+                    .read(unsplashProvider.notifier)
+                    .switchFilter(UnsplashFilter.random);
+              },
             ),
           ],
         ),
@@ -327,28 +327,54 @@ class _UnsplashBrowserScreenState
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(16),
-          child: CachedNetworkImage(
-            imageUrl: wallpaper.thumbUrl, // Use thumbnail to save bandwidth
-            fit: BoxFit.cover,
-            placeholder: (context, url) => Container(
-              color: Colors.grey[200],
-              child: const Center(
-                child: CircularProgressIndicator(
-                  color: Color(0xFFE91E63),
-                  strokeWidth: 2,
+          child: Stack(
+            children: [
+              CachedNetworkImage(
+                imageUrl: wallpaper.smallUrl, // Use small (~400px) for better quality
+                fit: BoxFit.cover,
+                placeholder: (context, url) => Container(
+                  color: Colors.grey[200],
+                  child: const Center(
+                    child: CircularProgressIndicator(
+                      color: Color(0xFFE91E63),
+                      strokeWidth: 2,
+                    ),
+                  ),
+                ),
+                errorWidget: (context, url, error) => Container(
+                  color: Colors.grey[300],
+                  child: const Center(
+                    child: Icon(
+                      Icons.broken_image_outlined,
+                      size: 40,
+                      color: Colors.grey,
+                    ),
+                  ),
                 ),
               ),
-            ),
-            errorWidget: (context, url, error) => Container(
-              color: Colors.grey[300],
-              child: const Center(
-                child: Icon(
-                  Icons.broken_image_outlined,
-                  size: 40,
-                  color: Colors.grey,
+              // Quality badge (HD/4K)
+              if (wallpaper.qualityBadge != null)
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.75),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      wallpaper.qualityBadge!,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-            ),
+            ],
           ),
         ),
       ),
