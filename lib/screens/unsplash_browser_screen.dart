@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:twain/constants/app_colours.dart';
 import 'package:twain/constants/app_themes.dart';
 import 'package:twain/models/unsplash_wallpaper.dart';
+import 'package:twain/models/app_theme_mode.dart';
 import 'package:twain/providers/unsplash_providers.dart';
+import 'package:twain/providers/theme_providers.dart';
 import 'package:twain/screens/wallpaper_preview_screen.dart';
 
 class UnsplashBrowserScreen extends ConsumerStatefulWidget {
@@ -78,9 +81,12 @@ class _UnsplashBrowserScreenState
 
     final theme = Theme.of(context);
     final twainTheme = context.twainTheme;
+    final appThemeMode = ref.watch(themeModeProvider);
+    final isMidnight = appThemeMode == AppThemeMode.amoled;
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
+      backgroundColor:
+          isMidnight ? AppColors.backgroundAmoled : theme.colorScheme.surface,
       appBar: AppBar(
         title: Text(
           'Browse Wallpapers',

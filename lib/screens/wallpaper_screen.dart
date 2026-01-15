@@ -4,10 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:twain/constants/app_colours.dart';
 import 'package:twain/constants/app_themes.dart';
 import 'package:twain/models/wallpaper.dart';
+import 'package:twain/models/app_theme_mode.dart';
 import 'package:twain/providers/wallpaper_providers.dart';
 import 'package:twain/providers/auth_providers.dart';
+import 'package:twain/providers/theme_providers.dart';
 import 'package:twain/screens/shared_board_screen.dart';
 import 'package:twain/screens/wallpaper_preview_screen.dart';
 import 'package:twain/screens/unsplash_browser_screen.dart';
@@ -31,12 +34,14 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
     final theme = Theme.of(context);
     final twainTheme = context.twainTheme;
     final isLight = !context.isDarkMode;
+    final appThemeMode = ref.watch(themeModeProvider);
+    final isMidnight = appThemeMode == AppThemeMode.amoled;
     final scaffoldColor = isLight
         ? Color.alphaBlend(
             twainTheme.iconColor.withOpacity(0.06),
             theme.colorScheme.surface,
           )
-        : theme.colorScheme.surface;
+        : (isMidnight ? AppColors.backgroundAmoled : theme.colorScheme.surface);
     final wallpapersAsync = ref.watch(wallpapersStreamProvider);
     final currentUser = ref.watch(twainUserProvider).value;
 
