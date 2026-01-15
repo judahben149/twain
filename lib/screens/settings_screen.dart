@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:twain/constants/app_colours.dart';
+import 'package:twain/constants/app_themes.dart';
 import 'package:twain/providers/auth_providers.dart';
 import 'package:twain/screens/user_profile_screen.dart';
 import 'package:twain/screens/pairing_screen.dart';
+import 'package:twain/widgets/theme_selector.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -23,7 +24,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     return Scaffold(
       body: Container(
-        decoration: _buildGradientBackground(),
+        decoration: _buildGradientBackground(context),
         child: SafeArea(
           child: Column(
             children: [
@@ -35,7 +36,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SizedBox(height: 24),
-                      _buildAppInfo(),
+                      _buildAppInfo(context),
                       const SizedBox(height: 32),
                       _buildSectionHeader('Account'),
                       const SizedBox(height: 12),
@@ -76,13 +77,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             trailing: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFE8F5E9),
+                                color: context.twainTheme.activeStatusColor,
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: const Text(
+                              child: Text(
                                 'Active',
                                 style: TextStyle(
-                                  color: Color(0xFF4CAF50),
+                                  color: context.twainTheme.activeStatusTextColor,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -128,9 +129,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                 _notificationsEnabled = value;
                               });
                             },
-                            activeColor: const Color(0xFF9C27B0),
+                            activeColor: context.twainTheme.iconColor,
                           ),
                         ),
+                      ]),
+                      const SizedBox(height: 24),
+                      _buildSectionHeader('Appearance'),
+                      const SizedBox(height: 12),
+                      _buildSettingsCard([
+                        const ThemeSelector(),
                       ]),
                       const SizedBox(height: 24),
                       _buildSectionHeader('About'),
@@ -172,38 +179,36 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  BoxDecoration _buildGradientBackground() {
-    return const BoxDecoration(
+  BoxDecoration _buildGradientBackground(BuildContext context) {
+    final twainTheme = context.twainTheme;
+    return BoxDecoration(
       gradient: LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [
-          Color(0xFFF5F5F5),
-          Color(0xFFF0E6F0),
-          Color(0xFFFFE6F0),
-        ],
+        colors: twainTheme.gradientColors,
       ),
     );
   }
 
   Widget _buildHeader(BuildContext context) {
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.all(20.0),
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back, color: AppColors.black),
+            icon: Icon(Icons.arrow_back, color: theme.colorScheme.onSurface),
             onPressed: () => Navigator.pop(context),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
           ),
           const SizedBox(width: 16),
-          const Text(
+          Text(
             'Settings',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: AppColors.black,
+              color: theme.colorScheme.onSurface,
             ),
           ),
         ],
@@ -211,7 +216,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Widget _buildAppInfo() {
+  Widget _buildAppInfo(BuildContext context) {
+    final theme = Theme.of(context);
     return Center(
       child: Column(
         children: [
@@ -223,12 +229,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'Twain',
             style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.bold,
-              color: AppColors.black,
+              color: theme.colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 4),
@@ -236,7 +242,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             'The everything app for lovers',
             style: TextStyle(
               fontSize: 14,
-              color: Colors.grey.shade600,
+              color: theme.colorScheme.onSurface.withOpacity(0.6),
             ),
           ),
         ],
@@ -245,6 +251,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Widget _buildSectionHeader(String title) {
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.only(left: 4),
       child: Text(
@@ -252,7 +259,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         style: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w600,
-          color: Colors.grey.shade600,
+          color: theme.colorScheme.onSurface.withOpacity(0.6),
           letterSpacing: 0.5,
         ),
       ),
@@ -260,17 +267,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Widget _buildSettingsCard(List<Widget> children) {
+    final twainTheme = context.twainTheme;
+    final theme = Theme.of(context);
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
+        color: twainTheme.cardBackgroundColor,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 15,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: context.isDarkMode
+            ? null
+            : [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 15,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+        border: context.isDarkMode
+            ? Border.all(color: theme.dividerColor, width: 0.5)
+            : null,
       ),
       child: Column(
         children: children,
@@ -286,7 +300,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     Widget? trailing,
     bool isDestructive = false,
   }) {
-    final color = isDestructive ? const Color(0xFFE53935) : const Color(0xFF9C27B0);
+    final theme = Theme.of(context);
+    final twainTheme = context.twainTheme;
+    final color = isDestructive
+        ? twainTheme.destructiveColor
+        : twainTheme.iconColor;
+    final bgColor = isDestructive
+        ? twainTheme.destructiveBackgroundColor
+        : twainTheme.iconBackgroundColor;
 
     return InkWell(
       onTap: onTap,
@@ -298,9 +319,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: isDestructive
-                    ? const Color(0xFFFFEBEE)
-                    : const Color(0xFFF3E5F5),
+                color: bgColor,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
@@ -319,7 +338,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: isDestructive ? color : AppColors.black,
+                      color: isDestructive
+                          ? twainTheme.destructiveColor
+                          : theme.colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -327,7 +348,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     subtitle,
                     style: TextStyle(
                       fontSize: 13,
-                      color: Colors.grey.shade600,
+                      color: theme.colorScheme.onSurface.withOpacity(0.6),
                     ),
                   ),
                 ],
@@ -338,7 +359,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             else if (onTap != null)
               Icon(
                 Icons.chevron_right,
-                color: Colors.grey.shade400,
+                color: theme.colorScheme.onSurface.withOpacity(0.4),
                 size: 24,
               ),
           ],
@@ -352,15 +373,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Divider(
         height: 1,
-        color: Colors.grey.shade200,
+        color: Theme.of(context).dividerColor,
       ),
     );
   }
 
   void _showSignOutDialog(BuildContext context) {
+    final theme = Theme.of(context);
+    final twainTheme = context.twainTheme;
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
         ),
@@ -368,20 +391,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         content: const Text('Are you sure you want to sign out?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: Text(
               'Cancel',
-              style: TextStyle(color: Colors.grey.shade600),
+              style: TextStyle(
+                  color: theme.colorScheme.onSurface.withOpacity(0.6)),
             ),
           ),
           TextButton(
             onPressed: () async {
-              Navigator.pop(context);
+              Navigator.pop(dialogContext);
               await ref.read(authServiceProvider).signOut();
             },
-            child: const Text(
+            child: Text(
               'Sign Out',
-              style: TextStyle(color: Color(0xFFE53935)),
+              style: TextStyle(color: twainTheme.destructiveColor),
             ),
           ),
         ],
@@ -390,9 +414,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   void _showDisconnectDialog(BuildContext context) {
+    final theme = Theme.of(context);
+    final twainTheme = context.twainTheme;
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
         ),
@@ -402,22 +428,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: Text(
               'Cancel',
-              style: TextStyle(color: Colors.grey.shade600),
+              style: TextStyle(
+                  color: theme.colorScheme.onSurface.withOpacity(0.6)),
             ),
           ),
           TextButton(
             onPressed: () async {
-              Navigator.pop(context);
+              Navigator.pop(dialogContext);
               try {
                 await ref.read(authServiceProvider).unpair();
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: const Text('Disconnected from partner'),
-                      backgroundColor: const Color(0xFF9C27B0),
+                      backgroundColor: theme.colorScheme.primary,
                       behavior: SnackBarBehavior.floating,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -430,7 +457,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('Error disconnecting: $e'),
-                      backgroundColor: const Color(0xFFE53935),
+                      backgroundColor: twainTheme.destructiveColor,
                       behavior: SnackBarBehavior.floating,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -440,9 +467,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 }
               }
             },
-            child: const Text(
+            child: Text(
               'Disconnect',
-              style: TextStyle(color: Color(0xFFE53935)),
+              style: TextStyle(color: twainTheme.destructiveColor),
             ),
           ),
         ],

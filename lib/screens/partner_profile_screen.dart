@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:twain/constants/app_colours.dart';
+import 'package:twain/constants/app_themes.dart';
 import 'package:twain/models/twain_user.dart';
 import 'package:twain/providers/auth_providers.dart';
 import 'package:twain/widgets/stable_avatar.dart';
@@ -22,24 +22,28 @@ class _PartnerProfileScreenState extends ConsumerState<PartnerProfileScreen> {
   bool _isDisconnecting = false;
 
   Future<void> _showDisconnectWarning() async {
+    final theme = Theme.of(context);
+    final twainTheme = context.twainTheme;
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
         ),
-        title: const Text(
+        title: Text(
           'Disconnect from Partner?',
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            color: AppColors.black,
+            color: theme.colorScheme.onSurface,
           ),
         ),
-        content: const Text(
+        content: Text(
           'Disconnecting will remove your pairing. All shared data including sticky notes will be lost. This action cannot be undone.\n\nAre you sure you want to continue?',
           style: TextStyle(
             fontSize: 15,
             height: 1.5,
+            color: theme.colorScheme.onSurface,
           ),
         ),
         actions: [
@@ -48,7 +52,7 @@ class _PartnerProfileScreenState extends ConsumerState<PartnerProfileScreen> {
             child: Text(
               'Cancel',
               style: TextStyle(
-                color: Colors.grey.shade700,
+                color: theme.colorScheme.onSurface.withOpacity(0.7),
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -56,16 +60,16 @@ class _PartnerProfileScreenState extends ConsumerState<PartnerProfileScreen> {
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(
-              backgroundColor: const Color(0xFFE91E63).withOpacity(0.1),
+              backgroundColor: twainTheme.destructiveBackgroundColor,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: const Text(
+            child: Text(
               'Proceed',
               style: TextStyle(
-                color: Color(0xFFE91E63),
+                color: twainTheme.destructiveColor,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -80,6 +84,8 @@ class _PartnerProfileScreenState extends ConsumerState<PartnerProfileScreen> {
   }
 
   Future<void> _showConfirmationDialog() async {
+    final theme = Theme.of(context);
+    final twainTheme = context.twainTheme;
     final controller = TextEditingController();
     final expectedText = 'Disconnect from ${widget.partner.displayName}';
 
@@ -89,11 +95,11 @@ class _PartnerProfileScreenState extends ConsumerState<PartnerProfileScreen> {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
         ),
-        title: const Text(
+        title: Text(
           'Final Confirmation',
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            color: AppColors.black,
+            color: theme.colorScheme.onSurface,
           ),
         ),
         content: Column(
@@ -104,45 +110,48 @@ class _PartnerProfileScreenState extends ConsumerState<PartnerProfileScreen> {
               'Type the following to confirm:',
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.grey.shade700,
+                color: theme.colorScheme.onSurface.withOpacity(0.7),
               ),
             ),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.grey.shade100,
+                color: theme.colorScheme.surface,
                 borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: theme.dividerColor),
               ),
               child: Text(
                 expectedText,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
                   fontFamily: 'monospace',
+                  color: theme.colorScheme.onSurface,
                 ),
               ),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: controller,
+              style: TextStyle(color: theme.colorScheme.onSurface),
               decoration: InputDecoration(
                 hintText: 'Type here...',
-                hintStyle: TextStyle(color: Colors.grey.shade400),
+                hintStyle: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.4)),
                 filled: true,
-                fillColor: Colors.grey.shade50,
+                fillColor: twainTheme.cardBackgroundColor,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
+                  borderSide: BorderSide(color: theme.dividerColor),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
+                  borderSide: BorderSide(color: theme.dividerColor),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(
-                    color: Color(0xFFE91E63),
+                  borderSide: BorderSide(
+                    color: twainTheme.iconColor,
                     width: 2,
                   ),
                 ),
@@ -156,7 +165,7 @@ class _PartnerProfileScreenState extends ConsumerState<PartnerProfileScreen> {
             child: Text(
               'Cancel',
               style: TextStyle(
-                color: Colors.grey.shade700,
+                color: theme.colorScheme.onSurface.withOpacity(0.7),
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -167,15 +176,15 @@ class _PartnerProfileScreenState extends ConsumerState<PartnerProfileScreen> {
                 Navigator.pop(context, true);
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Text does not match. Please try again.'),
-                    backgroundColor: Color(0xFFE91E63),
+                  SnackBar(
+                    content: const Text('Text does not match. Please try again.'),
+                    backgroundColor: twainTheme.destructiveColor,
                   ),
                 );
               }
             },
             style: TextButton.styleFrom(
-              backgroundColor: const Color(0xFFE91E63),
+              backgroundColor: twainTheme.destructiveColor,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -199,6 +208,8 @@ class _PartnerProfileScreenState extends ConsumerState<PartnerProfileScreen> {
   }
 
   Future<void> _disconnect() async {
+    final twainTheme = context.twainTheme;
+
     setState(() {
       _isDisconnecting = true;
     });
@@ -221,7 +232,7 @@ class _PartnerProfileScreenState extends ConsumerState<PartnerProfileScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to disconnect: $e'),
-            backgroundColor: const Color(0xFFE91E63),
+            backgroundColor: twainTheme.destructiveColor,
           ),
         );
       }
@@ -236,39 +247,61 @@ class _PartnerProfileScreenState extends ConsumerState<PartnerProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final twainTheme = context.twainTheme;
     // Watch for real-time updates to the partner
     final partnerAsync = ref.watch(pairedUserProvider);
 
     return Scaffold(
       body: Container(
-        decoration: _buildGradientBackground(),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: twainTheme.gradientColors,
+          ),
+        ),
         child: SafeArea(
           child: Column(
             children: [
-              _buildHeader(),
+              _buildHeader(theme),
               Expanded(
                 child: partnerAsync.when(
                   data: (partner) {
                     if (partner == null) {
-                      return const Center(child: Text('No partner found'));
+                      return Center(
+                        child: Text(
+                          'No partner found',
+                          style: TextStyle(color: theme.colorScheme.onSurface),
+                        ),
+                      );
                     }
                     return SingleChildScrollView(
                       padding: const EdgeInsets.all(24.0),
                       child: Column(
                         children: [
                           const SizedBox(height: 24),
-                          _buildAvatar(partner),
+                          _buildAvatar(partner, twainTheme),
                           const SizedBox(height: 24),
-                          _buildInfoCard(partner),
+                          _buildInfoCard(partner, theme, twainTheme),
                           const SizedBox(height: 32),
-                          _buildDisconnectButton(),
+                          _buildDisconnectButton(twainTheme),
                           const SizedBox(height: 24),
                         ],
                       ),
                     );
                   },
-                  loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (error, stack) => Center(child: Text('Error: $error')),
+                  loading: () => Center(
+                    child: CircularProgressIndicator(
+                      color: twainTheme.iconColor,
+                    ),
+                  ),
+                  error: (error, stack) => Center(
+                    child: Text(
+                      'Error: $error',
+                      style: TextStyle(color: theme.colorScheme.onSurface),
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -278,38 +311,24 @@ class _PartnerProfileScreenState extends ConsumerState<PartnerProfileScreen> {
     );
   }
 
-  BoxDecoration _buildGradientBackground() {
-    return const BoxDecoration(
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          Color(0xFFF5F5F5),
-          Color(0xFFF0E6F0),
-          Color(0xFFFFE6F0),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
+  Widget _buildHeader(ThemeData theme) {
     return Padding(
       padding: const EdgeInsets.all(20.0),
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back, color: AppColors.black),
+            icon: Icon(Icons.arrow_back, color: theme.colorScheme.onSurface),
             onPressed: () => Navigator.pop(context),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
           ),
           const SizedBox(width: 16),
-          const Text(
+          Text(
             'Partner Profile',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: AppColors.black,
+              color: theme.colorScheme.onSurface,
             ),
           ),
         ],
@@ -317,7 +336,7 @@ class _PartnerProfileScreenState extends ConsumerState<PartnerProfileScreen> {
     );
   }
 
-  Widget _buildAvatar(TwainUser partner) {
+  Widget _buildAvatar(TwainUser partner, TwainThemeExtension twainTheme) {
     return Container(
       width: 120,
       height: 120,
@@ -325,7 +344,7 @@ class _PartnerProfileScreenState extends ConsumerState<PartnerProfileScreen> {
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFE91E63).withOpacity(0.3),
+            color: twainTheme.iconColor.withOpacity(0.3),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -334,25 +353,30 @@ class _PartnerProfileScreenState extends ConsumerState<PartnerProfileScreen> {
       child: StableTwainAvatar(
         user: partner,
         size: 120,
-        color: const Color(0xFFE91E63),
+        color: twainTheme.iconColor,
         showBorder: true,
       ),
     );
   }
 
-  Widget _buildInfoCard(TwainUser partner) {
+  Widget _buildInfoCard(TwainUser partner, ThemeData theme, TwainThemeExtension twainTheme) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
+        color: twainTheme.cardBackgroundColor,
         borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: theme.brightness == Brightness.light
+            ? [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 20,
+                  offset: const Offset(0, 4),
+                ),
+              ]
+            : null,
+        border: theme.brightness == Brightness.dark
+            ? Border.all(color: theme.dividerColor, width: 0.5)
+            : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -361,12 +385,16 @@ class _PartnerProfileScreenState extends ConsumerState<PartnerProfileScreen> {
             icon: Icons.person_outline,
             label: 'Display Name',
             value: partner.displayName ?? 'Not set',
+            theme: theme,
+            twainTheme: twainTheme,
           ),
           const SizedBox(height: 20),
           _buildInfoRow(
             icon: Icons.calendar_today_outlined,
             label: 'Paired Since',
             value: _formatDate(partner.updatedAt),
+            theme: theme,
+            twainTheme: twainTheme,
           ),
           if (partner.status != null) ...[
             const SizedBox(height: 20),
@@ -374,6 +402,8 @@ class _PartnerProfileScreenState extends ConsumerState<PartnerProfileScreen> {
               icon: Icons.info_outline,
               label: 'Status',
               value: partner.status!,
+              theme: theme,
+              twainTheme: twainTheme,
             ),
           ],
         ],
@@ -385,6 +415,8 @@ class _PartnerProfileScreenState extends ConsumerState<PartnerProfileScreen> {
     required IconData icon,
     required String label,
     required String value,
+    required ThemeData theme,
+    required TwainThemeExtension twainTheme,
   }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -392,12 +424,12 @@ class _PartnerProfileScreenState extends ConsumerState<PartnerProfileScreen> {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: const Color(0xFFFCE4EC),
+            color: twainTheme.iconBackgroundColor,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(
             icon,
-            color: const Color(0xFFE91E63),
+            color: twainTheme.iconColor,
             size: 20,
           ),
         ),
@@ -410,16 +442,16 @@ class _PartnerProfileScreenState extends ConsumerState<PartnerProfileScreen> {
                 label,
                 style: TextStyle(
                   fontSize: 13,
-                  color: Colors.grey.shade600,
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
                   fontWeight: FontWeight.w500,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
                 value,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 16,
-                  color: AppColors.black,
+                  color: theme.colorScheme.onSurface,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -430,13 +462,13 @@ class _PartnerProfileScreenState extends ConsumerState<PartnerProfileScreen> {
     );
   }
 
-  Widget _buildDisconnectButton() {
+  Widget _buildDisconnectButton(TwainThemeExtension twainTheme) {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
         onPressed: _isDisconnecting ? null : _showDisconnectWarning,
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFFE91E63),
+          backgroundColor: twainTheme.destructiveColor,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(

@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:twain/constants/app_colours.dart';
+import 'package:twain/constants/app_themes.dart';
 import 'package:twain/providers/auth_providers.dart';
 import 'package:twain/screens/signup_screen.dart';
 import 'package:twain/widgets/textfields.dart';
@@ -48,7 +48,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final authService = ref.read(authServiceProvider);
       await authService.signInWithEmailPassword(email, password);
 
-      // Invalidate the auth provider to force AuthGate to rebuild
       if (mounted) {
         ref.invalidate(twainUserProvider);
         setState(() {
@@ -83,7 +82,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           });
         }
       } else {
-        // Invalidate the auth provider to force AuthGate to rebuild
         if (mounted) {
           ref.invalidate(twainUserProvider);
           setState(() {
@@ -103,8 +101,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
     final screenWidth = MediaQuery.of(context).size.width;
+    final theme = Theme.of(context);
 
-    // Calculate responsive spacing
     final topSpacing = screenHeight * 0.04;
     final headerSpacing = screenHeight * 0.06;
     final fieldSpacing = screenHeight * 0.03;
@@ -113,7 +111,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     return Scaffold(
       body: Container(
-        decoration: _buildGradientBackground(),
+        decoration: _buildGradientBackground(context),
         child: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -129,10 +127,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           SizedBox(height: topSpacing + headerSpacing),
-                          _buildHeader(),
+                          _buildHeader(context),
                           SizedBox(height: fieldSpacing),
                           if (_errorMessage != null) ...[
-                            _buildErrorMessage(),
+                            _buildErrorMessage(context),
                             SizedBox(height: fieldSpacing * 0.5),
                           ],
                           _buildEmailField(_emailController),
@@ -141,7 +139,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           SizedBox(height: buttonSpacing),
                           _buildSignInButton(),
                           SizedBox(height: buttonSpacing),
-                          const DividerWithText(text: 'Or continue with', color: AppColors.grey),
+                          DividerWithText(
+                            text: 'Or continue with',
+                            color: theme.colorScheme.onSurface.withOpacity(0.5),
+                          ),
                           SizedBox(height: fieldSpacing),
                           _buildSocialButtons(),
                           const Spacer(),
@@ -160,31 +161,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  BoxDecoration _buildGradientBackground() {
-    return const BoxDecoration(
+  BoxDecoration _buildGradientBackground(BuildContext context) {
+    final twainTheme = context.twainTheme;
+    return BoxDecoration(
       gradient: LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [
-          Color(0xFFF5F5F5),
-          Color(0xFFF0E6F0),
-          Color(0xFFFFE6F0),
-        ],
+        colors: twainTheme.gradientColors,
       ),
     );
   }
 
-  Widget _buildBackButton(BuildContext context) {
-    return IconButton(
-      icon: const Icon(Icons.arrow_back, color: AppColors.black),
-      onPressed: () => Navigator.pop(context),
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(),
-    );
-  }
-
-  Widget _buildHeader() {
-    return const Column(
+  Widget _buildHeader(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
       children: [
         Center(
           child: Text(
@@ -192,17 +182,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             style: TextStyle(
               fontSize: 32,
               fontWeight: FontWeight.bold,
-              color: AppColors.black,
+              color: theme.colorScheme.onSurface,
             ),
           ),
         ),
-        SizedBox(height: 8),
+        const SizedBox(height: 8),
         Center(
           child: Text(
             'Sign in to connect with your partner',
             style: TextStyle(
               fontSize: 16,
-              color: AppColors.textSecondary3,
+              color: theme.colorScheme.onSurface.withOpacity(0.6),
             ),
           ),
         ),
@@ -210,23 +200,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  Widget _buildErrorMessage() {
+  Widget _buildErrorMessage(BuildContext context) {
+    final twainTheme = context.twainTheme;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.red.shade50,
+        color: twainTheme.destructiveBackgroundColor,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.red.shade200),
+        border: Border.all(color: twainTheme.destructiveColor.withOpacity(0.3)),
       ),
       child: Row(
         children: [
-          Icon(Icons.error_outline, color: Colors.red.shade700, size: 20),
+          Icon(Icons.error_outline, color: twainTheme.destructiveColor, size: 20),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               _errorMessage!,
               style: TextStyle(
-                color: Colors.red.shade700,
+                color: twainTheme.destructiveColor,
                 fontSize: 14,
               ),
             ),
@@ -270,12 +261,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             height: 24,
           ),
         ),
-        // Only show Apple sign-in on iOS
         if (Platform.isIOS) ...[
           const SizedBox(height: 16),
           SocialLoginButton(
             onPressed: _isLoading ? null : () {
-              // TODO: Implement Apple sign in when ready
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Apple Sign-In coming soon')),
               );
@@ -293,15 +282,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Widget _buildSignUpLink(BuildContext context) {
+    final theme = Theme.of(context);
+    final twainTheme = context.twainTheme;
     return Center(
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Text(
+          Text(
             "Don't have an account? ",
             style: TextStyle(
               fontSize: 14,
-              color: AppColors.textSecondary,
+              color: theme.colorScheme.onSurface.withOpacity(0.6),
             ),
           ),
           GestureDetector(
@@ -315,7 +306,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               'Sign up',
               style: TextStyle(
                 fontSize: 14,
-                color: _isLoading ? AppColors.grey : const Color(0xFF9C27B0),
+                color: _isLoading
+                    ? theme.colorScheme.onSurface.withOpacity(0.4)
+                    : twainTheme.iconColor,
                 fontWeight: FontWeight.bold,
               ),
             ),

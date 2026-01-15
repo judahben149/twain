@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:twain/constants/app_colours.dart';
+import 'package:twain/constants/app_themes.dart';
 import 'package:twain/models/wallpaper_folder.dart';
 import 'package:twain/models/folder_image.dart';
 import 'package:twain/providers/folder_providers.dart';
@@ -26,31 +26,35 @@ class _FolderDetailScreenState extends ConsumerState<FolderDetailScreen> {
     final folderAsync = ref.watch(folderProvider(widget.folderId));
     final imagesAsync = ref.watch(folderImagesStreamProvider(widget.folderId));
 
+    final theme = Theme.of(context);
+    final twainTheme = context.twainTheme;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: theme.colorScheme.surface,
       appBar: AppBar(
         title: folderAsync.when(
           data: (folder) => Text(
             folder.name,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: AppColors.black,
+              color: theme.colorScheme.onSurface,
             ),
           ),
           loading: () => const Text('Loading...'),
           error: (_, __) => const Text('Error'),
         ),
-        backgroundColor: Colors.white,
-        elevation: 1,
+        backgroundColor: twainTheme.cardBackgroundColor,
+        elevation: context.isDarkMode ? 0 : 1,
+        iconTheme: IconThemeData(color: theme.colorScheme.onSurface),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.black),
+          icon: Icon(Icons.arrow_back, color: theme.colorScheme.onSurface),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
           // Edit button
           IconButton(
-            icon: const Icon(Icons.edit_outlined, color: AppColors.black),
+            icon: Icon(Icons.edit_outlined, color: theme.colorScheme.onSurface),
             onPressed: () {
               folderAsync.whenData((folder) {
                 Navigator.push(
@@ -64,7 +68,7 @@ class _FolderDetailScreenState extends ConsumerState<FolderDetailScreen> {
           ),
           // Delete button
           IconButton(
-            icon: const Icon(Icons.delete_outline, color: Colors.red),
+            icon: Icon(Icons.delete_outline, color: theme.colorScheme.error),
             onPressed: () {
               folderAsync.whenData((folder) => _confirmDelete(folder));
             },
@@ -84,34 +88,46 @@ class _FolderDetailScreenState extends ConsumerState<FolderDetailScreen> {
   }
 
   Widget _buildContent(WallpaperFolder folder, List<FolderImage> images) {
+    final theme = Theme.of(context);
+    final twainTheme = context.twainTheme;
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
         // Header Card
-        _buildHeaderCard(folder),
+        _buildHeaderCard(folder, theme, twainTheme),
         const SizedBox(height: 16),
 
         // Add Images Section
         if (folder.canAddImages) ...[
-          _buildAddImagesSection(folder),
+          _buildAddImagesSection(folder, theme, twainTheme),
           const SizedBox(height: 16),
         ],
 
         // Images Grid
         if (images.isEmpty)
-          _buildEmptyImagesState()
+          _buildEmptyImagesState(theme, twainTheme)
         else
-          _buildImagesGrid(images),
+          _buildImagesGrid(images, theme, twainTheme),
       ],
     );
   }
 
-  Widget _buildHeaderCard(WallpaperFolder folder) {
+  Widget _buildHeaderCard(
+    WallpaperFolder folder,
+    ThemeData theme,
+    TwainThemeExtension twainTheme,
+  ) {
     final isActive = folder.isActive && folder.imageCount > 0;
 
     return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: context.isDarkMode ? 0 : 2,
+      color: twainTheme.cardBackgroundColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: context.isDarkMode
+            ? BorderSide(color: theme.dividerColor, width: 0.5)
+            : BorderSide.none,
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -125,16 +141,16 @@ class _FolderDetailScreenState extends ConsumerState<FolderDetailScreen> {
                       ? Icons.repeat
                       : Icons.shuffle,
                   size: 18,
-                  color: const Color(0xFFE91E63),
+                  color: twainTheme.iconColor,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'Rotates every ${folder.rotationIntervalDisplay} • ${folder.rotationOrder == 'sequential' ? 'Sequential' : 'Random'}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
-                      color: AppColors.black,
+                      color: theme.colorScheme.onSurface,
                     ),
                   ),
                 ),
@@ -146,17 +162,24 @@ class _FolderDetailScreenState extends ConsumerState<FolderDetailScreen> {
             // Image Count
             Row(
               children: [
-                Icon(Icons.photo_library_outlined, size: 18, color: Colors.grey[600]),
+                Icon(
+                  Icons.photo_library_outlined,
+                  size: 18,
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                ),
                 const SizedBox(width: 8),
                 Text(
                   '${folder.imageCount}/30 images',
-                  style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: theme.colorScheme.onSurface.withOpacity(0.6),
+                  ),
                 ),
               ],
             ),
 
             const SizedBox(height: 16),
-            const Divider(height: 1),
+            Divider(height: 1, color: theme.dividerColor),
             const SizedBox(height: 16),
 
             // Active Toggle
@@ -166,12 +189,12 @@ class _FolderDetailScreenState extends ConsumerState<FolderDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Automatic Rotation',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.black,
+                          color: theme.colorScheme.onSurface,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -179,7 +202,9 @@ class _FolderDetailScreenState extends ConsumerState<FolderDetailScreen> {
                         folder.statusText,
                         style: TextStyle(
                           fontSize: 13,
-                          color: isActive ? const Color(0xFFE91E63) : Colors.grey[600],
+                          color: isActive
+                              ? twainTheme.iconColor
+                              : theme.colorScheme.onSurface.withOpacity(0.6),
                         ),
                       ),
                     ],
@@ -190,7 +215,7 @@ class _FolderDetailScreenState extends ConsumerState<FolderDetailScreen> {
                   onChanged: folder.imageCount > 0
                       ? (value) => _toggleFolderActive(folder, value)
                       : null,
-                  activeColor: const Color(0xFFE91E63),
+                  activeColor: twainTheme.iconColor,
                 ),
               ],
             ),
@@ -200,18 +225,28 @@ class _FolderDetailScreenState extends ConsumerState<FolderDetailScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.orange[50],
+                  color: theme.colorScheme.errorContainer.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange, width: 1),
+                  border: Border.all(
+                    color: theme.colorScheme.error.withOpacity(0.7),
+                    width: 1,
+                  ),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.info_outline, size: 16, color: Colors.orange[700]),
+                    Icon(
+                      Icons.info_outline,
+                      size: 16,
+                      color: theme.colorScheme.error.withOpacity(0.9),
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'Add at least 1 image to activate rotation',
-                        style: TextStyle(fontSize: 12, color: Colors.orange[700]),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: theme.colorScheme.error.withOpacity(0.9),
+                        ),
                       ),
                     ),
                   ],
@@ -224,10 +259,20 @@ class _FolderDetailScreenState extends ConsumerState<FolderDetailScreen> {
     );
   }
 
-  Widget _buildAddImagesSection(WallpaperFolder folder) {
+  Widget _buildAddImagesSection(
+    WallpaperFolder folder,
+    ThemeData theme,
+    TwainThemeExtension twainTheme,
+  ) {
     return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: context.isDarkMode ? 0 : 2,
+      color: twainTheme.cardBackgroundColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: context.isDarkMode
+            ? BorderSide(color: theme.dividerColor, width: 0.5)
+            : BorderSide.none,
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -235,12 +280,12 @@ class _FolderDetailScreenState extends ConsumerState<FolderDetailScreen> {
           children: [
             Row(
               children: [
-                const Text(
+                Text(
                   'Add Images',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.black,
+                    color: theme.colorScheme.onSurface,
                   ),
                 ),
                 const Spacer(),
@@ -248,7 +293,7 @@ class _FolderDetailScreenState extends ConsumerState<FolderDetailScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.orange[50],
+                      color: theme.colorScheme.errorContainer.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
@@ -256,7 +301,7 @@ class _FolderDetailScreenState extends ConsumerState<FolderDetailScreen> {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: Colors.orange[700],
+                        color: theme.colorScheme.error.withOpacity(0.9),
                       ),
                     ),
                   ),
@@ -301,23 +346,24 @@ class _FolderDetailScreenState extends ConsumerState<FolderDetailScreen> {
     required String label,
     required VoidCallback onTap,
   }) {
+    final twainTheme = context.twainTheme;
     return OutlinedButton(
       onPressed: _isProcessing ? null : onTap,
       style: OutlinedButton.styleFrom(
         padding: const EdgeInsets.symmetric(vertical: 12),
-        side: const BorderSide(color: Color(0xFFE91E63)),
+        side: BorderSide(color: twainTheme.iconColor),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 24, color: const Color(0xFFE91E63)),
+          Icon(icon, size: 24, color: twainTheme.iconColor),
           const SizedBox(height: 4),
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
-              color: Color(0xFFE91E63),
+              color: twainTheme.iconColor,
             ),
           ),
         ],
@@ -325,16 +371,20 @@ class _FolderDetailScreenState extends ConsumerState<FolderDetailScreen> {
     );
   }
 
-  Widget _buildImagesGrid(List<FolderImage> images) {
+  Widget _buildImagesGrid(
+    List<FolderImage> images,
+    ThemeData theme,
+    TwainThemeExtension twainTheme,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Images',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
-            color: AppColors.black,
+            color: theme.colorScheme.onSurface,
           ),
         ),
         const SizedBox(height: 12),
@@ -349,26 +399,33 @@ class _FolderDetailScreenState extends ConsumerState<FolderDetailScreen> {
           ),
           itemCount: images.length,
           itemBuilder: (context, index) {
-            return _buildImageCard(images[index], index);
+            return _buildImageCard(images[index], index, theme, twainTheme);
           },
         ),
       ],
     );
   }
 
-  Widget _buildImageCard(FolderImage image, int index) {
+  Widget _buildImageCard(
+    FolderImage image,
+    int index,
+    ThemeData theme,
+    TwainThemeExtension twainTheme,
+  ) {
     return Stack(
       children: [
         Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              ),
-            ],
+            boxShadow: context.isDarkMode
+                ? null
+                : [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
@@ -378,14 +435,20 @@ class _FolderDetailScreenState extends ConsumerState<FolderDetailScreen> {
               width: double.infinity,
               height: double.infinity,
               placeholder: (context, url) => Container(
-                color: Colors.grey[200],
-                child: const Center(
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                color: twainTheme.cardBackgroundColor,
+                child: Center(
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: twainTheme.iconColor,
+                  ),
                 ),
               ),
               errorWidget: (context, url, error) => Container(
-                color: Colors.grey[300],
-                child: const Icon(Icons.broken_image, color: Colors.grey),
+                color: twainTheme.cardBackgroundColor,
+                child: Icon(
+                  Icons.broken_image,
+                  color: theme.colorScheme.onSurface.withOpacity(0.5),
+                ),
               ),
             ),
           ),
@@ -419,7 +482,7 @@ class _FolderDetailScreenState extends ConsumerState<FolderDetailScreen> {
             child: Container(
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.9),
+                color: theme.colorScheme.error,
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -434,28 +497,44 @@ class _FolderDetailScreenState extends ConsumerState<FolderDetailScreen> {
     );
   }
 
-  Widget _buildEmptyImagesState() {
+  Widget _buildEmptyImagesState(
+    ThemeData theme,
+    TwainThemeExtension twainTheme,
+  ) {
     return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: context.isDarkMode ? 0 : 2,
+      color: twainTheme.cardBackgroundColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: context.isDarkMode
+            ? BorderSide(color: theme.dividerColor, width: 0.5)
+            : BorderSide.none,
+      ),
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           children: [
-            Icon(Icons.photo_library_outlined, size: 64, color: Colors.grey[400]),
+            Icon(
+              Icons.photo_library_outlined,
+              size: 64,
+              color: theme.colorScheme.onSurface.withOpacity(0.4),
+            ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'No Images Yet',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: AppColors.black,
+                color: theme.colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 8),
             Text(
               'Add images from Shared Board, Device, or Unsplash',
-              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+              style: TextStyle(
+                fontSize: 14,
+                color: theme.colorScheme.onSurface.withOpacity(0.6),
+              ),
               textAlign: TextAlign.center,
             ),
           ],

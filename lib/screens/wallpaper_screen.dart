@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-import 'package:twain/constants/app_colours.dart';
+import 'package:twain/constants/app_themes.dart';
 import 'package:twain/models/wallpaper.dart';
 import 'package:twain/providers/wallpaper_providers.dart';
 import 'package:twain/providers/auth_providers.dart';
@@ -26,22 +26,25 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final twainTheme = context.twainTheme;
     final wallpapersAsync = ref.watch(wallpapersStreamProvider);
     final currentUser = ref.watch(twainUserProvider).value;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: theme.colorScheme.surface,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Wallpaper Sync',
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
-            color: AppColors.black,
+            color: theme.colorScheme.onSurface,
           ),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        iconTheme: IconThemeData(color: theme.colorScheme.onSurface),
       ),
       body: Column(
         children: [
@@ -49,14 +52,19 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
           Container(
             padding: const EdgeInsets.all(24.0),
             decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+              color: twainTheme.cardBackgroundColor,
+              boxShadow: context.isDarkMode
+                  ? null
+                  : [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+              border: context.isDarkMode
+                  ? Border(bottom: BorderSide(color: theme.dividerColor, width: 0.5))
+                  : null,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -66,7 +74,7 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade800,
+                    color: theme.colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -79,17 +87,22 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                       builder: (_) => const SharedBoardScreen(),
                     ),
                   ),
-                  icon: const Icon(Icons.photo_library, size: 22),
-                  label: const Text(
+                  icon: Icon(
+                    Icons.photo_library,
+                    size: 22,
+                    color: theme.colorScheme.onPrimary,
+                  ),
+                  label: Text(
                     'Choose from Shared Board',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
+                      color: theme.colorScheme.onPrimary,
                     ),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFE91E63),
-                    foregroundColor: Colors.white,
+                    backgroundColor: twainTheme.iconColor,
+                    foregroundColor: theme.colorScheme.onPrimary,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 24,
                       vertical: 16,
@@ -106,16 +119,17 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                 // Device Gallery Button
                 OutlinedButton.icon(
                   onPressed: () => _pickFromDevice(context),
-                  icon: const Icon(Icons.phone_android, size: 22),
-                  label: const Text(
+                  icon: Icon(Icons.phone_android, size: 22, color: twainTheme.iconColor),
+                  label: Text(
                     'Choose from Device',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
+                      color: twainTheme.iconColor,
                     ),
                   ),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFE91E63),
+                    foregroundColor: twainTheme.iconColor,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 24,
                       vertical: 16,
@@ -123,8 +137,8 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    side: const BorderSide(
-                      color: Color(0xFFE91E63),
+                    side: BorderSide(
+                      color: twainTheme.iconColor,
                       width: 2,
                     ),
                   ),
@@ -140,17 +154,22 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                       builder: (_) => const UnsplashBrowserScreen(),
                     ),
                   ),
-                  icon: const Icon(Icons.explore_outlined, size: 22),
-                  label: const Text(
+                  icon: Icon(
+                    Icons.explore_outlined,
+                    size: 22,
+                    color: theme.colorScheme.onPrimary,
+                  ),
+                  label: Text(
                     'Browse Wallpapers',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
+                      color: theme.colorScheme.onPrimary,
                     ),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF9C27B0),
-                    foregroundColor: Colors.white,
+                    backgroundColor: twainTheme.iconColor,
+                    foregroundColor: theme.colorScheme.onPrimary,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 24,
                       vertical: 16,
@@ -172,16 +191,21 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                       builder: (_) => const FoldersListScreen(),
                     ),
                   ),
-                  icon: const Icon(Icons.folder_outlined, size: 22),
-                  label: const Text(
+                  icon: Icon(
+                    Icons.folder_outlined,
+                    size: 22,
+                    color: twainTheme.activeStatusTextColor,
+                  ),
+                  label: Text(
                     'Rotation Folders',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
+                      color: twainTheme.activeStatusTextColor,
                     ),
                   ),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF4CAF50),
+                    foregroundColor: twainTheme.activeStatusTextColor,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 24,
                       vertical: 16,
@@ -189,8 +213,8 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    side: const BorderSide(
-                      color: Color(0xFF4CAF50),
+                    side: BorderSide(
+                      color: twainTheme.activeStatusTextColor,
                       width: 2,
                     ),
                   ),
@@ -208,7 +232,7 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
               children: [
                 Icon(
                   Icons.history,
-                  color: Colors.grey.shade600,
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
                   size: 20,
                 ),
                 const SizedBox(width: 8),
@@ -217,7 +241,7 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade800,
+                    color: theme.colorScheme.onSurface,
                   ),
                 ),
               ],
@@ -236,14 +260,14 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                         Icon(
                           Icons.wallpaper_outlined,
                           size: 64,
-                          color: Colors.grey.shade300,
+                          color: theme.colorScheme.onSurface.withOpacity(0.3),
                         ),
                         const SizedBox(height: 16),
                         Text(
                           'No wallpaper changes yet',
                           style: TextStyle(
                             fontSize: 16,
-                            color: Colors.grey.shade500,
+                            color: theme.colorScheme.onSurface.withOpacity(0.5),
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -251,7 +275,7 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                           'Set a wallpaper to get started!',
                           style: TextStyle(
                             fontSize: 14,
-                            color: Colors.grey.shade400,
+                            color: theme.colorScheme.onSurface.withOpacity(0.4),
                           ),
                         ),
                       ],
@@ -270,13 +294,15 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                       wallpaper,
                       isCurrentUser,
                       currentUser?.id ?? '',
+                      theme,
+                      twainTheme,
                     );
                   },
                 );
               },
-              loading: () => const Center(
+              loading: () => Center(
                 child: CircularProgressIndicator(
-                  color: Color(0xFFE91E63),
+                  color: twainTheme.iconColor,
                 ),
               ),
               error: (error, stack) => Center(
@@ -286,14 +312,14 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                     Icon(
                       Icons.error_outline,
                       size: 48,
-                      color: Colors.red.shade300,
+                      color: twainTheme.destructiveColor,
                     ),
                     const SizedBox(height: 16),
                     Text(
                       'Error loading wallpapers',
                       style: TextStyle(
                         fontSize: 16,
-                        color: Colors.grey.shade700,
+                        color: theme.colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -301,7 +327,7 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                       '$error',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey.shade500,
+                        color: theme.colorScheme.onSurface.withOpacity(0.5),
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -317,6 +343,7 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
 
   Future<void> _pickFromDevice(BuildContext context) async {
     final ImagePicker picker = ImagePicker();
+    final twainTheme = context.twainTheme;
 
     try {
       final XFile? image = await picker.pickImage(
@@ -341,19 +368,24 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to pick image: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: twainTheme.destructiveColor,
           ),
         );
       }
     }
   }
 
-  Future<void> _applyWallpaper(Wallpaper wallpaper) async {
+  Future<void> _applyWallpaper(Wallpaper wallpaper, TwainThemeExtension twainTheme) async {
+    final theme = Theme.of(context);
     if (!Platform.isAndroid) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Wallpaper can only be applied on Android'),
-          backgroundColor: Colors.orange,
+        SnackBar(
+          content: const Text('Wallpaper can only be applied on Android'),
+          backgroundColor: twainTheme.destructiveBackgroundColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       );
       return;
@@ -366,14 +398,14 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
     try {
       // Show loading message
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Row(
             children: [
               SizedBox(
                 width: 20,
                 height: 20,
                 child: CircularProgressIndicator(
-                  color: Colors.white,
+                  color: twainTheme.iconColor,
                   strokeWidth: 2,
                 ),
               ),
@@ -382,6 +414,14 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
             ],
           ),
           duration: Duration(seconds: 10),
+          backgroundColor: twainTheme.cardBackgroundColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: context.isDarkMode
+                ? BorderSide(color: theme.dividerColor, width: 0.5)
+                : BorderSide.none,
+          ),
         ),
       );
 
@@ -399,16 +439,20 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
       // Show success message
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Row(
             children: [
-              Icon(Icons.check_circle, color: Colors.white),
-              SizedBox(width: 16),
-              Text('Wallpaper applied successfully!'),
+              Icon(Icons.check_circle, color: theme.colorScheme.onPrimary),
+              const SizedBox(width: 16),
+              const Text('Wallpaper applied successfully!'),
             ],
           ),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 2),
+          backgroundColor: twainTheme.iconColor,
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       );
     } catch (e) {
@@ -425,15 +469,19 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
         SnackBar(
           content: Row(
             children: [
-              const Icon(Icons.error, color: Colors.white),
+              Icon(Icons.error, color: theme.colorScheme.onPrimary),
               const SizedBox(width: 16),
               Expanded(
                 child: Text('Failed to apply wallpaper: ${e.toString()}'),
               ),
             ],
           ),
-          backgroundColor: Colors.red,
+          backgroundColor: twainTheme.destructiveColor,
           duration: const Duration(seconds: 4),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       );
     } finally {
@@ -450,6 +498,8 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
     Wallpaper wallpaper,
     bool isCurrentUser,
     String currentUserId,
+    ThemeData theme,
+    TwainThemeExtension twainTheme,
   ) {
     // Determine if current user should see the Apply button
     final shouldShowApply = wallpaper.status == 'pending' &&
@@ -461,15 +511,20 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: twainTheme.cardBackgroundColor,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: context.isDarkMode
+            ? null
+            : [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+        border: context.isDarkMode
+            ? Border.all(color: theme.dividerColor, width: 0.5)
+            : null,
       ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -487,22 +542,25 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                 placeholder: (context, url) => Container(
                   width: 60,
                   height: 60,
-                  color: Colors.grey.shade200,
-                  child: const Center(
+                  color: theme.colorScheme.surface,
+                  child: Center(
                     child: SizedBox(
                       width: 18,
                       height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: twainTheme.iconColor,
                     ),
                   ),
+                ),
                 ),
                 errorWidget: (context, url, error) => Container(
                   width: 60,
                   height: 60,
-                  color: Colors.grey.shade200,
+                  color: theme.colorScheme.surface,
                   child: Icon(
                     Icons.image_not_supported,
-                    color: Colors.grey.shade400,
+                    color: theme.colorScheme.onSurface.withOpacity(0.4),
                   ),
                 ),
               ),
@@ -519,10 +577,10 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                     children: [
                       Text(
                         isCurrentUser ? 'You' : 'Partner',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.black,
+                          color: theme.colorScheme.onSurface,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -530,7 +588,7 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                         'set wallpaper',
                         style: TextStyle(
                           fontSize: 14,
-                          color: Colors.grey.shade600,
+                          color: theme.colorScheme.onSurface.withOpacity(0.6),
                         ),
                       ),
                     ],
@@ -542,7 +600,7 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                     _getApplyToText(wallpaper.applyTo),
                     style: TextStyle(
                       fontSize: 13,
-                      color: Colors.grey.shade500,
+                      color: theme.colorScheme.onSurface.withOpacity(0.5),
                     ),
                   ),
 
@@ -553,18 +611,22 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                       Icon(
                         Icons.access_time,
                         size: 14,
-                        color: Colors.grey.shade400,
+                        color: theme.colorScheme.onSurface.withOpacity(0.4),
                       ),
                       const SizedBox(width: 4),
                       Text(
                         _formatDateTime(wallpaper.createdAt),
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.grey.shade500,
+                          color: theme.colorScheme.onSurface.withOpacity(0.5),
                         ),
                       ),
                       const SizedBox(width: 16),
-                      _buildStatusBadge(wallpaper.status),
+                      _buildStatusBadge(
+                        wallpaper.status,
+                        theme,
+                        twainTheme,
+                      ),
                     ],
                   ),
                 ],
@@ -579,10 +641,10 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                   ElevatedButton(
                     onPressed: isApplying
                         ? null
-                        : () => _applyWallpaper(wallpaper),
+                        : () => _applyWallpaper(wallpaper, twainTheme),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFE91E63),
-                      foregroundColor: Colors.white,
+                      backgroundColor: twainTheme.iconColor,
+                      foregroundColor: theme.colorScheme.onPrimary,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 8,
@@ -593,11 +655,11 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                       elevation: 1,
                     ),
                     child: isApplying
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 16,
                             height: 16,
                             child: CircularProgressIndicator(
-                              color: Colors.white,
+                              color: theme.colorScheme.onPrimary,
                               strokeWidth: 2,
                             ),
                           )
@@ -617,34 +679,39 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
     );
   }
 
-  Widget _buildStatusBadge(String status) {
-    Color backgroundColor;
-    Color textColor;
-    String label;
-    IconData icon;
+  Widget _buildStatusBadge(
+    String status,
+    ThemeData theme,
+    TwainThemeExtension twainTheme,
+  ) {
+    final colorScheme = theme.colorScheme;
+    late Color backgroundColor;
+    late Color textColor;
+    late String label;
+    late IconData icon;
 
     switch (status) {
       case 'applied':
-        backgroundColor = Colors.green.shade50;
-        textColor = Colors.green.shade700;
+        backgroundColor = colorScheme.secondaryContainer;
+        textColor = colorScheme.onSecondaryContainer;
         label = 'Applied';
         icon = Icons.check_circle;
         break;
       case 'pending':
-        backgroundColor = Colors.orange.shade50;
-        textColor = Colors.orange.shade700;
+        backgroundColor = colorScheme.tertiaryContainer;
+        textColor = colorScheme.onTertiaryContainer;
         label = 'Pending';
         icon = Icons.pending;
         break;
       case 'failed':
-        backgroundColor = Colors.red.shade50;
-        textColor = Colors.red.shade700;
+        backgroundColor = twainTheme.destructiveBackgroundColor;
+        textColor = twainTheme.destructiveColor;
         label = 'Failed';
         icon = Icons.error;
         break;
       default:
-        backgroundColor = Colors.grey.shade50;
-        textColor = Colors.grey.shade700;
+        backgroundColor = colorScheme.surfaceContainerHighest;
+        textColor = colorScheme.onSurface.withOpacity(0.7);
         label = status;
         icon = Icons.help;
     }

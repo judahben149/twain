@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:twain/providers/auth_providers.dart';
-import 'package:twain/navigation/app_navigator.dart';
 import 'package:twain/providers/wallpaper_providers.dart';
+import 'package:twain/navigation/app_navigator.dart';
 import 'package:twain/services/notification_router.dart';
 import 'package:twain/widgets/auth_gate.dart';
+import 'package:twain/widgets/dynamic_theme_builder.dart';
 
 class MyApp extends ConsumerStatefulWidget {
   const MyApp({super.key});
@@ -53,15 +53,17 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      navigatorKey: appNavigatorKey,
-      title: 'Twain',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.pink),
-        useMaterial3: true,
-        textTheme: GoogleFonts.jostTextTheme(),
-      ),
-      home: const AuthGate(),
+    return DynamicThemeBuilder(
+      builder: (lightTheme, darkTheme, themeMode) {
+        return MaterialApp(
+          navigatorKey: appNavigatorKey,
+          title: 'Twain',
+          theme: lightTheme,
+          darkTheme: darkTheme,
+          themeMode: themeMode,
+          home: const AuthGate(),
+        );
+      },
     );
   }
 }

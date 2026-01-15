@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:twain/constants/app_colours.dart';
+import 'package:twain/constants/app_themes.dart';
 import 'package:twain/models/wallpaper_folder.dart';
 import 'package:twain/providers/folder_providers.dart';
 import 'package:twain/screens/folder_detail_screen.dart';
@@ -46,21 +46,23 @@ class _CreateFolderScreenState extends ConsumerState<CreateFolderScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final twainTheme = context.twainTheme;
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: theme.colorScheme.surface,
       appBar: AppBar(
         title: Text(
           isEditing ? 'Edit Folder' : 'Create Folder',
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
-            color: AppColors.black,
+            color: theme.colorScheme.onSurface,
           ),
         ),
-        backgroundColor: Colors.white,
-        elevation: 1,
+        backgroundColor: twainTheme.cardBackgroundColor,
+        elevation: context.isDarkMode ? 0 : 1,
         leading: IconButton(
-          icon: const Icon(Icons.close, color: AppColors.black),
+          icon: Icon(Icons.close, color: theme.colorScheme.onSurface),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -70,14 +72,15 @@ class _CreateFolderScreenState extends ConsumerState<CreateFolderScreen> {
           padding: const EdgeInsets.all(16),
           children: [
             // Folder Name
-            _buildSectionTitle('Folder Name'),
+            _buildSectionTitle(context, 'Folder Name'),
             const SizedBox(height: 8),
             TextFormField(
               controller: _nameController,
+              style: TextStyle(color: theme.colorScheme.onSurface),
               decoration: InputDecoration(
                 hintText: 'Enter folder name',
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: twainTheme.cardBackgroundColor,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
@@ -100,7 +103,7 @@ class _CreateFolderScreenState extends ConsumerState<CreateFolderScreen> {
             const SizedBox(height: 24),
 
             // Rotation Interval
-            _buildSectionTitle('Rotation Interval'),
+            _buildSectionTitle(context, 'Rotation Interval'),
             const SizedBox(height: 8),
             Row(
               children: [
@@ -109,10 +112,11 @@ class _CreateFolderScreenState extends ConsumerState<CreateFolderScreen> {
                   flex: 2,
                   child: TextFormField(
                     controller: _intervalController,
+                    style: TextStyle(color: theme.colorScheme.onSurface),
                     decoration: InputDecoration(
                       hintText: 'Number',
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: twainTheme.cardBackgroundColor,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide.none,
@@ -150,7 +154,7 @@ class _CreateFolderScreenState extends ConsumerState<CreateFolderScreen> {
                     value: _selectedUnit,
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: twainTheme.cardBackgroundColor,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide.none,
@@ -182,7 +186,7 @@ class _CreateFolderScreenState extends ConsumerState<CreateFolderScreen> {
                 'Minimum interval: 5 minutes',
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.grey[600],
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
                 ),
               ),
             ),
@@ -190,52 +194,72 @@ class _CreateFolderScreenState extends ConsumerState<CreateFolderScreen> {
             const SizedBox(height: 24),
 
             // Rotation Order
-            _buildSectionTitle('Rotation Order'),
+            _buildSectionTitle(context, 'Rotation Order'),
             const SizedBox(height: 8),
             Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: twainTheme.cardBackgroundColor,
                 borderRadius: BorderRadius.circular(12),
+                boxShadow: context.isDarkMode
+                    ? null
+                    : [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.04),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                border: context.isDarkMode
+                    ? Border.all(color: theme.dividerColor, width: 0.5)
+                    : null,
               ),
               child: Column(
                 children: [
                   RadioListTile<String>(
-                    title: const Text(
+                    title: Text(
                       'Sequential',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
+                        color: theme.colorScheme.onSurface,
                       ),
                     ),
-                    subtitle: const Text(
+                    subtitle: Text(
                       'Rotate images in order (1, 2, 3...)',
-                      style: TextStyle(fontSize: 13),
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: theme.colorScheme.onSurface.withOpacity(0.6),
+                      ),
                     ),
                     value: 'sequential',
                     groupValue: _selectedOrder,
-                    activeColor: const Color(0xFFE91E63),
+                    activeColor: twainTheme.iconColor,
                     onChanged: (value) {
                       setState(() {
                         _selectedOrder = value!;
                       });
                     },
                   ),
-                  Divider(height: 1, color: Colors.grey[300]),
+                  Divider(height: 1, color: theme.dividerColor),
                   RadioListTile<String>(
-                    title: const Text(
+                    title: Text(
                       'Random',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
+                        color: theme.colorScheme.onSurface,
                       ),
                     ),
-                    subtitle: const Text(
+                    subtitle: Text(
                       'Rotate images in random order',
-                      style: TextStyle(fontSize: 13),
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: theme.colorScheme.onSurface.withOpacity(0.6),
+                      ),
                     ),
                     value: 'random',
                     groupValue: _selectedOrder,
-                    activeColor: const Color(0xFFE91E63),
+                    activeColor: twainTheme.iconColor,
                     onChanged: (value) {
                       setState(() {
                         _selectedOrder = value!;
@@ -252,13 +276,13 @@ class _CreateFolderScreenState extends ConsumerState<CreateFolderScreen> {
             ElevatedButton(
               onPressed: _isSubmitting ? null : _handleSubmit,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFE91E63),
+                backgroundColor: twainTheme.iconColor,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                disabledBackgroundColor: Colors.grey[300],
+                disabledBackgroundColor: theme.disabledColor,
               ),
               child: _isSubmitting
                   ? const SizedBox(
@@ -283,13 +307,14 @@ class _CreateFolderScreenState extends ConsumerState<CreateFolderScreen> {
     );
   }
 
-  Widget _buildSectionTitle(String title) {
+  Widget _buildSectionTitle(BuildContext context, String title) {
+    final theme = Theme.of(context);
     return Text(
       title,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 16,
         fontWeight: FontWeight.w600,
-        color: AppColors.black,
+        color: theme.colorScheme.onSurface,
       ),
     );
   }

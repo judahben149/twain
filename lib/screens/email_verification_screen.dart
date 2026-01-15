@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:twain/constants/app_colours.dart';
+import 'package:twain/constants/app_themes.dart';
 import 'package:twain/providers/auth_providers.dart';
 import 'package:twain/widgets/buttons.dart';
 
@@ -91,9 +91,13 @@ class _EmailVerificationScreenState
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Verification code sent! Check your email.'),
+          SnackBar(
+            content: const Text('Verification code sent! Check your email.'),
             backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
       }
@@ -111,36 +115,45 @@ class _EmailVerificationScreenState
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final twainTheme = context.twainTheme;
+
     return Scaffold(
       body: Container(
-        decoration: _buildGradientBackground(),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: twainTheme.gradientColors,
+          ),
+        ),
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(24.0),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(
+                Icon(
                   Icons.email_outlined,
                   size: 80,
-                  color: Color(0xFF9C27B0),
+                  color: twainTheme.iconColor,
                 ),
                 const SizedBox(height: 32),
-                const Text(
+                Text(
                   'Verify your email',
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
-                    color: AppColors.black,
+                    color: theme.colorScheme.onSurface,
                   ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 16),
                 Text(
                   'Enter the 8-digit code sent to\n${widget.email}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
-                    color: AppColors.textSecondary3,
+                    color: theme.colorScheme.onSurface.withOpacity(0.6),
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -159,11 +172,11 @@ class _EmailVerificationScreenState
                 const SizedBox(height: 24),
                 TextButton(
                   onPressed: _isLoading ? null : _resendCode,
-                  child: const Text(
+                  child: Text(
                     'Resend Code',
                     style: TextStyle(
                       fontSize: 16,
-                      color: Color(0xFF9C27B0),
+                      color: twainTheme.iconColor,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -171,11 +184,11 @@ class _EmailVerificationScreenState
                 const SizedBox(height: 16),
                 TextButton(
                   onPressed: _isLoading ? null : () => Navigator.pop(context),
-                  child: const Text(
+                  child: Text(
                     'Back to Login',
                     style: TextStyle(
                       fontSize: 14,
-                      color: AppColors.textSecondary,
+                      color: theme.colorScheme.onSurface.withOpacity(0.5),
                     ),
                   ),
                 ),
@@ -187,37 +200,24 @@ class _EmailVerificationScreenState
     );
   }
 
-  BoxDecoration _buildGradientBackground() {
-    return const BoxDecoration(
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          Color(0xFFF5F5F5),
-          Color(0xFFF0E6F0),
-          Color(0xFFFFE6F0),
-        ],
-      ),
-    );
-  }
-
   Widget _buildErrorMessage() {
+    final twainTheme = context.twainTheme;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.red.shade50,
+        color: twainTheme.destructiveBackgroundColor,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.red.shade200),
+        border: Border.all(color: twainTheme.destructiveColor.withOpacity(0.3)),
       ),
       child: Row(
         children: [
-          Icon(Icons.error_outline, color: Colors.red.shade700, size: 20),
+          Icon(Icons.error_outline, color: twainTheme.destructiveColor, size: 20),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               _errorMessage!,
               style: TextStyle(
-                color: Colors.red.shade700,
+                color: twainTheme.destructiveColor,
                 fontSize: 14,
               ),
             ),
@@ -228,6 +228,9 @@ class _EmailVerificationScreenState
   }
 
   Widget _buildCodeInput() {
+    final theme = Theme.of(context);
+    final twainTheme = context.twainTheme;
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: List.generate(8, (index) {
@@ -239,20 +242,27 @@ class _EmailVerificationScreenState
             textAlign: TextAlign.center,
             keyboardType: TextInputType.number,
             maxLength: 1,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
+              color: theme.colorScheme.onSurface,
             ),
             decoration: InputDecoration(
               counterText: '',
+              filled: true,
+              fillColor: twainTheme.cardBackgroundColor,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.grey),
+                borderSide: BorderSide(color: theme.dividerColor),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: theme.dividerColor),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(
-                  color: Color(0xFF9C27B0),
+                borderSide: BorderSide(
+                  color: twainTheme.iconColor,
                   width: 2,
                 ),
               ),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:twain/constants/app_colours.dart';
+import 'package:twain/constants/app_themes.dart';
 import 'package:twain/models/unsplash_wallpaper.dart';
 import 'package:twain/providers/unsplash_providers.dart';
 import 'package:twain/screens/wallpaper_preview_screen.dart';
@@ -76,27 +76,31 @@ class _UnsplashBrowserScreenState
   Widget build(BuildContext context) {
     final state = ref.watch(unsplashProvider);
 
+    final theme = Theme.of(context);
+    final twainTheme = context.twainTheme;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: theme.colorScheme.surface,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Browse Wallpapers',
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
-            color: AppColors.black,
+            color: theme.colorScheme.onSurface,
           ),
         ),
-        backgroundColor: Colors.white,
-        elevation: 1,
+        backgroundColor: twainTheme.cardBackgroundColor,
+        elevation: context.isDarkMode ? 0 : 1,
+        iconTheme: IconThemeData(color: theme.colorScheme.onSurface),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.black),
+          icon: Icon(Icons.arrow_back, color: theme.colorScheme.onSurface),
           onPressed: () => Navigator.pop(context),
         ),
       ),
       body: Column(
         children: [
-          _buildFilterChips(state),
+          _buildFilterChips(context, state),
           Expanded(
             child: _buildContent(state),
           ),
@@ -106,15 +110,32 @@ class _UnsplashBrowserScreenState
   }
 
   /// Build filter chips (Editorial, Popular, Categories, Random)
-  Widget _buildFilterChips(UnsplashState state) {
+  Widget _buildFilterChips(BuildContext context, UnsplashState state) {
+    final theme = Theme.of(context);
+    final twainTheme = context.twainTheme;
     return Container(
-      color: Colors.white,
+      color: twainTheme.cardBackgroundColor,
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      decoration: BoxDecoration(
+        boxShadow: context.isDarkMode
+            ? null
+            : [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+        border: context.isDarkMode
+            ? Border(bottom: BorderSide(color: theme.dividerColor, width: 0.5))
+            : null,
+      ),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
           children: [
             _buildFilterChip(
+              context,
               label: 'Editorial',
               isSelected: state.currentFilter == UnsplashFilter.editorial,
               onTap: () {
@@ -126,6 +147,7 @@ class _UnsplashBrowserScreenState
             ),
             const SizedBox(width: 8),
             _buildFilterChip(
+              context,
               label: 'Popular',
               isSelected: state.currentFilter == UnsplashFilter.popular,
               onTap: () {
@@ -137,12 +159,14 @@ class _UnsplashBrowserScreenState
             ),
             const SizedBox(width: 8),
             _buildFilterChip(
+              context,
               label: _selectedCategory ?? 'Categories',
               isSelected: state.currentFilter == UnsplashFilter.category,
               onTap: _showCategorySheet,
             ),
             const SizedBox(width: 8),
             _buildFilterChip(
+              context,
               label: 'Random',
               isSelected: state.currentFilter == UnsplashFilter.random,
               onTap: () {
@@ -159,30 +183,42 @@ class _UnsplashBrowserScreenState
   }
 
   /// Build individual filter chip
-  Widget _buildFilterChip({
+  Widget _buildFilterChip(
+    BuildContext context, {
     required String label,
     required bool isSelected,
     required VoidCallback onTap,
   }) {
+    final theme = Theme.of(context);
+    final twainTheme = context.twainTheme;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFE91E63) : Colors.white,
-          border: Border.all(
-            color:
-                isSelected ? const Color(0xFFE91E63) : const Color(0xFFE91E63),
-            width: 1.5,
-          ),
+          color: isSelected
+              ? twainTheme.iconColor
+              : twainTheme.iconBackgroundColor,
+          border: Border.all(color: twainTheme.iconColor, width: 1.5),
           borderRadius: BorderRadius.circular(20),
+          boxShadow: isSelected || context.isDarkMode
+              ? null
+              : [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
         ),
         child: Text(
           label,
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: isSelected ? Colors.white : const Color(0xFFE91E63),
+            color: isSelected
+                ? Colors.white
+                : theme.colorScheme.onSurface.withOpacity(0.7),
           ),
         ),
       ),
@@ -191,18 +227,24 @@ class _UnsplashBrowserScreenState
 
   /// Build category selection bottom sheet
   Widget _buildCategorySheet() {
+    final theme = Theme.of(context);
+    final twainTheme = context.twainTheme;
     return Container(
       padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: twainTheme.cardBackgroundColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Select Category',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: AppColors.black,
+              color: theme.colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 16),
@@ -223,10 +265,10 @@ class _UnsplashBrowserScreenState
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   decoration: BoxDecoration(
                     color: _selectedCategory == category['label']
-                        ? const Color(0xFFE91E63)
-                        : Colors.white,
+                        ? twainTheme.iconColor
+                        : twainTheme.iconBackgroundColor,
                     border: Border.all(
-                      color: const Color(0xFFE91E63),
+                      color: twainTheme.iconColor,
                       width: 1.5,
                     ),
                     borderRadius: BorderRadius.circular(20),
@@ -238,7 +280,7 @@ class _UnsplashBrowserScreenState
                       fontWeight: FontWeight.w600,
                       color: _selectedCategory == category['label']
                           ? Colors.white
-                          : const Color(0xFFE91E63),
+                          : theme.colorScheme.onSurface.withOpacity(0.7),
                     ),
                   ),
                 ),
@@ -253,11 +295,13 @@ class _UnsplashBrowserScreenState
 
   /// Build main content (grid, loading, error, empty states)
   Widget _buildContent(UnsplashState state) {
+    final theme = Theme.of(context);
+    final twainTheme = context.twainTheme;
     // Initial loading
     if (state.isLoading && state.wallpapers.isEmpty) {
-      return const Center(
+      return Center(
         child: CircularProgressIndicator(
-          color: Color(0xFFE91E63),
+          color: twainTheme.iconColor,
         ),
       );
     }
@@ -274,7 +318,7 @@ class _UnsplashBrowserScreenState
 
     // Wallpaper grid
     return RefreshIndicator(
-      color: const Color(0xFFE91E63),
+      color: twainTheme.iconColor,
       onRefresh: () async {
         await ref.read(unsplashProvider.notifier).loadWallpapers();
       },
@@ -292,11 +336,11 @@ class _UnsplashBrowserScreenState
         itemBuilder: (context, index) {
           // Show loading indicator at bottom while loading more
           if (index == state.wallpapers.length) {
-            return const Center(
+            return Center(
               child: Padding(
                 padding: EdgeInsets.all(16.0),
                 child: CircularProgressIndicator(
-                  color: Color(0xFFE91E63),
+                  color: twainTheme.iconColor,
                   strokeWidth: 2,
                 ),
               ),
@@ -312,6 +356,8 @@ class _UnsplashBrowserScreenState
 
   /// Build wallpaper card in grid
   Widget _buildWallpaperCard(UnsplashWallpaper wallpaper) {
+    final theme = Theme.of(context);
+    final twainTheme = context.twainTheme;
     // Calculate aspect ratio from image dimensions
     final aspectRatio = wallpaper.height > 0
         ? wallpaper.width / wallpaper.height
@@ -324,13 +370,15 @@ class _UnsplashBrowserScreenState
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
+            boxShadow: context.isDarkMode
+                ? null
+                : [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(16),
@@ -342,21 +390,21 @@ class _UnsplashBrowserScreenState
                   width: double.infinity,
                   height: double.infinity,
                   placeholder: (context, url) => Container(
-                    color: Colors.grey[200],
-                    child: const Center(
+                    color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+                    child: Center(
                       child: CircularProgressIndicator(
-                        color: Color(0xFFE91E63),
+                        color: twainTheme.iconColor,
                         strokeWidth: 2,
                       ),
                     ),
                   ),
                   errorWidget: (context, url, error) => Container(
-                    color: Colors.grey[300],
-                    child: const Center(
+                    color: theme.colorScheme.surfaceVariant.withOpacity(0.4),
+                    child: Center(
                       child: Icon(
                         Icons.broken_image_outlined,
                         size: 40,
-                        color: Colors.grey,
+                        color: theme.colorScheme.onSurface.withOpacity(0.5),
                       ),
                     ),
                   ),
@@ -406,6 +454,8 @@ class _UnsplashBrowserScreenState
 
   /// Build error state
   Widget _buildErrorState(String error) {
+    final theme = Theme.of(context);
+    final twainTheme = context.twainTheme;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24.0),
@@ -415,15 +465,15 @@ class _UnsplashBrowserScreenState
             Icon(
               Icons.error_outline,
               size: 64,
-              color: Colors.grey[400],
+              color: theme.colorScheme.onSurface.withOpacity(0.4),
             ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'Unable to load wallpapers',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: AppColors.black,
+                color: theme.colorScheme.onSurface,
               ),
               textAlign: TextAlign.center,
             ),
@@ -434,7 +484,7 @@ class _UnsplashBrowserScreenState
                   : 'Check your internet connection and try again.',
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.grey[600],
+                color: theme.colorScheme.onSurface.withOpacity(0.6),
               ),
               textAlign: TextAlign.center,
             ),
@@ -444,7 +494,7 @@ class _UnsplashBrowserScreenState
                 ref.read(unsplashProvider.notifier).loadWallpapers();
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFE91E63),
+                backgroundColor: twainTheme.iconColor,
                 foregroundColor: Colors.white,
                 padding:
                     const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
@@ -468,6 +518,7 @@ class _UnsplashBrowserScreenState
 
   /// Build empty state
   Widget _buildEmptyState() {
+    final theme = Theme.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24.0),
@@ -477,15 +528,15 @@ class _UnsplashBrowserScreenState
             Icon(
               Icons.photo_library_outlined,
               size: 64,
-              color: Colors.grey[400],
+              color: theme.colorScheme.onSurface.withOpacity(0.4),
             ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'No wallpapers found',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: AppColors.black,
+                color: theme.colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 8),
@@ -493,7 +544,7 @@ class _UnsplashBrowserScreenState
               'Try selecting a different filter or category',
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.grey[600],
+                color: theme.colorScheme.onSurface.withOpacity(0.6),
               ),
               textAlign: TextAlign.center,
             ),

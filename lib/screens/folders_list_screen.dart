@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:twain/constants/app_colours.dart';
+import 'package:twain/constants/app_themes.dart';
 import 'package:twain/models/wallpaper_folder.dart';
 import 'package:twain/providers/folder_providers.dart';
 import 'package:twain/screens/create_folder_screen.dart';
@@ -11,40 +11,42 @@ class FoldersListScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final twainTheme = context.twainTheme;
     final foldersAsync = ref.watch(foldersStreamProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: theme.colorScheme.surface,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Wallpaper Folders',
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
-            color: AppColors.black,
+            color: theme.colorScheme.onSurface,
           ),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: twainTheme.cardBackgroundColor,
         elevation: 1,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.black),
+          icon: Icon(Icons.arrow_back, color: theme.colorScheme.onSurface),
           onPressed: () => Navigator.pop(context),
         ),
       ),
       body: foldersAsync.when(
         data: (folders) => folders.isEmpty
-            ? _buildEmptyState(context)
-            : _buildFoldersList(context, folders),
-        loading: () => const Center(
+            ? _buildEmptyState(context, theme, twainTheme)
+            : _buildFoldersList(context, folders, theme, twainTheme),
+        loading: () => Center(
           child: CircularProgressIndicator(
-            color: Color(0xFFE91E63),
+            color: twainTheme.iconColor,
           ),
         ),
-        error: (error, stack) => _buildErrorState(context, error.toString()),
+        error: (error, stack) => _buildErrorState(context, error.toString(), theme),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _navigateToCreateFolder(context),
-        backgroundColor: const Color(0xFFE91E63),
+        backgroundColor: twainTheme.iconColor,
         icon: const Icon(Icons.add, color: Colors.white),
         label: const Text(
           'Create Folder',
@@ -57,23 +59,29 @@ class FoldersListScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildFoldersList(BuildContext context, List<WallpaperFolder> folders) {
+  Widget _buildFoldersList(BuildContext context, List<WallpaperFolder> folders,
+      ThemeData theme, TwainThemeExtension twainTheme) {
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: folders.length,
       itemBuilder: (context, index) {
         final folder = folders[index];
-        return _buildFolderCard(context, folder);
+        return _buildFolderCard(context, folder, theme, twainTheme);
       },
     );
   }
 
-  Widget _buildFolderCard(BuildContext context, WallpaperFolder folder) {
+  Widget _buildFolderCard(BuildContext context, WallpaperFolder folder,
+      ThemeData theme, TwainThemeExtension twainTheme) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
+      elevation: context.isDarkMode ? 0 : 2,
+      color: twainTheme.cardBackgroundColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
+        side: context.isDarkMode
+            ? BorderSide(color: theme.dividerColor, width: 0.5)
+            : BorderSide.none,
       ),
       child: InkWell(
         onTap: () => _navigateToFolderDetail(context, folder.id),
@@ -89,14 +97,14 @@ class FoldersListScreen extends ConsumerWidget {
                   Expanded(
                     child: Text(
                       folder.name,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.black,
+                        color: theme.colorScheme.onSurface,
                       ),
                     ),
                   ),
-                  _buildStatusBadge(folder),
+                  _buildStatusBadge(folder, twainTheme),
                 ],
               ),
               const SizedBox(height: 8),
@@ -107,14 +115,14 @@ class FoldersListScreen extends ConsumerWidget {
                   Icon(
                     Icons.photo_library_outlined,
                     size: 16,
-                    color: Colors.grey[600],
+                    color: theme.colorScheme.onSurface.withOpacity(0.6),
                   ),
                   const SizedBox(width: 4),
                   Text(
                     '${folder.imageCount}/30 images',
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.grey[600],
+                      color: theme.colorScheme.onSurface.withOpacity(0.6),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -123,7 +131,7 @@ class FoldersListScreen extends ConsumerWidget {
                         ? Icons.repeat
                         : Icons.shuffle,
                     size: 16,
-                    color: Colors.grey[600],
+                    color: theme.colorScheme.onSurface.withOpacity(0.6),
                   ),
                   const SizedBox(width: 4),
                   Text(
@@ -132,7 +140,7 @@ class FoldersListScreen extends ConsumerWidget {
                         : 'Random',
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.grey[600],
+                      color: theme.colorScheme.onSurface.withOpacity(0.6),
                     ),
                   ),
                 ],
@@ -144,7 +152,7 @@ class FoldersListScreen extends ConsumerWidget {
                 'Rotates every ${folder.rotationIntervalDisplay}',
                 style: TextStyle(
                   fontSize: 14,
-                  color: Colors.grey[600],
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
                 ),
               ),
 
@@ -157,23 +165,23 @@ class FoldersListScreen extends ConsumerWidget {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE91E63).withOpacity(0.1),
+                    color: twainTheme.iconColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.schedule,
                         size: 14,
-                        color: Color(0xFFE91E63),
+                        color: twainTheme.iconColor,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         folder.statusText,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
-                          color: Color(0xFFE91E63),
+                          color: twainTheme.iconColor,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -188,30 +196,30 @@ class FoldersListScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatusBadge(WallpaperFolder folder) {
+  Widget _buildStatusBadge(WallpaperFolder folder, TwainThemeExtension twainTheme) {
     final isActive = folder.isActive && folder.imageCount > 0;
-    final color = isActive ? const Color(0xFF4CAF50) : Colors.grey;
+    final color = isActive ? twainTheme.activeStatusColor : Colors.grey;
+    final textColor = isActive ? twainTheme.activeStatusTextColor : Colors.grey;
     final text = isActive ? 'Active' : 'Inactive';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color,
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color, width: 1),
       ),
       child: Text(
         text,
         style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w600,
-          color: color,
+          color: textColor,
         ),
       ),
     );
   }
 
-  Widget _buildEmptyState(BuildContext context) {
+  Widget _buildEmptyState(BuildContext context, ThemeData theme, TwainThemeExtension twainTheme) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24.0),
@@ -221,15 +229,15 @@ class FoldersListScreen extends ConsumerWidget {
             Icon(
               Icons.folder_outlined,
               size: 80,
-              color: Colors.grey[400],
+              color: theme.colorScheme.onSurface.withOpacity(0.3),
             ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'No Folders Yet',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: AppColors.black,
+                color: theme.colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 8),
@@ -237,7 +245,7 @@ class FoldersListScreen extends ConsumerWidget {
               'Create a folder to automatically rotate wallpapers',
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.grey[600],
+                color: theme.colorScheme.onSurface.withOpacity(0.6),
               ),
               textAlign: TextAlign.center,
             ),
@@ -247,7 +255,7 @@ class FoldersListScreen extends ConsumerWidget {
               icon: const Icon(Icons.add),
               label: const Text('Create Your First Folder'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFE91E63),
+                backgroundColor: twainTheme.iconColor,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 24,
@@ -264,7 +272,7 @@ class FoldersListScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildErrorState(BuildContext context, String error) {
+  Widget _buildErrorState(BuildContext context, String error, ThemeData theme) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24.0),
@@ -274,15 +282,15 @@ class FoldersListScreen extends ConsumerWidget {
             Icon(
               Icons.error_outline,
               size: 64,
-              color: Colors.grey[400],
+              color: theme.colorScheme.onSurface.withOpacity(0.4),
             ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'Failed to load folders',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: AppColors.black,
+                color: theme.colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 8),
@@ -290,7 +298,7 @@ class FoldersListScreen extends ConsumerWidget {
               error,
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.grey[600],
+                color: theme.colorScheme.onSurface.withOpacity(0.6),
               ),
               textAlign: TextAlign.center,
             ),

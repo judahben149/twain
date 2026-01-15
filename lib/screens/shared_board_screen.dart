@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:twain/constants/app_colours.dart';
+import 'package:twain/constants/app_themes.dart';
 import 'package:twain/models/shared_board_photo.dart';
 import 'package:twain/providers/wallpaper_providers.dart';
 import 'package:twain/providers/auth_providers.dart';
@@ -20,22 +20,25 @@ class _SharedBoardScreenState extends ConsumerState<SharedBoardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final twainTheme = context.twainTheme;
     final photosAsync = ref.watch(sharedBoardPhotosStreamProvider);
     final currentUser = ref.watch(twainUserProvider).value;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: theme.colorScheme.surface,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Shared Board',
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
-            color: AppColors.black,
+            color: theme.colorScheme.onSurface,
           ),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        iconTheme: IconThemeData(color: theme.colorScheme.onSurface),
       ),
       body: photosAsync.when(
         data: (photos) {
@@ -47,7 +50,7 @@ class _SharedBoardScreenState extends ConsumerState<SharedBoardScreen> {
                   Icon(
                     Icons.photo_library_outlined,
                     size: 80,
-                    color: Colors.grey.shade300,
+                    color: theme.colorScheme.onSurface.withOpacity(0.3),
                   ),
                   const SizedBox(height: 24),
                   Text(
@@ -55,7 +58,7 @@ class _SharedBoardScreenState extends ConsumerState<SharedBoardScreen> {
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w600,
-                      color: Colors.grey.shade600,
+                      color: theme.colorScheme.onSurface.withOpacity(0.6),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -63,7 +66,7 @@ class _SharedBoardScreenState extends ConsumerState<SharedBoardScreen> {
                     'Upload photos to share with your partner',
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.grey.shade500,
+                      color: theme.colorScheme.onSurface.withOpacity(0.5),
                     ),
                   ),
                   const SizedBox(height: 32),
@@ -78,7 +81,7 @@ class _SharedBoardScreenState extends ConsumerState<SharedBoardScreen> {
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFE91E63),
+                      backgroundColor: twainTheme.iconColor,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 32,
@@ -111,7 +114,7 @@ class _SharedBoardScreenState extends ConsumerState<SharedBoardScreen> {
               return GestureDetector(
                 onTap: () => _openPreview(photo),
                 onLongPress: isCurrentUserPhoto
-                    ? () => _showDeleteDialog(photo)
+                    ? () => _showDeleteDialog(photo, theme, twainTheme)
                     : null,
                 child: Hero(
                   tag: 'photo_${photo.id}',
@@ -137,14 +140,14 @@ class _SharedBoardScreenState extends ConsumerState<SharedBoardScreen> {
                             loadingBuilder: (context, child, loadingProgress) {
                               if (loadingProgress == null) return child;
                               return Container(
-                                color: Colors.grey.shade200,
+                                color: theme.colorScheme.surface,
                                 child: Center(
                                   child: CircularProgressIndicator(
                                     value: loadingProgress.expectedTotalBytes != null
                                         ? loadingProgress.cumulativeBytesLoaded /
                                             loadingProgress.expectedTotalBytes!
                                         : null,
-                                    color: const Color(0xFFE91E63),
+                                    color: twainTheme.iconColor,
                                     strokeWidth: 2,
                                   ),
                                 ),
@@ -152,10 +155,10 @@ class _SharedBoardScreenState extends ConsumerState<SharedBoardScreen> {
                             },
                             errorBuilder: (context, error, stackTrace) {
                               return Container(
-                                color: Colors.grey.shade200,
+                                color: theme.colorScheme.surface,
                                 child: Icon(
                                   Icons.broken_image,
-                                  color: Colors.grey.shade400,
+                                  color: theme.colorScheme.onSurface.withOpacity(0.4),
                                   size: 32,
                                 ),
                               );
@@ -188,9 +191,9 @@ class _SharedBoardScreenState extends ConsumerState<SharedBoardScreen> {
             },
           );
         },
-        loading: () => const Center(
+        loading: () => Center(
           child: CircularProgressIndicator(
-            color: Color(0xFFE91E63),
+            color: twainTheme.iconColor,
           ),
         ),
         error: (error, stack) => Center(
@@ -200,7 +203,7 @@ class _SharedBoardScreenState extends ConsumerState<SharedBoardScreen> {
               Icon(
                 Icons.error_outline,
                 size: 64,
-                color: Colors.red.shade300,
+                color: twainTheme.destructiveColor,
               ),
               const SizedBox(height: 16),
               Text(
@@ -208,7 +211,7 @@ class _SharedBoardScreenState extends ConsumerState<SharedBoardScreen> {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade700,
+                  color: theme.colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: 8),
@@ -218,7 +221,7 @@ class _SharedBoardScreenState extends ConsumerState<SharedBoardScreen> {
                   '$error',
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.grey.shade500,
+                    color: theme.colorScheme.onSurface.withOpacity(0.5),
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -232,7 +235,7 @@ class _SharedBoardScreenState extends ConsumerState<SharedBoardScreen> {
                 icon: const Icon(Icons.refresh),
                 label: const Text('Retry'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFE91E63),
+                  backgroundColor: twainTheme.iconColor,
                   foregroundColor: Colors.white,
                 ),
               ),
@@ -245,8 +248,8 @@ class _SharedBoardScreenState extends ConsumerState<SharedBoardScreen> {
             ? FloatingActionButton(
                 onPressed: _isUploading ? null : _uploadPhoto,
                 backgroundColor: _isUploading
-                    ? Colors.grey.shade400
-                    : const Color(0xFFE91E63),
+                    ? theme.colorScheme.onSurface.withOpacity(0.4)
+                    : twainTheme.iconColor,
                 child: _isUploading
                     ? const SizedBox(
                         width: 24,
@@ -364,18 +367,20 @@ class _SharedBoardScreenState extends ConsumerState<SharedBoardScreen> {
     }
   }
 
-  void _showDeleteDialog(SharedBoardPhoto photo) {
+  void _showDeleteDialog(SharedBoardPhoto photo, ThemeData theme, TwainThemeExtension twainTheme) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text(
+        title: Text(
           'Delete Photo',
           style: TextStyle(
             fontWeight: FontWeight.bold,
+            color: theme.colorScheme.onSurface,
           ),
         ),
-        content: const Text(
+        content: Text(
           'Are you sure you want to delete this photo from the shared board? This action cannot be undone.',
+          style: TextStyle(color: theme.colorScheme.onSurface),
         ),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
@@ -386,7 +391,7 @@ class _SharedBoardScreenState extends ConsumerState<SharedBoardScreen> {
             child: Text(
               'Cancel',
               style: TextStyle(
-                color: Colors.grey.shade600,
+                color: theme.colorScheme.onSurface.withOpacity(0.6),
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -396,10 +401,10 @@ class _SharedBoardScreenState extends ConsumerState<SharedBoardScreen> {
               Navigator.pop(context);
               await _deletePhoto(photo);
             },
-            child: const Text(
+            child: Text(
               'Delete',
               style: TextStyle(
-                color: Colors.red,
+                color: twainTheme.destructiveColor,
                 fontWeight: FontWeight.w600,
               ),
             ),

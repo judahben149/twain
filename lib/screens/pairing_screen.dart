@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:qr_code_scanner/qr_code_scanner.dart';
-import 'package:twain/constants/app_colours.dart';
+import 'package:twain/constants/app_themes.dart';
 import 'package:twain/providers/auth_providers.dart';
 import 'package:twain/screens/home_screen.dart';
 import 'package:twain/widgets/buttons.dart';
@@ -83,10 +83,11 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
   }
 
   Future<void> _scanQRCode() async {
+    final twainTheme = context.twainTheme;
     final result = await Navigator.push<String>(
       context,
       MaterialPageRoute(
-        builder: (context) => const QRScannerScreen(),
+        builder: (context) => QRScannerScreen(accentColor: twainTheme.iconColor),
       ),
     );
 
@@ -105,6 +106,9 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final twainTheme = context.twainTheme;
+
     // Listen for successful pairing (when pair_id becomes non-null)
     ref.listen(twainUserProvider, (previous, next) {
       next.whenData((user) {
@@ -121,28 +125,36 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
 
     return Scaffold(
       body: Container(
-        decoration: _buildGradientBackground(),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: twainTheme.gradientColors,
+          ),
+        ),
         child: SafeArea(
           child: Column(
             children: [
-              _buildAppBar(),
+              _buildAppBar(theme),
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.symmetric(horizontal: 24.0),
                   child: Column(
                     children: [
                       const SizedBox(height: 32),
-                      _buildHeader(),
+                      _buildHeader(theme),
                       const SizedBox(height: 32),
-                      _buildToggleButtons(),
+                      _buildToggleButtons(theme, twainTheme),
                       const SizedBox(height: 48),
                       if (_errorMessage != null) ...{
-                        _buildErrorMessage(),
+                        _buildErrorMessage(twainTheme),
                         const SizedBox(height: 24),
                       },
-                      _isGenerateMode ? _buildGenerateMode() : _buildEnterMode(),
+                      _isGenerateMode
+                          ? _buildGenerateMode(theme, twainTheme)
+                          : _buildEnterMode(theme, twainTheme),
                       const SizedBox(height: 32),
-                      _buildSkipButton(),
+                      _buildSkipButton(theme),
                       const SizedBox(height: 24),
                     ],
                   ),
@@ -155,27 +167,13 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
     );
   }
 
-  BoxDecoration _buildGradientBackground() {
-    return const BoxDecoration(
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          Color(0xFFF5F5F5),
-          Color(0xFFF0E6F0),
-          Color(0xFFFFE6F0),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAppBar() {
+  Widget _buildAppBar(ThemeData theme) {
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back, color: AppColors.black),
+            icon: Icon(Icons.arrow_back, color: theme.colorScheme.onSurface),
             onPressed: () => Navigator.pop(context),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
@@ -185,31 +183,31 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
     );
   }
 
-  Widget _buildHeader() {
-    return const Column(
+  Widget _buildHeader(ThemeData theme) {
+    return Column(
       children: [
         Text(
           'Pair with Partner',
           style: TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.bold,
-            color: AppColors.black,
+            color: theme.colorScheme.onSurface,
           ),
         ),
-        SizedBox(height: 16),
+        const SizedBox(height: 16),
         Text(
           'Connect with your partner to start sharing\nmoments together',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 16,
-            color: AppColors.textSecondary3,
+            color: theme.colorScheme.onSurface.withOpacity(0.6),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildToggleButtons() {
+  Widget _buildToggleButtons(ThemeData theme, TwainThemeExtension twainTheme) {
     return Row(
       children: [
         Expanded(
@@ -218,6 +216,8 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
             _isGenerateMode,
             Icons.add,
             () => setState(() => _isGenerateMode = true),
+            theme,
+            twainTheme,
           ),
         ),
         const SizedBox(width: 16),
@@ -227,6 +227,8 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
             !_isGenerateMode,
             Icons.camera_alt_outlined,
             () => setState(() => _isGenerateMode = false),
+            theme,
+            twainTheme,
           ),
         ),
       ],
@@ -238,30 +240,32 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
     bool isActive,
     IconData icon,
     VoidCallback onPressed,
+    ThemeData theme,
+    TwainThemeExtension twainTheme,
   ) {
     return ElevatedButton.icon(
       onPressed: onPressed,
       icon: Icon(
         icon,
-        color: isActive ? Colors.white : const Color(0xFF9C27B0),
+        color: isActive ? Colors.white : twainTheme.iconColor,
         size: 20,
       ),
       label: Text(
         text,
         style: TextStyle(
-          color: isActive ? Colors.white : const Color(0xFF9C27B0),
+          color: isActive ? Colors.white : twainTheme.iconColor,
           fontWeight: FontWeight.bold,
         ),
       ),
       style: ElevatedButton.styleFrom(
         backgroundColor: isActive
-            ? const Color(0xFF9C27B0)
-            : Colors.white,
+            ? twainTheme.iconColor
+            : twainTheme.cardBackgroundColor,
         padding: const EdgeInsets.symmetric(vertical: 16),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
           side: BorderSide(
-            color: const Color(0xFF9C27B0),
+            color: twainTheme.iconColor,
             width: isActive ? 0 : 1,
           ),
         ),
@@ -269,32 +273,40 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
     );
   }
 
-  Widget _buildGenerateMode() {
+  Widget _buildGenerateMode(ThemeData theme, TwainThemeExtension twainTheme) {
     return Column(
       children: [
         if (_generatedCode != null) ...[
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: twainTheme.cardBackgroundColor,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.shade300, width: 2),
+              border: Border.all(color: theme.dividerColor, width: 2),
             ),
             child: QrImageView(
               data: _generatedCode!,
               version: QrVersions.auto,
               size: 200.0,
-              backgroundColor: Colors.white,
+              backgroundColor: twainTheme.cardBackgroundColor,
+              eyeStyle: QrEyeStyle(
+                eyeShape: QrEyeShape.square,
+                color: theme.colorScheme.onSurface,
+              ),
+              dataModuleStyle: QrDataModuleStyle(
+                dataModuleShape: QrDataModuleShape.square,
+                color: theme.colorScheme.onSurface,
+              ),
             ),
           ),
           const SizedBox(height: 24),
           Text(
             _generatedCode!,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
               letterSpacing: 4,
-              color: AppColors.black,
+              color: theme.colorScheme.onSurface,
             ),
           ),
         ] else ...[
@@ -302,10 +314,10 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
             width: 200,
             height: 200,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: twainTheme.cardBackgroundColor,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: Colors.grey.shade300,
+                color: theme.dividerColor,
                 width: 2,
                 style: BorderStyle.solid,
               ),
@@ -314,7 +326,7 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
               child: Icon(
                 Icons.qr_code_2,
                 size: 100,
-                color: Colors.grey.shade400,
+                color: theme.colorScheme.onSurface.withOpacity(0.3),
               ),
             ),
           ),
@@ -331,48 +343,49 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
     );
   }
 
-  Widget _buildEnterMode() {
+  Widget _buildEnterMode(ThemeData theme, TwainThemeExtension twainTheme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Enter Invite Code',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
-            color: AppColors.black,
+            color: theme.colorScheme.onSurface,
           ),
         ),
         const SizedBox(height: 16),
         TextField(
           controller: _codeController,
           textAlign: TextAlign.center,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
             letterSpacing: 4,
+            color: theme.colorScheme.onSurface,
           ),
           textCapitalization: TextCapitalization.characters,
           decoration: InputDecoration(
             hintText: 'ABCD12',
             hintStyle: TextStyle(
-              color: Colors.grey.shade400,
+              color: theme.colorScheme.onSurface.withOpacity(0.3),
               letterSpacing: 4,
             ),
             filled: true,
-            fillColor: Colors.white,
+            fillColor: twainTheme.cardBackgroundColor,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
+              borderSide: BorderSide(color: theme.dividerColor),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
+              borderSide: BorderSide(color: theme.dividerColor),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(
-                color: Color(0xFF9C27B0),
+              borderSide: BorderSide(
+                color: twainTheme.iconColor,
                 width: 2,
               ),
             ),
@@ -387,18 +400,18 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
         const SizedBox(height: 32),
         Row(
           children: [
-            Expanded(child: Divider(color: Colors.grey.shade400)),
+            Expanded(child: Divider(color: theme.dividerColor)),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
                 'Or',
                 style: TextStyle(
-                  color: Colors.grey.shade600,
+                  color: theme.colorScheme.onSurface.withOpacity(0.5),
                   fontWeight: FontWeight.w500,
                 ),
               ),
             ),
-            Expanded(child: Divider(color: Colors.grey.shade400)),
+            Expanded(child: Divider(color: theme.dividerColor)),
           ],
         ),
         const SizedBox(height: 32),
@@ -406,18 +419,18 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
           width: double.infinity,
           child: OutlinedButton.icon(
             onPressed: _isLoading ? null : _scanQRCode,
-            icon: const Icon(Icons.qr_code_scanner, color: Color(0xFF9C27B0)),
-            label: const Text(
+            icon: Icon(Icons.qr_code_scanner, color: twainTheme.iconColor),
+            label: Text(
               'Scan QR Code',
               style: TextStyle(
-                color: Color(0xFF9C27B0),
+                color: twainTheme.iconColor,
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
               ),
             ),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
-              side: const BorderSide(color: Color(0xFF9C27B0), width: 2),
+              side: BorderSide(color: twainTheme.iconColor, width: 2),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -428,23 +441,23 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
     );
   }
 
-  Widget _buildErrorMessage() {
+  Widget _buildErrorMessage(TwainThemeExtension twainTheme) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.red.shade50,
+        color: twainTheme.destructiveBackgroundColor,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.red.shade200),
+        border: Border.all(color: twainTheme.destructiveColor.withOpacity(0.3)),
       ),
       child: Row(
         children: [
-          Icon(Icons.error_outline, color: Colors.red.shade700, size: 20),
+          Icon(Icons.error_outline, color: twainTheme.destructiveColor, size: 20),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               _errorMessage!,
               style: TextStyle(
-                color: Colors.red.shade700,
+                color: twainTheme.destructiveColor,
                 fontSize: 14,
               ),
             ),
@@ -454,14 +467,14 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
     );
   }
 
-  Widget _buildSkipButton() {
+  Widget _buildSkipButton(ThemeData theme) {
     return TextButton(
       onPressed: _skipToPair,
       child: Text(
         'Skip for now',
         style: TextStyle(
           fontSize: 14,
-          color: Colors.grey.shade600,
+          color: theme.colorScheme.onSurface.withOpacity(0.5),
           fontWeight: FontWeight.w500,
         ),
       ),
@@ -470,7 +483,9 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
 }
 
 class QRScannerScreen extends StatefulWidget {
-  const QRScannerScreen({super.key});
+  final Color accentColor;
+
+  const QRScannerScreen({super.key, required this.accentColor});
 
   @override
   State<QRScannerScreen> createState() => _QRScannerScreenState();
@@ -520,11 +535,13 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Scan QR Code'),
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
+        backgroundColor: theme.colorScheme.surface,
+        foregroundColor: theme.colorScheme.onSurface,
       ),
       body: Stack(
         children: [
@@ -532,7 +549,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
             key: qrKey,
             onQRViewCreated: _onQRViewCreated,
             overlay: QrScannerOverlayShape(
-              borderColor: const Color(0xFF9C27B0),
+              borderColor: widget.accentColor,
               borderRadius: 10,
               borderLength: 30,
               borderWidth: 10,

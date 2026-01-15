@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'package:twain/constants/app_colours.dart';
+import 'package:twain/constants/app_themes.dart';
 import 'package:twain/models/sticky_note.dart';
 import 'package:twain/providers/auth_providers.dart';
 import 'package:twain/services/sticky_notes_service.dart';
@@ -169,21 +169,29 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final twainTheme = context.twainTheme;
     final currentUser = ref.watch(twainUserProvider).value;
     final notesAsync = ref.watch(stickyNotesStreamProvider);
 
     return Scaffold(
       body: Container(
-        decoration: _buildGradientBackground(),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: twainTheme.gradientColors,
+          ),
+        ),
         child: SafeArea(
           child: Column(
             children: [
-              _buildHeader(),
+              _buildHeader(theme),
               Expanded(
                 child: notesAsync.when(
                   data: (notes) {
                     if (notes.isEmpty) {
-                      return _buildEmptyState();
+                      return _buildEmptyState(theme);
                     }
 
                     // Group notes by date
@@ -221,7 +229,7 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.grey.shade700,
+                                  color: theme.colorScheme.onSurface.withOpacity(0.6),
                                 ),
                               ),
                             ),
@@ -241,6 +249,8 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
                                     note,
                                     isCurrentUser,
                                     _parseColor(note.color),
+                                    theme,
+                                    twainTheme,
                                   ),
                                 );
                               },
@@ -293,7 +303,7 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
-                                    color: Colors.grey.shade700,
+                                    color: theme.colorScheme.onSurface.withOpacity(0.6),
                                   ),
                                 ),
                               ),
@@ -312,6 +322,8 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
                                       note,
                                       isCurrentUser,
                                       _parseColor(note.color),
+                                      theme,
+                                      twainTheme,
                                     ),
                                   );
                                 },
@@ -326,16 +338,21 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
                       );
                     }
                     // No cached data, show loading spinner
-                    return const Center(
-                      child: CircularProgressIndicator(),
+                    return Center(
+                      child: CircularProgressIndicator(
+                        color: twainTheme.iconColor,
+                      ),
                     );
                   },
                   error: (error, stack) => Center(
-                    child: Text('Error loading notes: $error'),
+                    child: Text(
+                      'Error loading notes: $error',
+                      style: TextStyle(color: theme.colorScheme.onSurface),
+                    ),
                   ),
                 ),
               ),
-              _buildMessageInput(),
+              _buildMessageInput(theme, twainTheme),
             ],
           ),
         ),
@@ -343,38 +360,24 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
     );
   }
 
-  BoxDecoration _buildGradientBackground() {
-    return const BoxDecoration(
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          Color(0xFFF5F5F5),
-          Color(0xFFF0E6F0),
-          Color(0xFFFFE6F0),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
+  Widget _buildHeader(ThemeData theme) {
     return Padding(
       padding: const EdgeInsets.all(20.0),
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back, color: AppColors.black),
+            icon: Icon(Icons.arrow_back, color: theme.colorScheme.onSurface),
             onPressed: () => Navigator.pop(context),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
           ),
           const SizedBox(width: 16),
-          const Text(
+          Text(
             'Sticky Notes',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: AppColors.black,
+              color: theme.colorScheme.onSurface,
             ),
           ),
         ],
@@ -382,13 +385,13 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
     );
   }
 
-  void _showColorPicker() {
+  void _showColorPicker(ThemeData theme, TwainThemeExtension twainTheme) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: twainTheme.cardBackgroundColor,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         padding: const EdgeInsets.all(24.0),
@@ -400,7 +403,7 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Colors.grey.shade800,
+                color: theme.colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 20),
@@ -429,8 +432,8 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: isSelected
-                                ? const Color(0xFFE91E63)
-                                : Colors.grey.shade300,
+                                ? twainTheme.iconColor
+                                : theme.dividerColor,
                             width: isSelected ? 3 : 1,
                           ),
                           boxShadow: [
@@ -442,7 +445,7 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
                           ],
                         ),
                         child: isSelected
-                            ? const Icon(
+                            ? Icon(
                                 Icons.check,
                                 color: Colors.black54,
                                 size: 28,
@@ -454,7 +457,7 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
                         colorName,
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.grey.shade700,
+                          color: theme.colorScheme.onSurface.withOpacity(0.7),
                           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                         ),
                       ),
@@ -470,32 +473,40 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
     );
   }
 
-  Widget _buildMessageInput() {
+  Widget _buildMessageInput(ThemeData theme, TwainThemeExtension twainTheme) {
     return Container(
       padding: const EdgeInsets.all(24.0),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
+        color: twainTheme.cardBackgroundColor,
+        boxShadow: context.isDarkMode
+            ? null
+            : [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, -2),
+                ),
+              ],
+        border: context.isDarkMode
+            ? Border(top: BorderSide(color: theme.dividerColor, width: 0.5))
+            : null,
       ),
       child: Row(
         children: [
           Expanded(
             child: TextField(
               controller: _messageController,
+              style: TextStyle(color: theme.colorScheme.onSurface),
               decoration: InputDecoration(
                 hintText: 'Type a sweet message...',
                 hintStyle: TextStyle(
-                  color: Colors.grey.shade400,
+                  color: theme.colorScheme.onSurface.withOpacity(0.4),
                   fontSize: 16,
                 ),
                 filled: true,
-                fillColor: Colors.grey.shade100,
+                fillColor: context.isDarkMode
+                    ? theme.colorScheme.surface
+                    : Colors.grey.shade100,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(25),
                   borderSide: BorderSide.none,
@@ -513,7 +524,7 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
           const SizedBox(width: 8),
           // Color picker button
           GestureDetector(
-            onTap: _showColorPicker,
+            onTap: () => _showColorPicker(theme, twainTheme),
             child: Container(
               width: 44,
               height: 44,
@@ -521,7 +532,7 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
                 color: _parseColor(_selectedColor),
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: Colors.grey.shade300,
+                  color: theme.dividerColor,
                   width: 2,
                 ),
                 boxShadow: [
@@ -542,8 +553,8 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
           const SizedBox(width: 8),
           // Send button
           Container(
-            decoration: const BoxDecoration(
-              color: Color(0xFFE91E63),
+            decoration: BoxDecoration(
+              color: twainTheme.iconColor,
               shape: BoxShape.circle,
             ),
             child: IconButton(
@@ -565,7 +576,13 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
     );
   }
 
-  Widget _buildNoteCard(StickyNote note, bool isCurrentUser, Color color) {
+  Widget _buildNoteCard(
+    StickyNote note,
+    bool isCurrentUser,
+    Color color,
+    ThemeData theme,
+    TwainThemeExtension twainTheme,
+  ) {
     final currentUserId = ref.watch(twainUserProvider).value?.id;
     final partner = ref.watch(pairedUserProvider).value;
 
@@ -607,7 +624,7 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
                   note.message,
                   style: GoogleFonts.patrickHand(
                     fontSize: 19,
-                    color: AppColors.black,
+                    color: Colors.black87,
                     height: 1.3,
                     fontWeight: FontWeight.w400,
                   ),
@@ -629,7 +646,7 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     // Likes section
-                    _buildLikesSection(note, currentUserId, partner),
+                    _buildLikesSection(note, currentUserId, partner, twainTheme),
                     // Reply count
                     if (note.hasReplies)
                       Container(
@@ -694,7 +711,7 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
   }
 
   Widget _buildLikesSection(
-      StickyNote note, String? currentUserId, partner) {
+      StickyNote note, String? currentUserId, partner, TwainThemeExtension twainTheme) {
     // Use optimistic state
     final isCurrentUserLiked = _isLikedByCurrentUser(note, currentUserId);
     final isPartnerLiked = partner != null && note.isLikedBy(partner.id);
@@ -728,9 +745,9 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
+          Icon(
             Icons.favorite,
-            color: Color(0xFFE91E63),
+            color: AppThemes.appAccentColor,
             size: 20,
           ),
           if (avatarsToShow.isNotEmpty) ...[
@@ -782,7 +799,7 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(ThemeData theme) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32.0),
@@ -792,7 +809,7 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
             Icon(
               Icons.sticky_note_2_outlined,
               size: 80,
-              color: Colors.grey.shade300,
+              color: theme.colorScheme.onSurface.withOpacity(0.3),
             ),
             const SizedBox(height: 16),
             Text(
@@ -800,7 +817,7 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
-                color: Colors.grey.shade600,
+                color: theme.colorScheme.onSurface.withOpacity(0.6),
               ),
             ),
             const SizedBox(height: 8),
@@ -809,7 +826,7 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.grey.shade500,
+                color: theme.colorScheme.onSurface.withOpacity(0.5),
               ),
             ),
           ],

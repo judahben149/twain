@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:twain/constants/app_colours.dart';
+import 'package:twain/constants/app_themes.dart';
 import 'package:twain/models/unsplash_wallpaper.dart';
 import 'package:twain/providers/wallpaper_providers.dart';
 import 'package:twain/providers/unsplash_providers.dart';
@@ -36,20 +36,35 @@ class _WallpaperPreviewScreenState
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final twainTheme = context.twainTheme;
+    final isDarkMode = context.isDarkMode;
+    final previewBackground =
+        isDarkMode ? Colors.black : theme.scaffoldBackgroundColor;
+
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: previewBackground,
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor:
+            isDarkMode ? Colors.transparent : theme.scaffoldBackgroundColor.withOpacity(0.9),
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.white, size: 28),
+          icon: Icon(
+            Icons.close,
+            color: isDarkMode
+                ? Colors.white
+                : theme.colorScheme.onSurface,
+            size: 28,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           'Preview Wallpaper',
           style: TextStyle(
-            color: Colors.white,
+            color: isDarkMode
+                ? Colors.white
+                : theme.colorScheme.onSurface,
             fontSize: 18,
             fontWeight: FontWeight.w600,
           ),
@@ -72,7 +87,7 @@ class _WallpaperPreviewScreenState
                                 ? loadingProgress.cumulativeBytesLoaded /
                                     loadingProgress.expectedTotalBytes!
                                 : null,
-                            color: Colors.white,
+                            color: twainTheme.iconColor,
                           ),
                         );
                       },
@@ -80,16 +95,21 @@ class _WallpaperPreviewScreenState
                         return Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.broken_image,
-                              color: Colors.white54,
+                              color: (isDarkMode
+                                      ? Colors.white54
+                                      : theme.colorScheme.onSurface)
+                                  .withOpacity(0.6),
                               size: 64,
                             ),
                             const SizedBox(height: 16),
                             Text(
                               'Failed to load image',
                               style: TextStyle(
-                                color: Colors.white.withOpacity(0.7),
+                                color: isDarkMode
+                                    ? Colors.white.withOpacity(0.7)
+                                    : theme.colorScheme.onSurface.withOpacity(0.7),
                                 fontSize: 16,
                               ),
                             ),
@@ -104,16 +124,21 @@ class _WallpaperPreviewScreenState
                         return Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.broken_image,
-                              color: Colors.white54,
+                              color: (isDarkMode
+                                      ? Colors.white54
+                                      : theme.colorScheme.onSurface)
+                                  .withOpacity(0.6),
                               size: 64,
                             ),
                             const SizedBox(height: 16),
                             Text(
                               'Failed to load image',
                               style: TextStyle(
-                                color: Colors.white.withOpacity(0.7),
+                                color: isDarkMode
+                                    ? Colors.white.withOpacity(0.7)
+                                    : theme.colorScheme.onSurface.withOpacity(0.7),
                                 fontSize: 16,
                               ),
                             ),
@@ -127,18 +152,20 @@ class _WallpaperPreviewScreenState
           // Options panel
           Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: twainTheme.cardBackgroundColor,
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(24),
                 topRight: Radius.circular(24),
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 10,
-                  offset: const Offset(0, -2),
-                ),
-              ],
+              boxShadow: isDarkMode
+                  ? null
+                  : [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, -2),
+                      ),
+                    ],
             ),
             child: SafeArea(
               top: false,
@@ -154,7 +181,7 @@ class _WallpaperPreviewScreenState
                         width: 40,
                         height: 4,
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade300,
+                          color: theme.dividerColor,
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
@@ -167,7 +194,7 @@ class _WallpaperPreviewScreenState
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
-                        color: Colors.grey.shade800,
+                        color: theme.colorScheme.onSurface,
                       ),
                     ),
 
@@ -177,7 +204,7 @@ class _WallpaperPreviewScreenState
                     Container(
                       decoration: BoxDecoration(
                         border: Border.all(
-                          color: Colors.grey.shade300,
+                          color: theme.dividerColor,
                           width: 1,
                         ),
                         borderRadius: BorderRadius.circular(12),
@@ -185,49 +212,51 @@ class _WallpaperPreviewScreenState
                       child: Column(
                         children: [
                           RadioListTile<String>(
-                            title: const Text(
+                            title: Text(
                               'My Partner',
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w500,
+                                color: theme.colorScheme.onSurface,
                               ),
                             ),
                             subtitle: Text(
                               'Only your partner will see this wallpaper',
                               style: TextStyle(
                                 fontSize: 13,
-                                color: Colors.grey.shade600,
+                                color: theme.colorScheme.onSurface.withOpacity(0.6),
                               ),
                             ),
                             value: 'partner',
                             groupValue: _applyTo,
-                            activeColor: const Color(0xFFE91E63),
+                            activeColor: twainTheme.iconColor,
                             onChanged: _isProcessing
                                 ? null
                                 : (value) => setState(() => _applyTo = value!),
                           ),
                           Divider(
                             height: 1,
-                            color: Colors.grey.shade300,
+                            color: theme.dividerColor,
                           ),
                           RadioListTile<String>(
-                            title: const Text(
+                            title: Text(
                               'Both of Us',
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w500,
+                                color: theme.colorScheme.onSurface,
                               ),
                             ),
                             subtitle: Text(
                               'You and your partner will both see this wallpaper',
                               style: TextStyle(
                                 fontSize: 13,
-                                color: Colors.grey.shade600,
+                                color: theme.colorScheme.onSurface.withOpacity(0.6),
                               ),
                             ),
                             value: 'both',
                             groupValue: _applyTo,
-                            activeColor: const Color(0xFFE91E63),
+                            activeColor: twainTheme.iconColor,
                             onChanged: _isProcessing
                                 ? null
                                 : (value) => setState(() => _applyTo = value!),
@@ -242,21 +271,21 @@ class _WallpaperPreviewScreenState
                     ElevatedButton(
                       onPressed: _isProcessing ? null : _confirmSetWallpaper,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFE91E63),
-                        foregroundColor: Colors.white,
+                        backgroundColor: twainTheme.iconColor,
+                        foregroundColor: theme.colorScheme.onPrimary,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        elevation: 2,
-                        disabledBackgroundColor: Colors.grey.shade300,
+                        elevation: isDarkMode ? 0 : 2,
+                        disabledBackgroundColor: theme.disabledColor,
                       ),
                       child: _isProcessing
-                          ? const SizedBox(
+                          ? SizedBox(
                               height: 20,
                               width: 20,
                               child: CircularProgressIndicator(
-                                color: Colors.white,
+                                color: theme.colorScheme.onPrimary,
                                 strokeWidth: 2,
                               ),
                             )
@@ -283,7 +312,7 @@ class _WallpaperPreviewScreenState
                                   : 'Both you and your partner will receive notifications',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Colors.grey.shade600,
+                                color: theme.colorScheme.onSurface.withOpacity(0.6),
                               ),
                               textAlign: TextAlign.center,
                             ),
@@ -293,7 +322,7 @@ class _WallpaperPreviewScreenState
                                 'When you apply, the app will restart briefly',
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: Colors.grey.shade500,
+                                  color: theme.colorScheme.onSurface.withOpacity(0.5),
                                   fontStyle: FontStyle.italic,
                                 ),
                                 textAlign: TextAlign.center,
@@ -320,6 +349,9 @@ class _WallpaperPreviewScreenState
       _isProcessing = true;
     });
 
+    final theme = Theme.of(context);
+    final twainTheme = context.twainTheme;
+
     try {
       final service = ref.read(wallpaperServiceProvider);
       final wallpaperManager = WallpaperManagerService();
@@ -331,22 +363,30 @@ class _WallpaperPreviewScreenState
         // Show downloading message
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Row(
               children: [
                 SizedBox(
                   width: 20,
                   height: 20,
                   child: CircularProgressIndicator(
-                    color: Colors.white,
+                    color: twainTheme.iconColor,
                     strokeWidth: 2,
                   ),
                 ),
-                SizedBox(width: 16),
-                Text('Downloading wallpaper...'),
+                const SizedBox(width: 16),
+                const Text('Downloading wallpaper...'),
               ],
             ),
-            duration: Duration(seconds: 30),
+            duration: const Duration(seconds: 30),
+            backgroundColor: twainTheme.cardBackgroundColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: context.isDarkMode
+                  ? BorderSide(color: theme.dividerColor, width: 0.5)
+                  : BorderSide.none,
+            ),
           ),
         );
 
@@ -362,22 +402,30 @@ class _WallpaperPreviewScreenState
         // Upload to shared board (this makes it accessible to both users)
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Row(
               children: [
                 SizedBox(
                   width: 20,
                   height: 20,
                   child: CircularProgressIndicator(
-                    color: Colors.white,
+                    color: twainTheme.iconColor,
                     strokeWidth: 2,
                   ),
                 ),
-                SizedBox(width: 16),
-                Text('Uploading photo...'),
+                const SizedBox(width: 16),
+                const Text('Uploading photo...'),
               ],
             ),
-            duration: Duration(seconds: 30),
+            duration: const Duration(seconds: 30),
+            backgroundColor: twainTheme.cardBackgroundColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: context.isDarkMode
+                  ? BorderSide(color: theme.dividerColor, width: 0.5)
+                  : BorderSide.none,
+            ),
           ),
         );
 
@@ -395,22 +443,30 @@ class _WallpaperPreviewScreenState
         // Show uploading message
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Row(
               children: [
                 SizedBox(
                   width: 20,
                   height: 20,
                   child: CircularProgressIndicator(
-                    color: Colors.white,
+                    color: twainTheme.iconColor,
                     strokeWidth: 2,
                   ),
                 ),
-                SizedBox(width: 16),
-                Text('Uploading photo...'),
+                const SizedBox(width: 16),
+                const Text('Uploading photo...'),
               ],
             ),
-            duration: Duration(seconds: 30),
+            duration: const Duration(seconds: 30),
+            backgroundColor: twainTheme.cardBackgroundColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: context.isDarkMode
+                  ? BorderSide(color: theme.dividerColor, width: 0.5)
+                  : BorderSide.none,
+            ),
           ),
         );
 
@@ -426,22 +482,30 @@ class _WallpaperPreviewScreenState
       // Set wallpaper (creates record, triggers FCM)
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Row(
             children: [
               SizedBox(
                 width: 20,
                 height: 20,
                 child: CircularProgressIndicator(
-                  color: Colors.white,
+                  color: twainTheme.iconColor,
                   strokeWidth: 2,
                 ),
               ),
-              SizedBox(width: 16),
-              Text('Setting wallpaper...'),
+              const SizedBox(width: 16),
+              const Text('Setting wallpaper...'),
             ],
           ),
-          duration: Duration(seconds: 10),
+          duration: const Duration(seconds: 10),
+          backgroundColor: twainTheme.cardBackgroundColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: context.isDarkMode
+                ? BorderSide(color: theme.dividerColor, width: 0.5)
+                : BorderSide.none,
+          ),
         ),
       );
 
@@ -464,7 +528,7 @@ class _WallpaperPreviewScreenState
           SnackBar(
             content: Row(
               children: [
-                const Icon(Icons.check_circle, color: Colors.white),
+                Icon(Icons.check_circle, color: theme.colorScheme.onPrimary),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Text(
@@ -475,8 +539,12 @@ class _WallpaperPreviewScreenState
                 ),
               ],
             ),
-            backgroundColor: Colors.green,
+            backgroundColor: twainTheme.iconColor,
             duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
 
@@ -514,18 +582,18 @@ class _WallpaperPreviewScreenState
         SnackBar(
           content: Row(
             children: [
-              const Icon(Icons.error, color: Colors.white),
+              Icon(Icons.error, color: theme.colorScheme.onPrimary),
               const SizedBox(width: 16),
               Expanded(
                 child: Text('Failed to set wallpaper: ${e.toString()}'),
               ),
             ],
           ),
-          backgroundColor: Colors.red,
+          backgroundColor: twainTheme.destructiveColor,
           duration: const Duration(seconds: 5),
           action: SnackBarAction(
             label: 'Retry',
-            textColor: Colors.white,
+            textColor: theme.colorScheme.onPrimary,
             onPressed: _confirmSetWallpaper,
           ),
         ),

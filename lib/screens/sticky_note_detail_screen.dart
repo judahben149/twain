@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'package:twain/constants/app_colours.dart';
+import 'package:twain/constants/app_themes.dart';
 import 'package:twain/models/sticky_note.dart';
 import 'package:twain/models/sticky_note_reply.dart';
 import 'package:twain/providers/auth_providers.dart';
@@ -88,6 +88,8 @@ class _StickyNoteDetailScreenState
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final twainTheme = context.twainTheme;
     final currentUser = ref.watch(twainUserProvider).value;
     final partner = ref.watch(pairedUserProvider).value;
     final repliesAsync =
@@ -97,11 +99,17 @@ class _StickyNoteDetailScreenState
 
     return Scaffold(
       body: Container(
-        decoration: _buildGradientBackground(),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: twainTheme.gradientColors,
+          ),
+        ),
         child: SafeArea(
           child: Column(
             children: [
-              _buildHeader(),
+              _buildHeader(theme),
               Expanded(
                 child: SingleChildScrollView(
                   controller: _scrollController,
@@ -118,6 +126,8 @@ class _StickyNoteDetailScreenState
                         isCurrentUserNote,
                         currentUser?.id,
                         partner,
+                        theme,
+                        twainTheme,
                       ),
                       const SizedBox(height: 24),
 
@@ -131,14 +141,14 @@ class _StickyNoteDetailScreenState
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.grey.shade800,
+                                color: theme.colorScheme.onSurface,
                               ),
                             ),
                             const SizedBox(height: 12),
                             repliesAsync.when(
                               data: (replies) {
                                 if (replies.isEmpty) {
-                                  return _buildEmptyRepliesState();
+                                  return _buildEmptyRepliesState(theme);
                                 }
                                 return Column(
                                   children: replies.map((reply) {
@@ -147,14 +157,21 @@ class _StickyNoteDetailScreenState
                                     return _buildReplyCard(
                                       reply,
                                       isCurrentUserReply,
+                                      theme,
+                                      twainTheme,
                                     );
                                   }).toList(),
                                 );
                               },
-                              loading: () => const Center(
-                                child: CircularProgressIndicator(),
+                              loading: () => Center(
+                                child: CircularProgressIndicator(
+                                  color: twainTheme.iconColor,
+                                ),
                               ),
-                              error: (error, stack) => Text('Error: $error'),
+                              error: (error, stack) => Text(
+                                'Error: $error',
+                                style: TextStyle(color: theme.colorScheme.onSurface),
+                              ),
                             ),
                           ],
                         ),
@@ -162,7 +179,7 @@ class _StickyNoteDetailScreenState
                   ),
                 ),
               ),
-              _buildReplyInput(),
+              _buildReplyInput(theme, twainTheme),
             ],
           ),
         ),
@@ -170,38 +187,24 @@ class _StickyNoteDetailScreenState
     );
   }
 
-  BoxDecoration _buildGradientBackground() {
-    return const BoxDecoration(
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          Color(0xFFF5F5F5),
-          Color(0xFFF0E6F0),
-          Color(0xFFFFE6F0),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
+  Widget _buildHeader(ThemeData theme) {
     return Padding(
       padding: const EdgeInsets.all(20.0),
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back, color: AppColors.black),
+            icon: Icon(Icons.arrow_back, color: theme.colorScheme.onSurface),
             onPressed: () => Navigator.pop(context),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
           ),
           const SizedBox(width: 16),
-          const Text(
+          Text(
             'Note Details',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: AppColors.black,
+              color: theme.colorScheme.onSurface,
             ),
           ),
         ],
@@ -238,6 +241,8 @@ class _StickyNoteDetailScreenState
     bool isCurrentUser,
     String? currentUserId,
     partner,
+    ThemeData theme,
+    TwainThemeExtension twainTheme,
   ) {
     return Stack(
       children: [
@@ -262,7 +267,7 @@ class _StickyNoteDetailScreenState
                 note.message,
                 style: GoogleFonts.patrickHand(
                   fontSize: 22,
-                  color: AppColors.black,
+                  color: Colors.black87,
                   height: 1.4,
                   fontWeight: FontWeight.w400,
                 ),
@@ -282,7 +287,7 @@ class _StickyNoteDetailScreenState
               const SizedBox(height: 16),
 
               // Likes section
-              _buildLikesSection(note, currentUserId, partner),
+              _buildLikesSection(note, currentUserId, partner, twainTheme),
             ],
           ),
         ),
@@ -316,6 +321,7 @@ class _StickyNoteDetailScreenState
     StickyNote note,
     String? currentUserId,
     partner,
+    TwainThemeExtension twainTheme,
   ) {
     final currentUser = ref.watch(twainUserProvider).value;
     final isCurrentUserLiked = currentUserId != null && note.isLikedBy(currentUserId);
@@ -360,15 +366,15 @@ class _StickyNoteDetailScreenState
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFFE91E63).withOpacity(0.1),
+          color: AppThemes.appAccentColor.withOpacity(0.1),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
+            Icon(
               Icons.favorite,
-              color: Color(0xFFE91E63),
+              color: AppThemes.appAccentColor,
               size: 22,
             ),
             if (avatarsToShow.isNotEmpty) ...[
@@ -421,16 +427,21 @@ class _StickyNoteDetailScreenState
     );
   }
 
-  Widget _buildReplyCard(StickyNoteReply reply, bool isCurrentUser) {
+  Widget _buildReplyCard(
+    StickyNoteReply reply,
+    bool isCurrentUser,
+    ThemeData theme,
+    TwainThemeExtension twainTheme,
+  ) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.8),
+          color: twainTheme.cardBackgroundColor,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: Colors.grey.shade200,
+            color: theme.dividerColor,
           ),
         ),
         child: Column(
@@ -441,7 +452,7 @@ class _StickyNoteDetailScreenState
               reply.message,
               style: GoogleFonts.patrickHand(
                 fontSize: 16,
-                color: AppColors.black,
+                color: theme.colorScheme.onSurface,
                 height: 1.3,
                 fontWeight: FontWeight.w400,
               ),
@@ -453,7 +464,7 @@ class _StickyNoteDetailScreenState
               '${isCurrentUser ? 'You' : reply.senderName ?? 'Partner'} • ${_formatTime(reply.createdAt)}',
               style: GoogleFonts.patrickHand(
                 fontSize: 13,
-                color: Colors.grey.shade600,
+                color: theme.colorScheme.onSurface.withOpacity(0.6),
                 fontWeight: FontWeight.w400,
               ),
             ),
@@ -463,7 +474,7 @@ class _StickyNoteDetailScreenState
     );
   }
 
-  Widget _buildEmptyRepliesState() {
+  Widget _buildEmptyRepliesState(ThemeData theme) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 24.0),
       child: Center(
@@ -471,39 +482,47 @@ class _StickyNoteDetailScreenState
           'No replies yet. Be the first!',
           style: TextStyle(
             fontSize: 14,
-            color: Colors.grey.shade500,
+            color: theme.colorScheme.onSurface.withOpacity(0.5),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildReplyInput() {
+  Widget _buildReplyInput(ThemeData theme, TwainThemeExtension twainTheme) {
     return Container(
       padding: const EdgeInsets.all(24.0),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
+        color: twainTheme.cardBackgroundColor,
+        boxShadow: context.isDarkMode
+            ? null
+            : [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, -2),
+                ),
+              ],
+        border: context.isDarkMode
+            ? Border(top: BorderSide(color: theme.dividerColor, width: 0.5))
+            : null,
       ),
       child: Row(
         children: [
           Expanded(
             child: TextField(
               controller: _replyController,
+              style: TextStyle(color: theme.colorScheme.onSurface),
               decoration: InputDecoration(
                 hintText: 'Write a reply...',
                 hintStyle: TextStyle(
-                  color: Colors.grey.shade400,
+                  color: theme.colorScheme.onSurface.withOpacity(0.4),
                   fontSize: 15,
                 ),
                 filled: true,
-                fillColor: Colors.grey.shade100,
+                fillColor: context.isDarkMode
+                    ? theme.colorScheme.surface
+                    : Colors.grey.shade100,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(25),
                   borderSide: BorderSide.none,
@@ -520,13 +539,8 @@ class _StickyNoteDetailScreenState
           ),
           const SizedBox(width: 12),
           Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Color(0xFFE91E63),
-                  Color(0xFF9C27B0),
-                ],
-              ),
+            decoration: BoxDecoration(
+              color: twainTheme.iconColor,
               shape: BoxShape.circle,
             ),
             child: IconButton(

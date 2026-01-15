@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:twain/constants/app_colours.dart';
+import 'package:twain/constants/app_themes.dart';
 import 'package:twain/providers/auth_providers.dart';
 import 'package:twain/services/avatar_service.dart';
 import 'package:twain/widgets/avatar_preview_card.dart';
@@ -21,23 +21,36 @@ class _AvatarSelectorScreenState extends ConsumerState<AvatarSelectorScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final twainTheme = context.twainTheme;
     final currentUserAsync = ref.watch(twainUserProvider);
 
     return currentUserAsync.when(
       data: (currentUser) {
         if (currentUser == null) {
-          return const Scaffold(
-            body: Center(child: Text('No user logged in')),
+          return Scaffold(
+            body: Center(
+              child: Text(
+                'No user logged in',
+                style: TextStyle(color: theme.colorScheme.onSurface),
+              ),
+            ),
           );
         }
 
         return Scaffold(
           body: Container(
-            decoration: _buildGradientBackground(),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: twainTheme.gradientColors,
+              ),
+            ),
             child: SafeArea(
               child: Column(
                 children: [
-                  _buildHeader(context),
+                  _buildHeader(context, theme),
                   Expanded(
                     child: SingleChildScrollView(
                       child: Column(
@@ -47,8 +60,8 @@ class _AvatarSelectorScreenState extends ConsumerState<AvatarSelectorScreen> {
                             onReset: () => _resetToInitials(currentUser.id),
                             isResetting: _isSaving,
                           ),
-                          const Padding(
-                            padding: EdgeInsets.symmetric(
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
                               horizontal: 20,
                               vertical: 12,
                             ),
@@ -57,7 +70,7 @@ class _AvatarSelectorScreenState extends ConsumerState<AvatarSelectorScreen> {
                               style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
-                                color: AppColors.black,
+                                color: theme.colorScheme.onSurface,
                               ),
                             ),
                           ),
@@ -73,47 +86,42 @@ class _AvatarSelectorScreenState extends ConsumerState<AvatarSelectorScreen> {
           ),
         );
       },
-      loading: () => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+      loading: () => Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(
+            color: context.twainTheme.iconColor,
+          ),
+        ),
       ),
       error: (error, stack) => Scaffold(
-        body: Center(child: Text('Error: $error')),
+        body: Center(
+          child: Text(
+            'Error: $error',
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+          ),
+        ),
       ),
     );
   }
 
-  BoxDecoration _buildGradientBackground() {
-    return const BoxDecoration(
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          Color(0xFFF5F5F5),
-          Color(0xFFF0E6F0),
-          Color(0xFFFFE6F0),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, ThemeData theme) {
     return Padding(
       padding: const EdgeInsets.all(20.0),
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back, color: AppColors.black),
+            icon: Icon(Icons.arrow_back, color: theme.colorScheme.onSurface),
             onPressed: () => Navigator.pop(context),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
           ),
           const SizedBox(width: 16),
-          const Text(
+          Text(
             'Choose Avatar',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: AppColors.black,
+              color: theme.colorScheme.onSurface,
             ),
           ),
         ],
@@ -140,6 +148,8 @@ class _AvatarSelectorScreenState extends ConsumerState<AvatarSelectorScreen> {
   }
 
   Future<void> _selectAvatar(AvatarOption avatar) async {
+    final twainTheme = context.twainTheme;
+
     setState(() {
       _selectedAvatarUrl = avatar.url;
       _isSaving = true;
@@ -180,7 +190,7 @@ class _AvatarSelectorScreenState extends ConsumerState<AvatarSelectorScreen> {
                 Expanded(child: Text('Failed to update avatar: $e')),
               ],
             ),
-            backgroundColor: const Color(0xFFE91E63),
+            backgroundColor: twainTheme.destructiveColor,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
@@ -199,6 +209,8 @@ class _AvatarSelectorScreenState extends ConsumerState<AvatarSelectorScreen> {
   }
 
   Future<void> _resetToInitials(String userId) async {
+    final twainTheme = context.twainTheme;
+
     setState(() {
       _isSaving = true;
     });
@@ -238,7 +250,7 @@ class _AvatarSelectorScreenState extends ConsumerState<AvatarSelectorScreen> {
                 Expanded(child: Text('Failed to reset avatar: $e')),
               ],
             ),
-            backgroundColor: const Color(0xFFE91E63),
+            backgroundColor: twainTheme.destructiveColor,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
