@@ -3,10 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:twain/constants/app_colours.dart';
 import 'package:twain/constants/app_themes.dart';
+import 'package:twain/models/app_theme_mode.dart';
 import 'package:twain/models/wallpaper_folder.dart';
 import 'package:twain/models/folder_image.dart';
 import 'package:twain/providers/folder_providers.dart';
+import 'package:twain/providers/theme_providers.dart';
 import 'package:twain/screens/create_folder_screen.dart';
 
 class FolderDetailScreen extends ConsumerStatefulWidget {
@@ -28,9 +31,14 @@ class _FolderDetailScreenState extends ConsumerState<FolderDetailScreen> {
 
     final theme = Theme.of(context);
     final twainTheme = context.twainTheme;
+    final appThemeMode = ref.watch(themeModeProvider);
+    final isMidnight = appThemeMode == AppThemeMode.amoled;
+    final scaffoldColor = isMidnight
+        ? AppColors.backgroundAmoled
+        : theme.colorScheme.surface;
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
+      backgroundColor: scaffoldColor,
       appBar: AppBar(
         title: folderAsync.when(
           data: (folder) => Text(
