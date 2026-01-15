@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:twain/constants/app_colours.dart';
 import 'package:twain/constants/app_themes.dart';
+import 'package:twain/models/app_theme_mode.dart';
 import 'package:twain/models/wallpaper_folder.dart';
 import 'package:twain/providers/folder_providers.dart';
+import 'package:twain/providers/theme_providers.dart';
 import 'package:twain/screens/folder_detail_screen.dart';
 
 class CreateFolderScreen extends ConsumerStatefulWidget {
@@ -48,8 +51,16 @@ class _CreateFolderScreenState extends ConsumerState<CreateFolderScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final twainTheme = context.twainTheme;
+    final appThemeMode = ref.watch(themeModeProvider);
+    final isMidnight = appThemeMode == AppThemeMode.amoled;
+    final scaffoldColor = context.isDarkMode
+        ? (isMidnight ? AppColors.backgroundAmoled : theme.colorScheme.surface)
+        : Color.alphaBlend(
+            twainTheme.iconColor.withOpacity(0.05),
+            theme.colorScheme.surface,
+          );
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
+      backgroundColor: scaffoldColor,
       appBar: AppBar(
         title: Text(
           isEditing ? 'Edit Folder' : 'Create Folder',
