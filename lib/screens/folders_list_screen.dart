@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:twain/constants/app_colours.dart';
 import 'package:twain/constants/app_themes.dart';
+import 'package:twain/models/app_theme_mode.dart';
 import 'package:twain/models/wallpaper_folder.dart';
 import 'package:twain/providers/folder_providers.dart';
+import 'package:twain/providers/theme_providers.dart';
 import 'package:twain/screens/create_folder_screen.dart';
 import 'package:twain/screens/folder_detail_screen.dart';
 
@@ -14,12 +17,14 @@ class FoldersListScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     final twainTheme = context.twainTheme;
     final isLight = !context.isDarkMode;
+    final appThemeMode = ref.watch(themeModeProvider);
+    final isMidnight = appThemeMode == AppThemeMode.amoled;
     final scaffoldColor = isLight
         ? Color.alphaBlend(
             twainTheme.iconColor.withOpacity(0.05),
             theme.colorScheme.surface,
           )
-        : theme.colorScheme.surface;
+        : (isMidnight ? AppColors.backgroundAmoled : theme.colorScheme.surface);
     final foldersAsync = ref.watch(foldersStreamProvider);
 
     return Scaffold(
