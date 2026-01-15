@@ -12,7 +12,7 @@ enum AppThemeMode {
       case AppThemeMode.dark:
         return 'Dark';
       case AppThemeMode.amoled:
-        return 'AMOLED';
+        return 'Midnight';
     }
   }
 

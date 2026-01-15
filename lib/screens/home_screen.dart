@@ -307,7 +307,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     context: context,
                     user: currentUser,
                     name: 'You',
-                    color: twainTheme.iconColor,
+                    color: AppThemes.appAccentColor,
                     onTap: () {
                       Navigator.push(
                         context,
@@ -322,7 +322,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     context: context,
                     label: 'YO',
                     name: 'You',
-                    color: twainTheme.iconColor,
+                    color: AppThemes.appAccentColor,
                     onTap: null,
                   ),
             const SizedBox(width: 16),

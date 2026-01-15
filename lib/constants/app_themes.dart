@@ -51,13 +51,13 @@ class AppThemes {
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return appAccentColor;
+            return colorScheme.primary;
           }
           return null;
         }),
         trackColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return appAccentColor.withOpacity(0.5);
+            return colorScheme.primary.withOpacity(0.5);
           }
           return null;
         }),
@@ -141,13 +141,13 @@ class AppThemes {
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return appAccentColor;
+            return colorScheme.primary;
           }
           return null;
         }),
         trackColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return appAccentColor.withOpacity(0.5);
+            return colorScheme.primary.withOpacity(0.5);
           }
           return null;
         }),
@@ -232,13 +232,13 @@ class AppThemes {
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return appAccentColor;
+            return colorScheme.primary;
           }
           return null;
         }),
         trackColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return appAccentColor.withOpacity(0.5);
+            return colorScheme.primary.withOpacity(0.5);
           }
           return null;
         }),
@@ -270,7 +270,7 @@ class AppThemes {
       extensions: [
         TwainThemeExtension(
           gradientColors: AppColors.gradientAmoled,
-          cardBackgroundColor: AppColors.cardAmoled.withOpacity(0.95),
+          cardBackgroundColor: AppColors.cardAmoled,
           iconColor: appAccentColor,
           iconBackgroundColor: const Color(0xFF1A0F1F),
           destructiveColor: const Color(0xFFEF5350),

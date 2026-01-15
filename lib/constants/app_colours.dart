@@ -82,8 +82,8 @@ class AppColors {
 
   static const List<Color> gradientAmoled = [
     Color(0xFF000000),
-    Color(0xFF0A0510),
-    Color(0xFF050208),
+    Color(0xFF000000),
+    Color(0xFF000000),
   ];
 }
 

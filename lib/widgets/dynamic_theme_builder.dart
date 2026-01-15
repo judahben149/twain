@@ -115,10 +115,25 @@ class DynamicThemeBuilder extends ConsumerWidget {
       textTheme: GoogleFonts.jostTextTheme(
         isLight ? ThemeData.light().textTheme : ThemeData.dark().textTheme,
       ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return dynamicScheme.primary;
+          }
+          return null;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            final opacity = isLight ? 0.4 : 0.5;
+            return dynamicScheme.primary.withOpacity(opacity);
+          }
+          return null;
+        }),
+      ),
       extensions: [
         TwainThemeExtension(
           gradientColors: gradientColors,
-          cardBackgroundColor: cardBg.withOpacity(isAmoled ? 0.95 : 0.9),
+          cardBackgroundColor: isAmoled ? cardBg : cardBg.withOpacity(0.9),
           iconColor: iconColor,
           iconBackgroundColor: iconBgColor,
           destructiveColor: isLight

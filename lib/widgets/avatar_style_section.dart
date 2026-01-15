@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:twain/constants/app_themes.dart';
 import 'package:twain/constants/avatar_constants.dart';
 import 'package:twain/services/avatar_service.dart';
 import 'package:twain/widgets/avatar_grid_item.dart';
@@ -25,7 +26,7 @@ class AvatarStyleSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildHeader(),
+          _buildHeader(context),
           const SizedBox(height: 16),
           _buildAvatarGrid(),
         ],
@@ -33,34 +34,43 @@ class AvatarStyleSection extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
+    final theme = Theme.of(context);
+    final twainTheme = context.twainTheme;
+    final isDark = context.isDarkMode;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFFF3E5F5),
-            Color(0xFFFFE6F0),
-          ],
-        ),
+        color: twainTheme.iconBackgroundColor,
         borderRadius: BorderRadius.circular(12),
+        boxShadow: isDark
+            ? null
+            : [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+        border: isDark
+            ? Border.all(color: theme.dividerColor, width: 0.5)
+            : null,
       ),
       child: Row(
         children: [
           Icon(
             style.icon,
-            color: const Color(0xFF9C27B0),
+            color: twainTheme.iconColor,
             size: 24,
           ),
           const SizedBox(width: 12),
           Text(
             style.displayName,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF9C27B0),
+              color: twainTheme.iconColor,
             ),
           ),
         ],
