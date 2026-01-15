@@ -26,10 +26,10 @@ final folderImagesStreamProvider =
 );
 
 /// Future provider for a single folder by ID
-final folderProvider = FutureProvider.family<WallpaperFolder, String>(
-  (ref, folderId) async {
+final folderProvider = StreamProvider.family<WallpaperFolder, String>(
+  (ref, folderId) {
     final service = ref.watch(folderServiceProvider);
-    return service.getFolder(folderId);
+    return service.streamFolder(folderId);
   },
 );
 

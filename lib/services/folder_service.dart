@@ -304,6 +304,23 @@ class FolderService {
     }
   }
 
+  /// Stream a single folder by ID
+  Stream<WallpaperFolder> streamFolder(String folderId) async* {
+    print('Streaming folder details for: $folderId');
+
+    final stream = _supabase
+        .from('wallpaper_folders')
+        .stream(primaryKey: ['id'])
+        .eq('id', folderId)
+        .limit(1);
+
+    await for (final rows in stream) {
+      if (rows.isEmpty) continue;
+      final row = Map<String, dynamic>.from(rows.first as Map);
+      yield WallpaperFolder.fromJson(row);
+    }
+  }
+
   /// Stream images for a specific folder
   Stream<List<FolderImage>> streamFolderImages(String folderId) async* {
     print('Streaming images for folder: $folderId');

@@ -54,3 +54,6 @@ android/key.properties
 .env
 .env.*
 !.env.example
+
+#Supabase
+supabase/.temp/

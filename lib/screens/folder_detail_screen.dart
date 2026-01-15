@@ -6,13 +6,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:twain/constants/app_colours.dart';
 import 'package:twain/models/wallpaper_folder.dart';
 import 'package:twain/models/folder_image.dart';
-import 'package:twain/models/shared_board_photo.dart';
-import 'package:twain/models/unsplash_wallpaper.dart';
 import 'package:twain/providers/folder_providers.dart';
-import 'package:twain/providers/wallpaper_providers.dart';
 import 'package:twain/screens/create_folder_screen.dart';
-import 'package:twain/screens/shared_board_screen.dart';
-import 'package:twain/screens/unsplash_browser_screen.dart';
 
 class FolderDetailScreen extends ConsumerStatefulWidget {
   final String folderId;
@@ -531,6 +526,10 @@ class _FolderDetailScreenState extends ConsumerState<FolderDetailScreen> {
             imageFile: File(pickedFile.path),
           );
 
+      // Refresh folder and images streams to reflect new data immediately
+      ref.invalidate(folderProvider(folder.id));
+      ref.invalidate(folderImagesStreamProvider(folder.id));
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -587,6 +586,9 @@ class _FolderDetailScreenState extends ConsumerState<FolderDetailScreen> {
 
     try {
       await ref.read(folderServiceProvider).removeImage(image.id);
+
+      ref.invalidate(folderProvider(image.folderId));
+      ref.invalidate(folderImagesStreamProvider(image.folderId));
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
