@@ -114,9 +114,9 @@ class _UnsplashBrowserScreenState
     final theme = Theme.of(context);
     final twainTheme = context.twainTheme;
     return Container(
-      color: twainTheme.cardBackgroundColor,
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       decoration: BoxDecoration(
+        color: twainTheme.cardBackgroundColor,
         boxShadow: context.isDarkMode
             ? null
             : [

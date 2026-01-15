@@ -120,7 +120,7 @@ class _FolderDetailScreenState extends ConsumerState<FolderDetailScreen> {
     final isActive = folder.isActive && folder.imageCount > 0;
 
     return Card(
-      elevation: context.isDarkMode ? 0 : 2,
+      elevation: 0,
       color: twainTheme.cardBackgroundColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
@@ -265,7 +265,7 @@ class _FolderDetailScreenState extends ConsumerState<FolderDetailScreen> {
     TwainThemeExtension twainTheme,
   ) {
     return Card(
-      elevation: context.isDarkMode ? 0 : 2,
+      elevation: 0,
       color: twainTheme.cardBackgroundColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
@@ -502,7 +502,7 @@ class _FolderDetailScreenState extends ConsumerState<FolderDetailScreen> {
     TwainThemeExtension twainTheme,
   ) {
     return Card(
-      elevation: context.isDarkMode ? 0 : 2,
+      elevation: 0,
       color: twainTheme.cardBackgroundColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),

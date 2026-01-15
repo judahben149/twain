@@ -30,11 +30,18 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final twainTheme = context.twainTheme;
+    final isLight = !context.isDarkMode;
+    final scaffoldColor = isLight
+        ? Color.alphaBlend(
+            twainTheme.iconColor.withOpacity(0.06),
+            theme.colorScheme.surface,
+          )
+        : theme.colorScheme.surface;
     final wallpapersAsync = ref.watch(wallpapersStreamProvider);
     final currentUser = ref.watch(twainUserProvider).value;
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
+      backgroundColor: scaffoldColor,
       appBar: AppBar(
         title: Text(
           'Wallpaper Sync',

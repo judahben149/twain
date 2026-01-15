@@ -13,10 +13,17 @@ class FoldersListScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final twainTheme = context.twainTheme;
+    final isLight = !context.isDarkMode;
+    final scaffoldColor = isLight
+        ? Color.alphaBlend(
+            twainTheme.iconColor.withOpacity(0.05),
+            theme.colorScheme.surface,
+          )
+        : theme.colorScheme.surface;
     final foldersAsync = ref.watch(foldersStreamProvider);
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
+      backgroundColor: scaffoldColor,
       appBar: AppBar(
         title: Text(
           'Wallpaper Folders',
@@ -75,7 +82,7 @@ class FoldersListScreen extends ConsumerWidget {
       ThemeData theme, TwainThemeExtension twainTheme) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      elevation: context.isDarkMode ? 0 : 2,
+      elevation: 0,
       color: twainTheme.cardBackgroundColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),

@@ -82,12 +82,22 @@ class DynamicThemeBuilder extends ConsumerWidget {
       gradientColors = AppColors.gradientAmoled;
     } else if (isLight) {
       // Light: Use system colors for background with light tints
-      scaffoldBg = dynamicScheme.surface;
-      cardBg = dynamicScheme.surfaceContainerHighest;
+      final primaryTint = dynamicScheme.primary.withOpacity(0.08);
+      scaffoldBg = Color.alphaBlend(primaryTint, dynamicScheme.surface);
+      cardBg = dynamicScheme.surfaceContainerHigh;
       gradientColors = [
-        dynamicScheme.surfaceContainerLowest,
-        dynamicScheme.surfaceContainerLow,
-        dynamicScheme.surfaceContainer,
+        Color.alphaBlend(
+          dynamicScheme.primary.withOpacity(0.05),
+          dynamicScheme.surfaceContainerLowest,
+        ),
+        Color.alphaBlend(
+          dynamicScheme.primary.withOpacity(0.04),
+          dynamicScheme.surfaceContainerLow,
+        ),
+        Color.alphaBlend(
+          dynamicScheme.primary.withOpacity(0.03),
+          dynamicScheme.surfaceContainer,
+        ),
       ];
     } else {
       // Dark: Slightly tint background with system colors
