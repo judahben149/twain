@@ -13,6 +13,8 @@ import 'package:twain/screens/wallpaper_preview_screen.dart';
 import 'package:twain/screens/unsplash_browser_screen.dart';
 import 'package:twain/screens/folders_list_screen.dart';
 import 'package:twain/services/wallpaper_manager_service.dart';
+import 'package:twain/services/cache/twain_cache_managers.dart';
+import 'package:twain/utils/image_url_utils.dart';
 
 class WallpaperScreen extends ConsumerStatefulWidget {
   const WallpaperScreen({super.key});
@@ -534,26 +536,57 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
             // Wallpaper thumbnail
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: CachedNetworkImage(
-                imageUrl: wallpaper.imageUrl,
-                width: 60,
-                height: 60,
-                fit: BoxFit.cover,
-                placeholder: (context, url) => Container(
+            child: CachedNetworkImage(
+              imageUrl: buildOptimizedImageUrl(
+                wallpaper.imageUrl,
+                width: 720,
+                quality: 70,
+              ),
+              cacheManager:
+                  TwainCacheManagers.getManager(TwainCacheBucket.wallpaperImages),
+              width: 60,
+              height: 60,
+              fit: BoxFit.cover,
+              fadeInDuration: const Duration(milliseconds: 60),
+              fadeOutDuration: const Duration(milliseconds: 60),
+              placeholderFadeInDuration: const Duration(milliseconds: 60),
+              useOldImageOnUrlChange: true,
+              progressIndicatorBuilder: (context, url, progress) {
+                final value = progress.progress;
+                if (value != null && value >= 1.0) {
+                  return const SizedBox.shrink();
+                }
+                return Container(
                   width: 60,
                   height: 60,
                   color: theme.colorScheme.surface,
                   child: Center(
                     child: SizedBox(
-                      width: 18,
-                      height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: twainTheme.iconColor,
+                      width: 28,
+                      height: 28,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          CircularProgressIndicator(
+                            value: value,
+                            strokeWidth: 2,
+                            color: twainTheme.iconColor,
+                          ),
+                          if (value != null)
+                            Text(
+                              '${(value * 100).clamp(0, 100).toStringAsFixed(0)}%',
+                              style: TextStyle(
+                                fontSize: 8,
+                                fontWeight: FontWeight.w600,
+                                color: twainTheme.iconColor,
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                ),
+                );
+              },
                 errorWidget: (context, url, error) => Container(
                   width: 60,
                   height: 60,

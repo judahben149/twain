@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:twain/services/avatar_service.dart';
+import 'package:twain/services/cache/twain_cache_managers.dart';
 
 /// Individual avatar tile in the grid
 class AvatarGridItem extends StatelessWidget {
@@ -45,7 +46,9 @@ class AvatarGridItem extends StatelessWidget {
         ),
         child: ClipOval(
           child: FutureBuilder<FileInfo?>(
-            future: DefaultCacheManager().getFileFromCache(avatar.url),
+            future: TwainCacheManagers
+                .getManager(TwainCacheBucket.avatarImages)
+                .getFileFromCache(avatar.url),
             builder: (context, cacheSnapshot) {
               if (cacheSnapshot.connectionState == ConnectionState.done) {
                 // If we have cached file, use it
@@ -68,7 +71,9 @@ class AvatarGridItem extends StatelessWidget {
 
               // Otherwise, load from network and cache
               return FutureBuilder(
-                future: DefaultCacheManager().downloadFile(avatar.url),
+                future: TwainCacheManagers
+                    .getManager(TwainCacheBucket.avatarImages)
+                    .downloadFile(avatar.url),
                 builder: (context, downloadSnapshot) {
                   if (downloadSnapshot.connectionState == ConnectionState.done &&
                       downloadSnapshot.hasData) {

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:twain/constants/app_themes.dart';
@@ -6,6 +7,8 @@ import 'package:twain/models/unsplash_wallpaper.dart';
 import 'package:twain/providers/wallpaper_providers.dart';
 import 'package:twain/providers/unsplash_providers.dart';
 import 'package:twain/services/wallpaper_manager_service.dart';
+import 'package:twain/services/cache/twain_cache_managers.dart';
+import 'package:twain/utils/image_url_utils.dart';
 
 class WallpaperPreviewScreen extends ConsumerStatefulWidget {
   final String? imageUrl;
@@ -41,6 +44,13 @@ class _WallpaperPreviewScreenState
     final isDarkMode = context.isDarkMode;
     final previewBackground =
         isDarkMode ? Colors.black : theme.scaffoldBackgroundColor;
+    final optimizedPreviewUrl = widget.imageUrl != null
+        ? buildOptimizedImageUrl(
+            widget.imageUrl!,
+            width: 2048,
+            quality: 80,
+          )
+        : null;
 
     return Scaffold(
       backgroundColor: previewBackground,
@@ -76,46 +86,68 @@ class _WallpaperPreviewScreenState
           Expanded(
             child: Center(
               child: widget.imageUrl != null
-                  ? Image.network(
-                      widget.imageUrl!,
+                  ? CachedNetworkImage(
+                      imageUrl: optimizedPreviewUrl!,
+                      cacheManager: TwainCacheManagers
+                          .getManager(TwainCacheBucket.wallpaperImages),
                       fit: BoxFit.contain,
-                      loadingBuilder: (context, child, loadingProgress) {
-                        if (loadingProgress == null) return child;
+                      fadeInDuration: const Duration(milliseconds: 80),
+                      fadeOutDuration: const Duration(milliseconds: 80),
+                      placeholderFadeInDuration: const Duration(milliseconds: 80),
+                      useOldImageOnUrlChange: true,
+                      progressIndicatorBuilder: (context, url, progress) {
+                        final value = progress.progress;
+                        if (value != null && value >= 1.0) {
+                          return const SizedBox.shrink();
+                        }
                         return Center(
-                          child: CircularProgressIndicator(
-                            value: loadingProgress.expectedTotalBytes != null
-                                ? loadingProgress.cumulativeBytesLoaded /
-                                    loadingProgress.expectedTotalBytes!
-                                : null,
-                            color: twainTheme.iconColor,
+                          child: SizedBox(
+                            width: 48,
+                            height: 48,
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                CircularProgressIndicator(
+                                  value: value,
+                                  color: twainTheme.iconColor,
+                                ),
+                                if (value != null)
+                                  Text(
+                                    '${(value * 100).clamp(0, 100).toStringAsFixed(0)}%',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: twainTheme.iconColor,
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ),
                         );
                       },
-                      errorBuilder: (context, error, stackTrace) {
-                        return Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.broken_image,
-                              color: (isDarkMode
-                                      ? Colors.white54
-                                      : theme.colorScheme.onSurface)
-                                  .withOpacity(0.6),
-                              size: 64,
+                      errorWidget: (context, url, error) => Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.broken_image,
+                            color: (isDarkMode
+                                    ? Colors.white54
+                                    : theme.colorScheme.onSurface)
+                                .withOpacity(0.6),
+                            size: 64,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Failed to load image',
+                            style: TextStyle(
+                              color: isDarkMode
+                                  ? Colors.white.withOpacity(0.7)
+                                  : theme.colorScheme.onSurface.withOpacity(0.7),
+                              fontSize: 16,
                             ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Failed to load image',
-                              style: TextStyle(
-                                color: isDarkMode
-                                    ? Colors.white.withOpacity(0.7)
-                                    : theme.colorScheme.onSurface.withOpacity(0.7),
-                                fontSize: 16,
-                              ),
-                            ),
-                          ],
-                        );
-                      },
+                          ),
+                        ],
+                      ),
                     )
                   : Image.file(
                       widget.imageFile!,
