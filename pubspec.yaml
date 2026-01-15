@@ -73,6 +73,7 @@ dev_dependencies:
 
   riverpod_generator: ^2.4.0
   build_runner: ^2.4.0
+  flutter_launcher_icons: ^0.14.3
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -122,3 +123,12 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+# App icon configuration
+flutter_launcher_icons:
+  android: "ic_launcher"
+  ios: true
+  image_path_android: "assets/images/logo_twain_circular.png"
+  image_path_ios: "assets/images/logo_twain.png"
+  min_sdk_android: 21
+  remove_alpha_ios: true

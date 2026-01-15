@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -478,22 +479,32 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
             // Wallpaper thumbnail
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: Image.network(
-                wallpaper.imageUrl,
+              child: CachedNetworkImage(
+                imageUrl: wallpaper.imageUrl,
                 width: 60,
                 height: 60,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    width: 60,
-                    height: 60,
-                    color: Colors.grey.shade200,
-                    child: Icon(
-                      Icons.image_not_supported,
-                      color: Colors.grey.shade400,
+                placeholder: (context, url) => Container(
+                  width: 60,
+                  height: 60,
+                  color: Colors.grey.shade200,
+                  child: const Center(
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
                     ),
-                  );
-                },
+                  ),
+                ),
+                errorWidget: (context, url, error) => Container(
+                  width: 60,
+                  height: 60,
+                  color: Colors.grey.shade200,
+                  child: Icon(
+                    Icons.image_not_supported,
+                    color: Colors.grey.shade400,
+                  ),
+                ),
               ),
             ),
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:twain/constants/app_colours.dart';
 import 'package:twain/models/twain_user.dart';
 import 'package:twain/providers/auth_providers.dart';
@@ -10,6 +11,7 @@ import 'package:twain/screens/partner_profile_screen.dart';
 import 'package:twain/screens/pairing_screen.dart';
 import 'package:twain/screens/wallpaper_screen.dart';
 import 'package:twain/screens/shared_board_screen.dart';
+import 'package:twain/screens/settings_screen.dart';
 import 'package:twain/widgets/stable_avatar.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -187,37 +189,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       padding: const EdgeInsets.all(20.0),
       child: Row(
         children: [
-          // App logo
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                colors: [
-                  const Color(0xFFE91E63),
-                  const Color(0xFF9C27B0),
-                ],
-              ),
-            ),
-            child: const Center(
-              child: Text(
-                'T',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
+          // App logo and title - tap to open settings
+          GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const SettingsScreen(),
                 ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          const Text(
-            'Twain',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: AppColors.black,
+              );
+            },
+            child: Row(
+              children: [
+                ClipOval(
+                  child: SvgPicture.asset(
+                    'assets/images/logo_twain_circular.svg',
+                    width: 44,
+                    height: 44,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Text(
+                  'Twain',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.black,
+                  ),
+                ),
+              ],
             ),
           ),
           const Spacer(),
