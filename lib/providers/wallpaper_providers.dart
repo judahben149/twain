@@ -34,6 +34,9 @@ final wallpaperServiceProvider = Provider<WallpaperService>((ref) {
   );
 });
 
+/// Stores the most recent "set wallpaper for" selection so flows can reuse it.
+final wallpaperApplyToSelectionProvider = StateProvider<String>((ref) => 'both');
+
 // FCM service provider
 final fcmServiceProvider = Provider<FCMService>((ref) {
   final supabase = Supabase.instance.client;

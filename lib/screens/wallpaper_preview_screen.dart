@@ -34,8 +34,15 @@ class WallpaperPreviewScreen extends ConsumerStatefulWidget {
 
 class _WallpaperPreviewScreenState
     extends ConsumerState<WallpaperPreviewScreen> {
-  String _applyTo = 'partner';
+  late String _applyTo;
   bool _isProcessing = false;
+  bool _showApplyOptions = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _applyTo = ref.read(wallpaperApplyToSelectionProvider);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -232,70 +239,10 @@ class _WallpaperPreviewScreenState
 
                     const SizedBox(height: 16),
 
-                    // Radio buttons
-                    Container(
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                          color: theme.dividerColor,
-                          width: 1,
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(
-                        children: [
-                          RadioListTile<String>(
-                            title: Text(
-                              'My Partner',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                                color: theme.colorScheme.onSurface,
-                              ),
-                            ),
-                            subtitle: Text(
-                              'Only your partner will see this wallpaper',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: theme.colorScheme.onSurface.withOpacity(0.6),
-                              ),
-                            ),
-                            value: 'partner',
-                            groupValue: _applyTo,
-                            activeColor: twainTheme.iconColor,
-                            onChanged: _isProcessing
-                                ? null
-                                : (value) => setState(() => _applyTo = value!),
-                          ),
-                          Divider(
-                            height: 1,
-                            color: theme.dividerColor,
-                          ),
-                          RadioListTile<String>(
-                            title: Text(
-                              'Both of Us',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                                color: theme.colorScheme.onSurface,
-                              ),
-                            ),
-                            subtitle: Text(
-                              'You and your partner will both see this wallpaper',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: theme.colorScheme.onSurface.withOpacity(0.6),
-                              ),
-                            ),
-                            value: 'both',
-                            groupValue: _applyTo,
-                            activeColor: twainTheme.iconColor,
-                            onChanged: _isProcessing
-                                ? null
-                                : (value) => setState(() => _applyTo = value!),
-                          ),
-                        ],
-                      ),
-                    ),
+                    if (_showApplyOptions)
+                      _buildApplyOptions(theme, twainTheme)
+                    else
+                      _buildApplySummary(theme),
 
                     const SizedBox(height: 24),
 
@@ -340,8 +287,8 @@ class _WallpaperPreviewScreenState
                           children: [
                             Text(
                               _applyTo == 'partner'
-                                  ? 'Your partner will receive a notification to apply the wallpaper'
-                                  : 'Both you and your partner will receive notifications',
+                                  ? "Only your partner's wallpaper will be changed."
+                                  : 'Syncs instantly for you and your partner.',
                               style: TextStyle(
                                 fontSize: 12,
                                 color: theme.colorScheme.onSurface.withOpacity(0.6),
@@ -374,6 +321,131 @@ class _WallpaperPreviewScreenState
     );
   }
 
+  Widget _buildApplySummary(ThemeData theme) {
+    final isBoth = _applyTo == 'both';
+    final title = isBoth ? 'Both of Us (recommended)' : 'Just My Partner';
+    final subtitle = isBoth
+        ? 'Syncs instantly for you and your partner.'
+        : "Only your partner's wallpaper will be changed.";
+
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: theme.dividerColor, width: 1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: ListTile(
+        title: Text(
+          title,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: theme.colorScheme.onSurface,
+          ),
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(
+            subtitle,
+            style: TextStyle(
+              fontSize: 13,
+              color: theme.colorScheme.onSurface.withOpacity(0.6),
+            ),
+          ),
+        ),
+        trailing: TextButton(
+          onPressed: _isProcessing
+              ? null
+              : () => setState(() {
+                    _showApplyOptions = true;
+                  }),
+          child: const Text('Change'),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildApplyOptions(ThemeData theme, TwainThemeExtension twainTheme) {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: theme.dividerColor,
+          width: 1,
+        ),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          RadioListTile<String>(
+            title: Text(
+              'Just My Partner',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
+            subtitle: Text(
+              "Only your partner's wallpaper will be changed.",
+              style: TextStyle(
+                fontSize: 13,
+                color: theme.colorScheme.onSurface.withOpacity(0.6),
+              ),
+            ),
+            value: 'partner',
+            groupValue: _applyTo,
+            activeColor: twainTheme.iconColor,
+            onChanged: _isProcessing
+                ? null
+                : (value) {
+                    if (value == null) return;
+                    ref.read(wallpaperApplyToSelectionProvider.notifier).state =
+                        value;
+                    setState(() {
+                      _applyTo = value;
+                      _showApplyOptions = false;
+                    });
+                  },
+          ),
+          Divider(
+            height: 1,
+            color: theme.dividerColor,
+          ),
+          RadioListTile<String>(
+            title: Text(
+              'Both of Us (recommended)',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
+            subtitle: Text(
+              'Syncs instantly for you and your partner.',
+              style: TextStyle(
+                fontSize: 13,
+                color: theme.colorScheme.onSurface.withOpacity(0.6),
+              ),
+            ),
+            value: 'both',
+            groupValue: _applyTo,
+            activeColor: twainTheme.iconColor,
+            onChanged: _isProcessing
+                ? null
+                : (value) {
+                    if (value == null) return;
+                    ref.read(wallpaperApplyToSelectionProvider.notifier).state =
+                        value;
+                    setState(() {
+                      _applyTo = value;
+                      _showApplyOptions = false;
+                    });
+                  },
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _confirmSetWallpaper() async {
     if (_isProcessing) return;
 
@@ -383,6 +455,7 @@ class _WallpaperPreviewScreenState
 
     final theme = Theme.of(context);
     final twainTheme = context.twainTheme;
+    ref.read(wallpaperApplyToSelectionProvider.notifier).state = _applyTo;
 
     try {
       final service = ref.read(wallpaperServiceProvider);
