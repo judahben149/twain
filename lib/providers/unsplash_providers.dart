@@ -15,6 +15,13 @@ enum UnsplashFilter {
   category,
 }
 
+String unsplashCacheKey(UnsplashFilter filter, String? category) {
+  if (filter == UnsplashFilter.category) {
+    return '${filter.name}_${category ?? ''}';
+  }
+  return filter.name;
+}
+
 /// State for Unsplash wallpaper browsing
 class UnsplashState {
   final List<UnsplashWallpaper> wallpapers;
@@ -63,6 +70,7 @@ class UnsplashState {
 /// StateNotifier for managing Unsplash wallpapers
 class UnsplashNotifier extends StateNotifier<UnsplashState> {
   final UnsplashService _service;
+  final Map<String, UnsplashState> _cache = {};
 
   UnsplashNotifier(this._service) : super(UnsplashState());
 
@@ -78,29 +86,46 @@ class UnsplashNotifier extends StateNotifier<UnsplashState> {
     }
 
     try {
-      // Determine if we're changing filters or loading more
-      final isNewFilter = filter != null && filter != state.currentFilter;
-      final isNewCategory =
-          category != null && category != state.currentCategory;
+      final requestedFilter = filter ?? state.currentFilter;
+      final requestedCategory = requestedFilter == UnsplashFilter.category
+          ? (category ?? state.currentCategory)
+          : null;
+      final cacheKey = unsplashCacheKey(requestedFilter, requestedCategory);
 
-      if (isNewFilter || isNewCategory) {
-        // Reset for new filter/category
+      final isNewFilter = requestedFilter != state.currentFilter;
+      final isNewCategory = requestedFilter == UnsplashFilter.category &&
+          requestedCategory != state.currentCategory;
+
+      if (loadMore) {
+        state = state.copyWith(isLoadingMore: true);
+      } else if (isNewFilter || isNewCategory) {
+        final cachedState = _cache[cacheKey];
+        if (cachedState != null) {
+          state = cachedState.copyWith(
+            isLoading: false,
+            isLoadingMore: false,
+            error: null,
+          );
+          return;
+        }
+
         state = UnsplashState(
           isLoading: true,
-          currentFilter: filter ?? state.currentFilter,
-          currentCategory: category,
+          currentFilter: requestedFilter,
+          currentCategory: requestedCategory,
         );
-      } else if (loadMore) {
-        // Loading more of current results
-        state = state.copyWith(isLoadingMore: true);
       } else {
-        // Initial load
-        state = state.copyWith(isLoading: true, error: null);
+        state = state.copyWith(
+          isLoading: true,
+          error: null,
+          currentFilter: requestedFilter,
+          currentCategory: requestedCategory,
+        );
       }
 
       // Fetch wallpapers based on filter
       List<UnsplashWallpaper> newWallpapers;
-      final currentFilter = state.currentFilter;
+      final currentFilter = requestedFilter;
       final page = loadMore ? state.currentPage + 1 : 1;
 
       switch (currentFilter) {
@@ -139,14 +164,19 @@ class UnsplashNotifier extends StateNotifier<UnsplashState> {
           ? [...state.wallpapers, ...newWallpapers]
           : newWallpapers;
 
-      state = state.copyWith(
+      final updatedState = state.copyWith(
         wallpapers: updatedWallpapers,
         isLoading: false,
         isLoadingMore: false,
         hasMore: newWallpapers.isNotEmpty, // No more if empty response
         currentPage: page,
         error: null,
+        currentFilter: requestedFilter,
+        currentCategory: requestedCategory,
       );
+
+      state = updatedState;
+      _cache[cacheKey] = updatedState;
     } catch (e) {
       print('Error loading wallpapers: $e');
       state = state.copyWith(
@@ -177,6 +207,7 @@ class UnsplashNotifier extends StateNotifier<UnsplashState> {
 
   /// Reset state (clear wallpapers and errors)
   void reset() {
+    _cache.clear();
     state = UnsplashState();
   }
 

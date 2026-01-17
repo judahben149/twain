@@ -20,6 +20,8 @@ class UnsplashBrowserScreen extends ConsumerStatefulWidget {
 class _UnsplashBrowserScreenState
     extends ConsumerState<UnsplashBrowserScreen> {
   final ScrollController _scrollController = ScrollController();
+  final Map<String, double> _savedScrollOffsets = {};
+  double? _pendingRestoreOffset;
   String? _selectedCategory;
 
   // Available categories for filtering
@@ -42,7 +44,13 @@ class _UnsplashBrowserScreenState
 
     // Load initial wallpapers
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(unsplashProvider.notifier).loadWallpapers();
+      final notifier = ref.read(unsplashProvider.notifier);
+      final currentState = ref.read(unsplashProvider);
+      if (currentState.wallpapers.isEmpty) {
+        notifier.loadWallpapers();
+      } else {
+        _handleStateChange(null, currentState);
+      }
     });
 
     // Setup infinite scroll listener
@@ -53,6 +61,107 @@ class _UnsplashBrowserScreenState
   void dispose() {
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _handleStateChange(UnsplashState? previous, UnsplashState next) {
+    if (!mounted) return;
+    final previousKey = previous == null
+        ? null
+        : unsplashCacheKey(previous.currentFilter, previous.currentCategory);
+    final nextKey =
+        unsplashCacheKey(next.currentFilter, next.currentCategory);
+
+    if (previous != null && previousKey == nextKey) {
+      return;
+    }
+
+    _pendingRestoreOffset = _savedScrollOffsets[nextKey] ?? 0.0;
+    _scheduleScrollRestore();
+  }
+
+  void _scheduleScrollRestore() {
+    if (_pendingRestoreOffset == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (!_scrollController.hasClients) {
+        _scheduleScrollRestore();
+        return;
+      }
+      final offset = _pendingRestoreOffset!;
+      final currentOffset =
+          _scrollController.hasClients ? _scrollController.offset : 0.0;
+      final maxExtent = _scrollController.position.maxScrollExtent;
+      final clampedOffset =
+          offset.clamp(0.0, maxExtent.isFinite ? maxExtent : 0.0);
+      if ((currentOffset - clampedOffset).abs() < 0.5) {
+        _pendingRestoreOffset = null;
+        return;
+      }
+      _scrollController.animateTo(
+        clampedOffset,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+      );
+      _pendingRestoreOffset = null;
+    });
+  }
+
+  void _storeScrollPosition() {
+    if (!_scrollController.hasClients) return;
+    final currentState = ref.read(unsplashProvider);
+    final key = unsplashCacheKey(
+      currentState.currentFilter,
+      currentState.currentCategory,
+    );
+    _savedScrollOffsets[key] = _scrollController.offset;
+  }
+
+  void _switchFilter(UnsplashFilter filter) {
+    final currentState = ref.read(unsplashProvider);
+    if (currentState.currentFilter == filter &&
+        filter != UnsplashFilter.category) {
+      return;
+    }
+
+    _storeScrollPosition();
+    setState(() => _selectedCategory = filter == UnsplashFilter.category
+        ? _selectedCategory
+        : null);
+
+    if (filter != UnsplashFilter.category) {
+      ref.read(unsplashProvider.notifier).switchFilter(filter);
+    }
+  }
+
+  void _selectCategory(Map<String, String> category) {
+    Navigator.pop(context);
+    if (!mounted) return;
+
+    final query = category['query']!;
+    final label = category['label'];
+
+    final currentState = ref.read(unsplashProvider);
+    final isSameSelection = currentState.currentFilter ==
+            UnsplashFilter.category &&
+        currentState.currentCategory == query;
+
+    if (isSameSelection) {
+      return;
+    }
+
+    _storeScrollPosition();
+    setState(() => _selectedCategory = label);
+    ref.read(unsplashProvider.notifier).searchCategory(query);
+  }
+
+  String? _labelForCategory(String? query) {
+    if (query == null) return null;
+    for (final category in _categories) {
+      if (category['query'] == query) {
+        return category['label'];
+      }
+    }
+    return null;
   }
 
   /// Handle scroll for infinite loading
@@ -77,6 +186,7 @@ class _UnsplashBrowserScreenState
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<UnsplashState>(unsplashProvider, _handleStateChange);
     final state = ref.watch(unsplashProvider);
 
     final theme = Theme.of(context);
@@ -119,6 +229,12 @@ class _UnsplashBrowserScreenState
   Widget _buildFilterChips(BuildContext context, UnsplashState state) {
     final theme = Theme.of(context);
     final twainTheme = context.twainTheme;
+    final categoryLabel =
+        _selectedCategory ??
+            (state.currentFilter == UnsplashFilter.category
+                ? _labelForCategory(state.currentCategory)
+                : null) ??
+        'Categories';
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       decoration: BoxDecoration(
@@ -145,10 +261,7 @@ class _UnsplashBrowserScreenState
               label: 'Editorial',
               isSelected: state.currentFilter == UnsplashFilter.editorial,
               onTap: () {
-                setState(() => _selectedCategory = null);
-                ref
-                    .read(unsplashProvider.notifier)
-                    .switchFilter(UnsplashFilter.editorial);
+                _switchFilter(UnsplashFilter.editorial);
               },
             ),
             const SizedBox(width: 8),
@@ -157,18 +270,18 @@ class _UnsplashBrowserScreenState
               label: 'Popular',
               isSelected: state.currentFilter == UnsplashFilter.popular,
               onTap: () {
-                setState(() => _selectedCategory = null);
-                ref
-                    .read(unsplashProvider.notifier)
-                    .switchFilter(UnsplashFilter.popular);
+                _switchFilter(UnsplashFilter.popular);
               },
             ),
             const SizedBox(width: 8),
             _buildFilterChip(
               context,
-              label: _selectedCategory ?? 'Categories',
+              label: categoryLabel,
               isSelected: state.currentFilter == UnsplashFilter.category,
-              onTap: _showCategorySheet,
+              onTap: () {
+                _storeScrollPosition();
+                _showCategorySheet();
+              },
             ),
             const SizedBox(width: 8),
             _buildFilterChip(
@@ -176,10 +289,7 @@ class _UnsplashBrowserScreenState
               label: 'Random',
               isSelected: state.currentFilter == UnsplashFilter.random,
               onTap: () {
-                setState(() => _selectedCategory = null);
-                ref
-                    .read(unsplashProvider.notifier)
-                    .switchFilter(UnsplashFilter.random);
+                _switchFilter(UnsplashFilter.random);
               },
             ),
           ],
@@ -235,6 +345,7 @@ class _UnsplashBrowserScreenState
   Widget _buildCategorySheet() {
     final theme = Theme.of(context);
     final twainTheme = context.twainTheme;
+    final state = ref.watch(unsplashProvider);
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -258,19 +369,19 @@ class _UnsplashBrowserScreenState
             spacing: 12,
             runSpacing: 12,
             children: _categories.map((category) {
+              final isSelected =
+                  (_selectedCategory == category['label']) ||
+                      (state.currentFilter == UnsplashFilter.category &&
+                          state.currentCategory == category['query']);
               return GestureDetector(
                 onTap: () {
-                  Navigator.pop(context);
-                  setState(() => _selectedCategory = category['label']);
-                  ref
-                      .read(unsplashProvider.notifier)
-                      .searchCategory(category['query']!);
+                  _selectCategory(category);
                 },
                 child: Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   decoration: BoxDecoration(
-                    color: _selectedCategory == category['label']
+                    color: isSelected
                         ? twainTheme.iconColor
                         : twainTheme.iconBackgroundColor,
                     border: Border.all(
@@ -284,7 +395,7 @@ class _UnsplashBrowserScreenState
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: _selectedCategory == category['label']
+                      color: isSelected
                           ? Colors.white
                           : theme.colorScheme.onSurface.withOpacity(0.7),
                     ),
@@ -301,11 +412,31 @@ class _UnsplashBrowserScreenState
 
   /// Build main content (grid, loading, error, empty states)
   Widget _buildContent(UnsplashState state) {
-    final theme = Theme.of(context);
+    final transitionKey = ValueKey<String>(
+      '${state.currentFilter.name}_${state.currentCategory ?? ''}',
+    );
+
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 160),
+      switchInCurve: Curves.easeOut,
+      switchOutCurve: Curves.easeIn,
+      child: _buildContentBody(
+        state,
+        key: transitionKey,
+      ),
+    );
+  }
+
+  Widget _buildContentBody(
+    UnsplashState state, {
+    required Key key,
+  }) {
     final twainTheme = context.twainTheme;
+
     // Initial loading
     if (state.isLoading && state.wallpapers.isEmpty) {
       return Center(
+        key: key,
         child: CircularProgressIndicator(
           color: twainTheme.iconColor,
         ),
@@ -314,48 +445,51 @@ class _UnsplashBrowserScreenState
 
     // Error state
     if (state.error != null && state.wallpapers.isEmpty) {
-      return _buildErrorState(state.error!);
+      return KeyedSubtree(key: key, child: _buildErrorState(state.error!));
     }
 
     // Empty state
     if (state.wallpapers.isEmpty) {
-      return _buildEmptyState();
+      return KeyedSubtree(key: key, child: _buildEmptyState());
     }
 
     // Wallpaper grid
-    return RefreshIndicator(
-      color: twainTheme.iconColor,
-      onRefresh: () async {
-        await ref.read(unsplashProvider.notifier).loadWallpapers();
-      },
-      child: GridView.builder(
-        controller: _scrollController,
-        padding: const EdgeInsets.all(12),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          childAspectRatio: 0.7, // Fallback ratio, overridden by AspectRatio widget
-        ),
-        itemCount:
-            state.wallpapers.length + (state.isLoadingMore ? 1 : 0),
-        itemBuilder: (context, index) {
-          // Show loading indicator at bottom while loading more
-          if (index == state.wallpapers.length) {
-            return Center(
-              child: Padding(
-                padding: EdgeInsets.all(16.0),
-                child: CircularProgressIndicator(
-                  color: twainTheme.iconColor,
-                  strokeWidth: 2,
-                ),
-              ),
-            );
-          }
-
-          final wallpaper = state.wallpapers[index];
-          return _buildWallpaperCard(wallpaper);
+    return KeyedSubtree(
+      key: key,
+      child: RefreshIndicator(
+        color: twainTheme.iconColor,
+        onRefresh: () async {
+          await ref.read(unsplashProvider.notifier).loadWallpapers();
         },
+        child: GridView.builder(
+          controller: _scrollController,
+          padding: const EdgeInsets.all(12),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 0.7, // Fallback ratio, overridden by AspectRatio widget
+          ),
+          itemCount:
+              state.wallpapers.length + (state.isLoadingMore ? 1 : 0),
+          itemBuilder: (context, index) {
+            // Show loading indicator at bottom while loading more
+            if (index == state.wallpapers.length) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: CircularProgressIndicator(
+                    color: twainTheme.iconColor,
+                    strokeWidth: 2,
+                  ),
+                ),
+              );
+            }
+
+            final wallpaper = state.wallpapers[index];
+            return _buildWallpaperCard(wallpaper);
+          },
+        ),
       ),
     );
   }
