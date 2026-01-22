@@ -56,5 +56,7 @@
 			</array>
 		</dict>
 	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Twain needs your location to show the distance between you and your partner.</string>
 </dict>
 </plist>

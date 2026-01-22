@@ -1,12 +1,17 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:twain/constants/app_themes.dart';
 import 'package:twain/providers/auth_providers.dart';
+import 'package:twain/providers/location_providers.dart';
 import 'package:twain/screens/user_profile_screen.dart';
 import 'package:twain/screens/pairing_screen.dart';
+import 'package:twain/services/location_service.dart';
 import 'package:twain/widgets/theme_selector.dart';
 import 'package:twain/widgets/battery_optimization_dialog.dart';
+import 'package:twain/widgets/location_permission_dialog.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -114,6 +119,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             },
                           ),
                         ],
+                      ]),
+                      const SizedBox(height: 24),
+                      _buildSectionHeader('Features'),
+                      const SizedBox(height: 12),
+                      _buildSettingsCard([
+                        _buildDistanceFeatureTile(context),
                       ]),
                       const SizedBox(height: 24),
                       _buildSectionHeader('Notifications'),
@@ -292,6 +303,105 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         children: children,
       ),
     );
+  }
+
+  Widget _buildDistanceFeatureTile(BuildContext context) {
+    final featureState = ref.watch(distanceFeatureProvider);
+
+    return featureState.when(
+      data: (enabled) => _buildSettingsTile(
+        icon: Icons.social_distance,
+        title: 'Distance Meter',
+        subtitle: 'Show the distance between you and your partner',
+        trailing: Switch(
+          value: enabled,
+          onChanged: (value) => unawaited(_handleDistanceFeatureToggle(context, value)),
+          activeColor: context.twainTheme.iconColor,
+        ),
+      ),
+      loading: () => _buildSettingsTile(
+        icon: Icons.social_distance,
+        title: 'Distance Meter',
+        subtitle: 'Loading preference',
+        trailing: SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: context.twainTheme.iconColor,
+          ),
+        ),
+      ),
+      error: (_, __) => _buildSettingsTile(
+        icon: Icons.social_distance,
+        title: 'Distance Meter',
+        subtitle: 'Tap to retry',
+        onTap: () => ref.invalidate(distanceFeatureProvider),
+        trailing: IconButton(
+          icon: const Icon(Icons.refresh),
+          color: context.twainTheme.iconColor,
+          onPressed: () => ref.invalidate(distanceFeatureProvider),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleDistanceFeatureToggle(BuildContext context, bool enable) async {
+    final controller = ref.read(distanceFeatureProvider.notifier);
+    final messenger = ScaffoldMessenger.of(context);
+
+    if (!enable) {
+      await controller.setEnabled(false);
+      return;
+    }
+
+    var status = await LocationService.checkPermission();
+    if (!status.isGranted) {
+      final granted = await LocationPermissionDialog.show(context) ?? false;
+      if (!mounted) return;
+      if (!granted) {
+        _showSnackMessage(
+          messenger,
+          'Location permission is required to enable the distance meter.',
+        );
+        await controller.setEnabled(false);
+        return;
+      }
+      status = await LocationService.checkPermission();
+      if (!status.isGranted) {
+        if (!mounted) return;
+        _showSnackMessage(
+          messenger,
+          'Location permission is required to enable the distance meter.',
+        );
+        await controller.setEnabled(false);
+        return;
+      }
+    }
+
+    final locationEnabled = await LocationService.isLocationEnabled();
+    if (!locationEnabled) {
+      if (!mounted) return;
+      _showSnackMessage(
+        messenger,
+        'Turn on location services to use the distance meter.',
+      );
+      await controller.setEnabled(false);
+      return;
+    }
+
+    await controller.setEnabled(true);
+  }
+
+  void _showSnackMessage(ScaffoldMessengerState messenger, String message) {
+    messenger
+      ..clearSnackBars()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
   }
 
   Widget _buildSettingsTile({

@@ -7,6 +7,7 @@ import 'package:twain/models/sticky_note.dart';
 import 'package:twain/models/sticky_note_reply.dart';
 import 'package:twain/models/wallpaper.dart';
 import 'package:twain/models/shared_board_photo.dart';
+import 'package:twain/models/user_location.dart';
 
 class DatabaseService {
   static final DatabaseService _instance = DatabaseService._internal();
@@ -28,7 +29,7 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 4,
+      version: 5,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -118,6 +119,20 @@ class DatabaseService {
       )
     ''');
 
+    // Create user_locations table
+    await db.execute('''
+      CREATE TABLE user_locations (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        pair_id TEXT NOT NULL,
+        latitude REAL NOT NULL,
+        longitude REAL NOT NULL,
+        accuracy REAL,
+        recorded_at TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      )
+    ''');
+
     // Create metadata table
     await db.execute('''
       CREATE TABLE metadata (
@@ -137,6 +152,8 @@ class DatabaseService {
     await db.execute('CREATE INDEX idx_wallpapers_created_at ON wallpapers(created_at DESC)');
     await db.execute('CREATE INDEX idx_shared_board_photos_pair_id ON shared_board_photos(pair_id)');
     await db.execute('CREATE INDEX idx_shared_board_photos_created_at ON shared_board_photos(created_at DESC)');
+    await db.execute('CREATE INDEX idx_user_locations_pair_id ON user_locations(pair_id)');
+    await db.execute('CREATE INDEX idx_user_locations_recorded_at ON user_locations(recorded_at DESC)');
 
     print('Database tables created successfully');
   }
@@ -262,6 +279,30 @@ class DatabaseService {
       ''');
 
       print('Database migration to v4 completed successfully');
+    }
+
+    if (oldVersion < 5) {
+      print('Migrating database from v4 to v5...');
+
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS user_locations (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          pair_id TEXT NOT NULL,
+          latitude REAL NOT NULL,
+          longitude REAL NOT NULL,
+          accuracy REAL,
+          recorded_at TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        )
+      ''');
+
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_user_locations_pair_id ON user_locations(pair_id)');
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_user_locations_recorded_at ON user_locations(recorded_at DESC)',
+      );
+
+      print('Database migration to v5 completed successfully');
     }
   }
 
@@ -692,10 +733,68 @@ class DatabaseService {
     print('All shared board photos cleared from database');
   }
 
+  // User locations operations
+  Future<void> saveUserLocations(List<UserLocation> locations) async {
+    if (locations.isEmpty) return;
+
+    final db = await database;
+    final batch = db.batch();
+
+    for (final location in locations) {
+      batch.insert(
+        'user_locations',
+        location.toDatabase(),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    }
+
+    await batch.commit(noResult: true);
+    print('${locations.length} user locations saved to database');
+  }
+
+  Future<List<UserLocation>> getUserLocationsByPairId(String pairId) async {
+    final db = await database;
+    final results = await db.query(
+      'user_locations',
+      where: 'pair_id = ?',
+      whereArgs: [pairId],
+      orderBy: 'recorded_at DESC',
+    );
+
+    final byUser = <String, UserLocation>{};
+    for (final row in results) {
+      final userId = row['user_id'] as String?;
+      if (userId == null) continue;
+      if (byUser.containsKey(userId)) continue;
+      try {
+        byUser[userId] = UserLocation.fromDatabase(row);
+      } catch (error) {
+        print('DatabaseService.getUserLocationsByPairId parse error: $error');
+      }
+    }
+
+    return byUser.values.toList();
+  }
+
+  Future<void> clearUserLocationsByPairId(String pairId) async {
+    final db = await database;
+    await db.delete(
+      'user_locations',
+      where: 'pair_id = ?',
+      whereArgs: [pairId],
+    );
+  }
+
+  Future<void> clearAllUserLocations() async {
+    final db = await database;
+    await db.delete('user_locations');
+  }
+
   // Clear all data
   Future<void> clearAllData() async {
     await clearAllUsers();
     await clearAllStickyNotes();
+    await clearAllUserLocations();
     final db = await database;
     await db.delete('metadata');
     print('All database data cleared');

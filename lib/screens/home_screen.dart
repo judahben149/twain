@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:twain/constants/app_themes.dart';
+import 'package:twain/models/distance_state.dart';
 import 'package:twain/models/twain_user.dart';
 import 'package:twain/providers/auth_providers.dart';
 import 'package:twain/screens/sticky_notes_screen.dart';
@@ -13,6 +16,10 @@ import 'package:twain/screens/shared_board_screen.dart';
 import 'package:twain/screens/settings_screen.dart';
 import 'package:twain/widgets/stable_avatar.dart';
 import 'package:twain/widgets/battery_optimization_dialog.dart';
+import 'package:twain/providers/location_providers.dart';
+import 'package:twain/services/location_service.dart';
+import 'package:twain/widgets/distance_meter_widget.dart';
+import 'package:twain/widgets/directional_dots.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -21,8 +28,65 @@ class HomeScreen extends ConsumerStatefulWidget {
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen>
+    with WidgetsBindingObserver {
   bool _hasCheckedBatteryOptimization = false;
+  bool _hasCheckedLocationPermission = false;
+  Timer? _locationUpdateTimer;
+  ProviderSubscription<AsyncValue<TwainUser?>>? _userSubscription;
+  ProviderSubscription<AsyncValue<bool>>? _distanceFeatureSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+
+    _userSubscription = ref.listenManual<AsyncValue<TwainUser?>>(
+      twainUserProvider,
+      (previous, next) {
+        final prevPairId = previous?.maybeWhen(
+          data: (user) => user?.pairId,
+          orElse: () => null,
+        );
+        final nextPairId = next.maybeWhen(
+          data: (user) => user?.pairId,
+          orElse: () => null,
+        );
+
+        if (nextPairId != null && prevPairId != nextPairId) {
+          _hasCheckedLocationPermission = false;
+          _postFrame(_scheduleLocationSync);
+        }
+
+        if (nextPairId == null) {
+          _stopLocationUpdates();
+          _hasCheckedLocationPermission = false;
+        }
+      },
+      fireImmediately: false,
+    );
+
+    _distanceFeatureSubscription = ref.listenManual<AsyncValue<bool>>(
+      distanceFeatureProvider,
+      (previous, next) {
+        final enabled =
+            next.maybeWhen(data: (value) => value, orElse: () => false);
+        if (enabled) {
+          _hasCheckedLocationPermission = false;
+          _postFrame(_scheduleLocationSync);
+        } else {
+          _stopLocationUpdates();
+          _hasCheckedLocationPermission = false;
+        }
+      },
+      fireImmediately: false,
+    );
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _evaluateInitialLocationCheck();
+    });
+  }
 
   @override
   void didChangeDependencies() {
@@ -45,6 +109,145 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     // Show the dialog if needed
     await BatteryOptimizationDialog.show(context);
+  }
+
+  void _scheduleLocationSync() {
+    if (_hasCheckedLocationPermission) return;
+    ref.invalidate(locationFeatureAvailabilityProvider);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted || _hasCheckedLocationPermission) return;
+      _hasCheckedLocationPermission = true;
+      await _ensureLocationSync();
+    });
+  }
+
+  void _evaluateInitialLocationCheck() {
+    final user = ref.read(twainUserProvider).value;
+    final featureEnabled = ref.read(distanceFeatureProvider).maybeWhen(
+          data: (value) => value,
+          orElse: () => false,
+        );
+    if (user?.pairId != null && featureEnabled) {
+      _scheduleLocationSync();
+    }
+  }
+
+  Future<void> _ensureLocationSync() async {
+    final featureEnabled = ref.read(distanceFeatureProvider).maybeWhen(
+          data: (value) => value,
+          orElse: () => false,
+        );
+    if (!featureEnabled) {
+      _hasCheckedLocationPermission = false;
+      return;
+    }
+
+    final user = ref.read(twainUserProvider).value;
+    if (user?.pairId == null) {
+      _hasCheckedLocationPermission = false;
+      return;
+    }
+
+    final status = await LocationService.checkPermission();
+    if (!status.isGranted) {
+      _stopLocationUpdates();
+      _hasCheckedLocationPermission = false;
+      return;
+    }
+
+    final isEnabled = await LocationService.isLocationEnabled();
+    if (!isEnabled) {
+      _stopLocationUpdates();
+      _hasCheckedLocationPermission = false;
+      return;
+    }
+
+    await _syncCurrentLocation();
+    _startLocationUpdates();
+  }
+
+  Future<void> _syncCurrentLocation() async {
+    final featureEnabled = ref.read(distanceFeatureProvider).maybeWhen(
+          data: (value) => value,
+          orElse: () => false,
+        );
+    if (!featureEnabled) {
+      return;
+    }
+
+    final userAsync = ref.read(twainUserProvider);
+    final user = userAsync.value;
+    if (user == null || user.pairId == null) {
+      _stopLocationUpdates();
+      return;
+    }
+
+    final status = await LocationService.checkPermission();
+    if (!status.isGranted) {
+      _stopLocationUpdates();
+      return;
+    }
+
+    final enabled = await LocationService.isLocationEnabled();
+    if (!enabled) return;
+
+    final reading = await LocationService.getCurrentLocation();
+    if (reading == null) return;
+
+    final repository = ref.read(locationRepositoryProvider);
+    try {
+      await repository.updateLocation(
+        userId: user.id,
+        pairId: user.pairId!,
+        reading: reading,
+      );
+    } catch (error) {
+      debugPrint('HomeScreen: Failed to sync location -> $error');
+    }
+  }
+
+  void _startLocationUpdates() {
+    _locationUpdateTimer?.cancel();
+    _locationUpdateTimer = Timer.periodic(const Duration(minutes: 5), (_) {
+      unawaited(_syncCurrentLocation());
+    });
+    unawaited(_syncCurrentLocation());
+  }
+
+  void _stopLocationUpdates() {
+    _locationUpdateTimer?.cancel();
+    _locationUpdateTimer = null;
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      final user = ref.read(twainUserProvider).value;
+      if (user?.pairId != null) {
+        if (_locationUpdateTimer == null) {
+          _hasCheckedLocationPermission = false;
+          _postFrame(_scheduleLocationSync);
+        } else {
+          unawaited(_syncCurrentLocation());
+        }
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _locationUpdateTimer?.cancel();
+    _userSubscription?.close();
+    _distanceFeatureSubscription?.close();
+    super.dispose();
+  }
+
+  void _postFrame(VoidCallback callback) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      callback();
+    });
   }
 
   void _handleFeatureTap({
@@ -310,8 +513,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildPairedContent(
-      BuildContext context, dynamic currentUser, AsyncValue<dynamic> pairedUserAsync) {
+  Widget _buildPairedContent(BuildContext context, dynamic currentUser,
+      AsyncValue<dynamic> pairedUserAsync) {
     final theme = Theme.of(context);
     final twainTheme = context.twainTheme;
     return Column(
@@ -325,90 +528,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ),
         const SizedBox(height: 24),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            currentUser != null
-                ? _buildAvatarWithTwainAvatar(
-                    context: context,
-                    user: currentUser,
-                    name: 'You',
-                    color: AppThemes.appAccentColor,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              UserProfileScreen(user: currentUser),
-                        ),
-                      );
-                    },
-                  )
-                : _buildAvatar(
-                    context: context,
-                    label: 'YO',
-                    name: 'You',
-                    color: AppThemes.appAccentColor,
-                    onTap: null,
-                  ),
-            const SizedBox(width: 16),
-            Row(
-              children: List.generate(
-                3,
-                (index) => Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 3),
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: theme.dividerColor,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 16),
-            pairedUserAsync.when(
-              data: (partner) => partner != null
-                  ? _buildAvatarWithTwainAvatar(
-                      context: context,
-                      user: partner,
-                      name: partner.displayName ?? 'Partner',
-                      color: const Color(0xFFE91E63),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                PartnerProfileScreen(partner: partner),
-                          ),
-                        );
-                      },
-                    )
-                  : _buildAvatar(
-                      context: context,
-                      label: 'PA',
-                      name: 'Partner',
-                      color: const Color(0xFFE91E63),
-                      onTap: null,
-                    ),
-              loading: () => SizedBox(
-                width: 80,
-                height: 80,
-                child: Center(
-                  child: CircularProgressIndicator(
-                    color: twainTheme.iconColor,
-                  ),
-                ),
-              ),
-              error: (_, __) => _buildAvatar(
-                context: context,
-                label: 'PA',
-                name: 'Partner',
-                color: const Color(0xFFE91E63),
-                onTap: null,
-              ),
-            ),
-          ],
+        _buildConnectionRow(
+          context: context,
+          currentUser: currentUser,
+          pairedUserAsync: pairedUserAsync,
         ),
         const SizedBox(height: 20),
         pairedUserAsync.when(
@@ -427,6 +550,120 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           error: (_, __) => _buildPresenceError(context),
         ),
       ],
+    );
+  }
+
+  Widget _buildConnectionRow({
+    required BuildContext context,
+    required dynamic currentUser,
+    required AsyncValue<dynamic> pairedUserAsync,
+  }) {
+    final featureEnabled = ref.watch(distanceFeatureProvider).maybeWhen(
+          data: (value) => value,
+          orElse: () => false,
+        );
+    final locationAvailable =
+        ref.watch(locationFeatureAvailabilityProvider).maybeWhen(
+              data: (value) => value,
+              orElse: () => false,
+            );
+    final distanceState = ref.watch(distanceStateProvider);
+
+    final shouldShowDistance = featureEnabled &&
+        locationAvailable &&
+        distanceState.status != DistanceStatus.hidden;
+
+    final userAvatar = currentUser != null
+        ? _buildAvatarWithTwainAvatar(
+            context: context,
+            user: currentUser,
+            name: 'You',
+            color: AppThemes.appAccentColor,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => UserProfileScreen(user: currentUser),
+                ),
+              );
+            },
+          )
+        : _buildAvatar(
+            context: context,
+            label: 'YO',
+            name: 'You',
+            color: AppThemes.appAccentColor,
+            onTap: null,
+          );
+
+    final partnerAvatar = pairedUserAsync.when(
+      data: (partner) => partner != null
+          ? _buildAvatarWithTwainAvatar(
+              context: context,
+              user: partner,
+              name: partner.displayName ?? 'Partner',
+              color: const Color(0xFFE91E63),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        PartnerProfileScreen(partner: partner),
+                  ),
+                );
+              },
+            )
+          : _buildAvatar(
+              context: context,
+              label: 'PA',
+              name: 'Partner',
+              color: const Color(0xFFE91E63),
+              onTap: null,
+            ),
+      loading: () => SizedBox(
+        width: 80,
+        height: 80,
+        child: Center(
+          child: CircularProgressIndicator(
+            color: context.twainTheme.iconColor,
+          ),
+        ),
+      ),
+      error: (_, __) => _buildAvatar(
+        context: context,
+        label: 'PA',
+        name: 'Partner',
+        color: const Color(0xFFE91E63),
+        onTap: null,
+      ),
+    );
+
+    final Widget centerWidget = shouldShowDistance
+        ? const DistanceMeterWidget()
+        : _buildThreeDots(context);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _wrapAvatarWithIndicator(
+            avatar: userAvatar,
+            isLeft: true,
+            showIndicator: shouldShowDistance,
+          ),
+          const SizedBox(width: 12),
+          Flexible(
+            child: Center(child: centerWidget),
+          ),
+          const SizedBox(width: 12),
+          _wrapAvatarWithIndicator(
+            avatar: partnerAvatar,
+            isLeft: false,
+            showIndicator: shouldShowDistance,
+          ),
+        ],
+      ),
     );
   }
 
@@ -531,6 +768,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           const SizedBox(height: 8),
           Text(
             name,
+            textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
@@ -582,10 +820,42 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           const SizedBox(height: 8),
           Text(
             name,
+            textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
               color: theme.colorScheme.onSurface,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _wrapAvatarWithIndicator({
+    required Widget avatar,
+    required bool isLeft,
+    required bool showIndicator,
+  }) {
+    final base = SizedBox(
+      width: 80,
+      child: avatar,
+    );
+
+    if (!showIndicator) return base;
+
+    return SizedBox(
+      width: 96,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          base,
+          Align(
+            alignment: isLeft ? Alignment.centerLeft : Alignment.centerRight,
+            child: Transform.translate(
+              offset: Offset(isLeft ? -24 : 24, -10),
+              child: DirectionalDots(isLeftSide: isLeft),
             ),
           ),
         ],
@@ -635,6 +905,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildThreeDots(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(
+        3,
+        (index) => Container(
+          margin: const EdgeInsets.symmetric(horizontal: 3),
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: theme.dividerColor,
+            shape: BoxShape.circle,
+          ),
+        ),
+      ),
     );
   }
 
