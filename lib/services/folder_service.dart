@@ -35,6 +35,7 @@ class FolderService {
     required int rotationIntervalValue,
     required String rotationIntervalUnit,
     required String rotationOrder,
+    bool notifyOnRotation = true,
   }) async {
     final user = currentUser;
     if (user == null) throw Exception('No user logged in');
@@ -52,6 +53,7 @@ class FolderService {
       'rotation_interval_value': rotationIntervalValue,
       'rotation_interval_unit': rotationIntervalUnit,
       'rotation_order': rotationOrder,
+      'notify_on_rotation': notifyOnRotation,
     }).select().single();
 
     print('Folder created successfully: ${response['id']}');
@@ -67,6 +69,7 @@ class FolderService {
     String? rotationIntervalUnit,
     String? rotationOrder,
     bool? isActive,
+    bool? notifyOnRotation,
   }) async {
     final updates = <String, dynamic>{};
     if (name != null) updates['name'] = name;
@@ -78,6 +81,7 @@ class FolderService {
     }
     if (rotationOrder != null) updates['rotation_order'] = rotationOrder;
     if (isActive != null) updates['is_active'] = isActive;
+    if (notifyOnRotation != null) updates['notify_on_rotation'] = notifyOnRotation;
 
     print('Updating folder $folderId: $updates');
 

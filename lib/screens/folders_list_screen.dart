@@ -8,6 +8,7 @@ import 'package:twain/providers/folder_providers.dart';
 import 'package:twain/providers/theme_providers.dart';
 import 'package:twain/screens/create_folder_screen.dart';
 import 'package:twain/screens/folder_detail_screen.dart';
+import 'package:twain/widgets/countdown_timer.dart';
 
 class FoldersListScreen extends ConsumerWidget {
   const FoldersListScreen({super.key});
@@ -189,8 +190,8 @@ class FoldersListScreen extends ConsumerWidget {
                         color: twainTheme.iconColor,
                       ),
                       const SizedBox(width: 4),
-                      Text(
-                        folder.statusText,
+                      CountdownTimer(
+                        targetTime: folder.nextRotationAt,
                         style: TextStyle(
                           fontSize: 12,
                           color: twainTheme.iconColor,

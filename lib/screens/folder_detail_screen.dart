@@ -11,6 +11,8 @@ import 'package:twain/models/folder_image.dart';
 import 'package:twain/providers/folder_providers.dart';
 import 'package:twain/providers/theme_providers.dart';
 import 'package:twain/screens/create_folder_screen.dart';
+import 'package:twain/screens/unsplash_picker_screen.dart';
+import 'package:twain/widgets/countdown_timer.dart';
 
 class FolderDetailScreen extends ConsumerStatefulWidget {
   final String folderId;
@@ -206,15 +208,22 @@ class _FolderDetailScreenState extends ConsumerState<FolderDetailScreen> {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        folder.statusText,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: isActive
-                              ? twainTheme.iconColor
-                              : theme.colorScheme.onSurface.withOpacity(0.6),
+                      if (isActive && folder.nextRotationAt != null)
+                        CountdownTimer(
+                          targetTime: folder.nextRotationAt,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: twainTheme.iconColor,
+                          ),
+                        )
+                      else
+                        Text(
+                          folder.imageCount == 0 ? 'No images' : 'Inactive',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: theme.colorScheme.onSurface.withOpacity(0.6),
+                          ),
                         ),
-                      ),
                     ],
                   ),
                 ),
@@ -223,6 +232,42 @@ class _FolderDetailScreenState extends ConsumerState<FolderDetailScreen> {
                   onChanged: folder.imageCount > 0
                       ? (value) => _toggleFolderActive(folder, value)
                       : null,
+                  activeColor: twainTheme.iconColor,
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            // Notification Toggle
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Push Notifications',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Get notified on rotation',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: theme.colorScheme.onSurface.withOpacity(0.6),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Switch(
+                  value: folder.notifyOnRotation,
+                  onChanged: (value) => _toggleNotifyOnRotation(folder, value),
                   activeColor: twainTheme.iconColor,
                 ),
               ],
@@ -587,6 +632,31 @@ class _FolderDetailScreenState extends ConsumerState<FolderDetailScreen> {
     }
   }
 
+  Future<void> _toggleNotifyOnRotation(WallpaperFolder folder, bool value) async {
+    try {
+      await ref.read(folderServiceProvider).updateFolder(
+            folderId: folder.id,
+            notifyOnRotation: value,
+          );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(value ? 'Notifications enabled' : 'Notifications disabled'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to update notification preference: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   Future<void> _addFromSharedBoard(WallpaperFolder folder) async {
     // Note: This requires SharedBoardScreen to support selection mode
     // For now, show a message
@@ -640,14 +710,51 @@ class _FolderDetailScreenState extends ConsumerState<FolderDetailScreen> {
   }
 
   Future<void> _addFromUnsplash(WallpaperFolder folder) async {
-    // Note: This requires UnsplashBrowserScreen to support selection mode
-    // For now, show a message
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Unsplash selection coming soon'),
+    final wallpaper = await Navigator.push<dynamic>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const UnsplashPickerScreen(),
       ),
     );
+
+    if (wallpaper == null || !mounted) return;
+
+    setState(() {
+      _isProcessing = true;
+    });
+
+    try {
+      await ref.read(folderServiceProvider).addImageFromUnsplash(
+            folderId: folder.id,
+            wallpaper: wallpaper,
+          );
+
+      // Refresh folder and images streams
+      ref.invalidate(folderProvider(folder.id));
+      ref.invalidate(folderImagesStreamProvider(folder.id));
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Image added from Unsplash'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to add image: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isProcessing = false;
+      });
+    }
   }
+
 
   Future<void> _confirmDeleteImage(FolderImage image) async {
     final confirmed = await showDialog<bool>(

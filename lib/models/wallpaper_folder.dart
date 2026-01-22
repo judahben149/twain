@@ -11,6 +11,7 @@ class WallpaperFolder {
   final int rotationIntervalValue;
   final String rotationIntervalUnit; // 'minutes', 'hours', 'days'
   final String rotationOrder; // 'sequential', 'random'
+  final bool notifyOnRotation; // Whether to send push notifications on rotation
 
   // Rotation state
   final int currentIndex;
@@ -31,6 +32,7 @@ class WallpaperFolder {
     required this.rotationIntervalValue,
     required this.rotationIntervalUnit,
     required this.rotationOrder,
+    required this.notifyOnRotation,
     required this.currentIndex,
     this.lastRotatedAt,
     this.nextRotationAt,
@@ -50,6 +52,7 @@ class WallpaperFolder {
       rotationIntervalValue: json['rotation_interval_value'] as int,
       rotationIntervalUnit: json['rotation_interval_unit'] as String,
       rotationOrder: json['rotation_order'] as String,
+      notifyOnRotation: json['notify_on_rotation'] as bool? ?? true,
       currentIndex: json['current_index'] as int,
       lastRotatedAt: json['last_rotated_at'] != null
           ? DateTime.parse(json['last_rotated_at'] as String)
@@ -74,6 +77,7 @@ class WallpaperFolder {
       'rotation_interval_value': rotationIntervalValue,
       'rotation_interval_unit': rotationIntervalUnit,
       'rotation_order': rotationOrder,
+      'notify_on_rotation': notifyOnRotation,
       'current_index': currentIndex,
       'last_rotated_at': lastRotatedAt?.toIso8601String(),
       'next_rotation_at': nextRotationAt?.toIso8601String(),
@@ -130,6 +134,7 @@ class WallpaperFolder {
     int? rotationIntervalValue,
     String? rotationIntervalUnit,
     String? rotationOrder,
+    bool? notifyOnRotation,
     int? currentIndex,
     DateTime? lastRotatedAt,
     DateTime? nextRotationAt,
@@ -146,6 +151,7 @@ class WallpaperFolder {
       rotationIntervalValue: rotationIntervalValue ?? this.rotationIntervalValue,
       rotationIntervalUnit: rotationIntervalUnit ?? this.rotationIntervalUnit,
       rotationOrder: rotationOrder ?? this.rotationOrder,
+      notifyOnRotation: notifyOnRotation ?? this.notifyOnRotation,
       currentIndex: currentIndex ?? this.currentIndex,
       lastRotatedAt: lastRotatedAt ?? this.lastRotatedAt,
       nextRotationAt: nextRotationAt ?? this.nextRotationAt,

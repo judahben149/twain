@@ -25,6 +25,7 @@ class _CreateFolderScreenState extends ConsumerState<CreateFolderScreen> {
 
   String _selectedUnit = 'hours';
   String _selectedOrder = 'sequential';
+  bool _notifyOnRotation = true;
   bool _isSubmitting = false;
 
   bool get isEditing => widget.folder != null;
@@ -37,6 +38,7 @@ class _CreateFolderScreenState extends ConsumerState<CreateFolderScreen> {
       _intervalController.text = widget.folder!.rotationIntervalValue.toString();
       _selectedUnit = widget.folder!.rotationIntervalUnit;
       _selectedOrder = widget.folder!.rotationOrder;
+      _notifyOnRotation = widget.folder!.notifyOnRotation;
     }
   }
 
@@ -281,6 +283,54 @@ class _CreateFolderScreenState extends ConsumerState<CreateFolderScreen> {
               ),
             ),
 
+            const SizedBox(height: 24),
+
+            // Notifications
+            _buildSectionTitle(context, 'Notifications'),
+            const SizedBox(height: 8),
+            Container(
+              decoration: BoxDecoration(
+                color: twainTheme.cardBackgroundColor,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: context.isDarkMode
+                    ? null
+                    : [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.04),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                border: context.isDarkMode
+                    ? Border.all(color: theme.dividerColor, width: 0.5)
+                    : null,
+              ),
+              child: SwitchListTile(
+                title: Text(
+                  'Push Notifications',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+                subtitle: Text(
+                  'Get notified when wallpaper rotates',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: theme.colorScheme.onSurface.withOpacity(0.6),
+                  ),
+                ),
+                value: _notifyOnRotation,
+                onChanged: (value) {
+                  setState(() {
+                    _notifyOnRotation = value;
+                  });
+                },
+                activeColor: twainTheme.iconColor,
+              ),
+            ),
+
             const SizedBox(height: 32),
 
             // Submit Button
@@ -352,6 +402,7 @@ class _CreateFolderScreenState extends ConsumerState<CreateFolderScreen> {
           rotationIntervalValue: intervalValue,
           rotationIntervalUnit: _selectedUnit,
           rotationOrder: _selectedOrder,
+          notifyOnRotation: _notifyOnRotation,
         );
 
         if (!mounted) return;
@@ -369,6 +420,7 @@ class _CreateFolderScreenState extends ConsumerState<CreateFolderScreen> {
           rotationIntervalValue: intervalValue,
           rotationIntervalUnit: _selectedUnit,
           rotationOrder: _selectedOrder,
+          notifyOnRotation: _notifyOnRotation,
         );
 
         if (!mounted) return;
