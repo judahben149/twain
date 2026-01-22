@@ -152,8 +152,8 @@ class _CreateFolderScreenState extends ConsumerState<CreateFolderScreen> {
                         return 'Must be > 0';
                       }
                       // Validate minimum interval (5 minutes)
-                      if (_selectedUnit == 'minutes' && num < 5) {
-                        return 'Min 5 min';
+                      if (_selectedUnit == 'minutes' && num < 2) {
+                        return 'Min 2 min';
                       }
                       return null;
                     },
@@ -196,7 +196,7 @@ class _CreateFolderScreenState extends ConsumerState<CreateFolderScreen> {
             Padding(
               padding: const EdgeInsets.only(top: 8, left: 4),
               child: Text(
-                'Minimum interval: 5 minutes',
+                'Minimum interval: 2 minutes',
                 style: TextStyle(
                   fontSize: 12,
                   color: theme.colorScheme.onSurface.withOpacity(0.6),
