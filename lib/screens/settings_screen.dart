@@ -6,6 +6,7 @@ import 'package:twain/providers/auth_providers.dart';
 import 'package:twain/screens/user_profile_screen.dart';
 import 'package:twain/screens/pairing_screen.dart';
 import 'package:twain/widgets/theme_selector.dart';
+import 'package:twain/widgets/battery_optimization_dialog.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -133,6 +134,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           ),
                         ),
                       ]),
+                      const BatteryOptimizationBanner(),
                       const SizedBox(height: 24),
                       _buildSectionHeader('Appearance'),
                       const SizedBox(height: 12),

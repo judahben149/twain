@@ -12,6 +12,7 @@ import 'package:twain/screens/wallpaper_screen.dart';
 import 'package:twain/screens/shared_board_screen.dart';
 import 'package:twain/screens/settings_screen.dart';
 import 'package:twain/widgets/stable_avatar.dart';
+import 'package:twain/widgets/battery_optimization_dialog.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -21,6 +22,31 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
+  bool _hasCheckedBatteryOptimization = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _checkBatteryOptimization();
+  }
+
+  Future<void> _checkBatteryOptimization() async {
+    if (_hasCheckedBatteryOptimization) return;
+    _hasCheckedBatteryOptimization = true;
+
+    // Wait for the screen to be fully built
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    if (!mounted) return;
+
+    // Only show if user is paired (uses wallpaper sync feature)
+    final currentUser = ref.read(twainUserProvider).value;
+    if (currentUser?.pairId == null) return;
+
+    // Show the dialog if needed
+    await BatteryOptimizationDialog.show(context);
+  }
+
   void _handleFeatureTap({
     required BuildContext context,
     required bool isPaired,
