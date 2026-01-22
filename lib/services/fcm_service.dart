@@ -162,25 +162,28 @@ Future<void> _processWallpaperSync(
     return;
   }
 
-  Wallpaper? wallpaper;
+  // Try to build wallpaper from payload first (faster - no network call)
+  Wallpaper? wallpaper = _wallpaperFromPayload(wallpaperId, data);
 
-  try {
-    final response = await client
-        .from('wallpapers')
-        .select()
-        .eq('id', wallpaperId)
-        .maybeSingle();
+  // Only fetch from Supabase if payload didn't have enough data
+  if (wallpaper == null) {
+    try {
+      final response = await client
+          .from('wallpapers')
+          .select()
+          .eq('id', wallpaperId)
+          .maybeSingle();
 
-    if (response != null) {
-      wallpaper = Wallpaper.fromJson(response);
+      if (response != null) {
+        wallpaper = Wallpaper.fromJson(response);
+      }
+    } catch (error) {
+      print(
+        'Wallpaper Sync: Failed to fetch wallpaper $wallpaperId from Supabase: $error',
+      );
     }
-  } catch (error) {
-    print(
-      'Wallpaper Sync: Failed to fetch wallpaper $wallpaperId from Supabase: $error',
-    );
   }
 
-  wallpaper ??= _wallpaperFromPayload(wallpaperId, data);
   if (wallpaper == null) {
     print(
         'Wallpaper Sync: Unable to resolve wallpaper payload for id $wallpaperId');
@@ -200,7 +203,11 @@ Future<void> _processWallpaperSync(
     return;
   }
 
-  final senderName = await _lookupSenderName(client, wallpaper.senderId);
+  // Use sender_name from payload if available, otherwise look it up
+  final payloadSenderName = data['sender_name'] as String?;
+  final senderName = (payloadSenderName != null && payloadSenderName.isNotEmpty)
+      ? payloadSenderName
+      : await _lookupSenderName(client, wallpaper.senderId);
   final isSender = wallpaper.senderId == currentUser.id;
   final partnerFirstName = senderName != null
       ? _firstName(senderName)
