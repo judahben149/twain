@@ -18,18 +18,15 @@ class DistanceMeterWidget extends ConsumerWidget {
     final color = _colorForState(state, theme);
     final text = _textForState(state);
 
-    return ConstrainedBox(
-      constraints: const BoxConstraints(minWidth: 40, maxWidth: 160),
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        child: Text(
-          text,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: color,
-          ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: color,
         ),
       ),
     );

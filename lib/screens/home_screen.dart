@@ -16,6 +16,7 @@ import 'package:twain/screens/shared_board_screen.dart';
 import 'package:twain/screens/settings_screen.dart';
 import 'package:twain/widgets/stable_avatar.dart';
 import 'package:twain/widgets/battery_optimization_dialog.dart';
+import 'package:twain/widgets/location_permission_dialog.dart';
 import 'package:twain/providers/location_providers.dart';
 import 'package:twain/services/location_service.dart';
 import 'package:twain/widgets/distance_meter_widget.dart';
@@ -150,6 +151,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     final status = await LocationService.checkPermission();
     if (!status.isGranted) {
+      // Show location permission dialog if not granted
+      if (mounted) {
+        final result = await LocationPermissionDialog.show(context);
+        if (result == true) {
+          // Permission granted, continue with location sync
+          await _syncCurrentLocation();
+          _startLocationUpdates();
+          return;
+        }
+      }
       _stopLocationUpdates();
       _hasCheckedLocationPermission = false;
       return;
@@ -642,28 +653,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         ? const DistanceMeterWidget()
         : _buildThreeDots(context);
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _wrapAvatarWithIndicator(
-            avatar: userAvatar,
-            isLeft: true,
-            showIndicator: shouldShowDistance,
-          ),
-          const SizedBox(width: 12),
-          Flexible(
-            child: Center(child: centerWidget),
-          ),
-          const SizedBox(width: 12),
-          _wrapAvatarWithIndicator(
-            avatar: partnerAvatar,
-            isLeft: false,
-            showIndicator: shouldShowDistance,
-          ),
-        ],
-      ),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _wrapAvatarWithIndicator(
+          avatar: userAvatar,
+          isLeft: true,
+          showIndicator: shouldShowDistance,
+        ),
+        centerWidget,
+        _wrapAvatarWithIndicator(
+          avatar: partnerAvatar,
+          isLeft: false,
+          showIndicator: shouldShowDistance,
+        ),
+      ],
     );
   }
 
@@ -845,7 +850,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     if (!showIndicator) return base;
 
     return SizedBox(
-      width: 96,
+      width: 88,
       child: Stack(
         clipBehavior: Clip.none,
         alignment: Alignment.center,
@@ -915,9 +920,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       children: List.generate(
         3,
         (index) => Container(
-          margin: const EdgeInsets.symmetric(horizontal: 3),
-          width: 8,
-          height: 8,
+          margin: const EdgeInsets.symmetric(horizontal: 2),
+          width: 6,
+          height: 6,
           decoration: BoxDecoration(
             color: theme.dividerColor,
             shape: BoxShape.circle,

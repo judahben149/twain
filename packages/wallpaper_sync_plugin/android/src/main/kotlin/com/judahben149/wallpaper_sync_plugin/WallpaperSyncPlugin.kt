@@ -7,6 +7,8 @@ import android.content.Intent
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import androidx.annotation.NonNull
 import androidx.core.app.NotificationCompat
@@ -16,6 +18,7 @@ import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.PluginRegistry
+import java.util.concurrent.Executors
 
 /**
  * Native implementation backing wallpaper setting and custom notifications.
@@ -23,6 +26,8 @@ import io.flutter.plugin.common.PluginRegistry
 class WallpaperSyncPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     private lateinit var appContext: Context
     private var channel: MethodChannel? = null
+    private val executor = Executors.newSingleThreadExecutor()
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     override fun onAttachedToEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
         appContext = binding.applicationContext
@@ -36,6 +41,7 @@ class WallpaperSyncPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
 
     override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
         teardownChannel()
+        executor.shutdown()
     }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
@@ -47,11 +53,16 @@ class WallpaperSyncPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
                     return
                 }
 
-                val success = applyWallpaper(imagePath)
-                if (success) {
-                    result.success(null)
-                } else {
-                    result.error("WALLPAPER_ERROR", "Failed to set wallpaper", null)
+                // Run wallpaper setting on background thread to prevent ANR
+                executor.execute {
+                    val success = applyWallpaper(imagePath)
+                    mainHandler.post {
+                        if (success) {
+                            result.success(null)
+                        } else {
+                            result.error("WALLPAPER_ERROR", "Failed to set wallpaper", null)
+                        }
+                    }
                 }
             }
 
@@ -95,14 +106,47 @@ class WallpaperSyncPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
 
     private fun applyWallpaper(imagePath: String): Boolean {
         return try {
-            val bitmap = BitmapFactory.decodeFile(imagePath)
+            Log.i(LOG_TAG, "Loading wallpaper image from: $imagePath")
+
+            // Use BitmapFactory.Options to downsample large images
+            val options = BitmapFactory.Options().apply {
+                inJustDecodeBounds = true
+            }
+            BitmapFactory.decodeFile(imagePath, options)
+
+            // Calculate sample size for images larger than 4K
+            val maxDimension = 4096
+            var sampleSize = 1
+            if (options.outHeight > maxDimension || options.outWidth > maxDimension) {
+                val halfHeight = options.outHeight / 2
+                val halfWidth = options.outWidth / 2
+                while ((halfHeight / sampleSize) >= maxDimension && (halfWidth / sampleSize) >= maxDimension) {
+                    sampleSize *= 2
+                }
+            }
+
+            Log.i(LOG_TAG, "Image dimensions: ${options.outWidth}x${options.outHeight}, sampleSize: $sampleSize")
+
+            // Decode with inSampleSize to reduce memory usage
+            val decodeOptions = BitmapFactory.Options().apply {
+                inSampleSize = sampleSize
+                inPreferredConfig = android.graphics.Bitmap.Config.ARGB_8888
+            }
+
+            val bitmap = BitmapFactory.decodeFile(imagePath, decodeOptions)
             if (bitmap == null) {
                 Log.e(LOG_TAG, "Failed to decode wallpaper image at $imagePath")
                 return false
             }
 
+            Log.i(LOG_TAG, "Decoded bitmap: ${bitmap.width}x${bitmap.height}, ${bitmap.byteCount} bytes")
+
             val wallpaperManager = WallpaperManager.getInstance(appContext)
             wallpaperManager.setBitmap(bitmap)
+
+            // Recycle bitmap to free memory
+            bitmap.recycle()
+
             Log.i(LOG_TAG, "Wallpaper applied successfully")
             true
         } catch (error: Exception) {

@@ -8,6 +8,7 @@ import 'package:twain/models/wallpaper_folder.dart';
 import 'package:twain/providers/folder_providers.dart';
 import 'package:twain/providers/theme_providers.dart';
 import 'package:twain/screens/folder_detail_screen.dart';
+import 'package:twain/widgets/battery_optimization_dialog.dart';
 
 class CreateFolderScreen extends ConsumerStatefulWidget {
   final WallpaperFolder? folder; // For editing existing folder
@@ -422,6 +423,11 @@ class _CreateFolderScreenState extends ConsumerState<CreateFolderScreen> {
           rotationOrder: _selectedOrder,
           notifyOnRotation: _notifyOnRotation,
         );
+
+        if (!mounted) return;
+
+        // Show battery optimization dialog for reliable wallpaper rotation
+        await BatteryOptimizationDialog.show(context);
 
         if (!mounted) return;
         // Navigate to folder detail screen

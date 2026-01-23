@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:twain/constants/app_themes.dart';
 import 'package:twain/providers/auth_providers.dart';
 import 'package:twain/providers/location_providers.dart';
@@ -13,6 +14,8 @@ import 'package:twain/widgets/theme_selector.dart';
 import 'package:twain/widgets/battery_optimization_dialog.dart';
 import 'package:twain/widgets/location_permission_dialog.dart';
 
+const String _notificationsEnabledKey = 'notifications_enabled';
+
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
@@ -22,6 +25,27 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _notificationsEnabled = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNotificationSetting();
+  }
+
+  Future<void> _loadNotificationSetting() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _notificationsEnabled = prefs.getBool(_notificationsEnabledKey) ?? true;
+    });
+  }
+
+  Future<void> _saveNotificationSetting(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_notificationsEnabledKey, enabled);
+    setState(() {
+      _notificationsEnabled = enabled;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -136,11 +160,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           subtitle: 'Receive notifications from your partner',
                           trailing: Switch(
                             value: _notificationsEnabled,
-                            onChanged: (value) {
-                              setState(() {
-                                _notificationsEnabled = value;
-                              });
-                            },
+                            onChanged: (value) => _saveNotificationSetting(value),
                             activeColor: context.twainTheme.iconColor,
                           ),
                         ),
@@ -514,6 +534,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onPressed: () async {
               Navigator.pop(dialogContext);
               await ref.read(authServiceProvider).signOut();
+              // Invalidate auth provider to trigger AuthGate rebuild
+              ref.invalidate(twainUserProvider);
+              // Navigate to login and clear navigation stack
+              if (context.mounted) {
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              }
             },
             child: Text(
               'Sign Out',

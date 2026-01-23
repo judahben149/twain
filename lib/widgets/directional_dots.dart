@@ -60,13 +60,13 @@ class _RippleDotState extends State<_RippleDot>
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 32,
-      height: 32,
+      width: 24,
+      height: 24,
       child: AnimatedBuilder(
         animation: _controller,
         builder: (context, child) {
           final progress = _controller.value;
-          final size = 14.0 + (progress * 12.0);
+          final size = 10.0 + (progress * 10.0);
           final opacity = (1 - progress).clamp(0.0, 1.0);
           const color = Color(0xFF7E57C2);
 
@@ -82,8 +82,8 @@ class _RippleDotState extends State<_RippleDot>
                 ),
               ),
               Container(
-                width: 12,
-                height: 12,
+                width: 10,
+                height: 10,
                 decoration: const BoxDecoration(
                   color: color,
                   shape: BoxShape.circle,
@@ -101,7 +101,7 @@ class _StatusDot extends StatelessWidget {
   const _StatusDot({
     required this.color,
     this.icon,
-    this.iconSize = 14,
+    this.iconSize = 12,
   });
 
   final Color color;
@@ -111,28 +111,30 @@ class _StatusDot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 32,
-      height: 32,
-      child: Container(
-        width: 16,
-        height: 16,
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
+      width: 24,
+      height: 24,
+      child: Center(
+        child: Container(
+          width: 20,
+          height: 20,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+          child: icon != null
+              ? Icon(
+                  icon,
+                  size: iconSize,
+                  color: Colors.white,
+                )
+              : null,
         ),
-        child: icon != null
-            ? Icon(
-                icon,
-                size: iconSize,
-                color: Colors.white,
-              )
-            : null,
       ),
     );
   }
 }
 
-class _DirectionalArrowDot extends StatelessWidget {
+class _DirectionalArrowDot extends StatefulWidget {
   const _DirectionalArrowDot({
     required this.trend,
     required this.isLeftSide,
@@ -142,29 +144,95 @@ class _DirectionalArrowDot extends StatelessWidget {
   final bool isLeftSide;
 
   @override
-  Widget build(BuildContext context) {
-    final iconData = _iconForTrend();
-    final color = _trendColor(trend, context);
+  State<_DirectionalArrowDot> createState() => _DirectionalArrowDotState();
+}
 
-    if (iconData == null) {
-      return _StatusDot(color: color);
-    }
+class _DirectionalArrowDotState extends State<_DirectionalArrowDot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late Animation<double> _rotationAnimation;
+  DistanceTrend? _previousTrend;
 
-    return _StatusDot(
-      color: color,
-      icon: iconData,
-      iconSize: 16,
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _rotationAnimation = Tween<double>(begin: 0, end: 0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
     );
   }
 
-  IconData? _iconForTrend() {
-    if (trend == DistanceTrend.closer) {
-      return isLeftSide ? Icons.chevron_right : Icons.chevron_left;
+  @override
+  void didUpdateWidget(_DirectionalArrowDot oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.trend != widget.trend) {
+      _animateArrow();
     }
-    return isLeftSide ? Icons.chevron_left : Icons.chevron_right;
   }
 
-  Color _trendColor(DistanceTrend trend, BuildContext context) {
+  void _animateArrow() {
+    // Calculate rotation based on trend change
+    // Closer = pointing inward (right for left side, left for right side)
+    // Apart = pointing outward (left for left side, right for right side)
+    final isCloser = widget.trend == DistanceTrend.closer;
+
+    // Target rotation: 0 = pointing inward, pi = pointing outward
+    final targetRotation = isCloser ? 0.0 : 3.14159;
+    final currentRotation = _rotationAnimation.value;
+
+    _rotationAnimation = Tween<double>(
+      begin: currentRotation,
+      end: targetRotation,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+
+    _controller.forward(from: 0);
+    _previousTrend = widget.trend;
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _trendColor(widget.trend);
+    final isCloser = widget.trend == DistanceTrend.closer;
+
+    // Base icon pointing inward (toward center)
+    final baseIcon = widget.isLeftSide ? Icons.chevron_right : Icons.chevron_left;
+
+    return SizedBox(
+      width: 24,
+      height: 24,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+            ),
+            child: Transform.rotate(
+              angle: _rotationAnimation.value,
+              child: Icon(
+                baseIcon,
+                size: 16,
+                color: Colors.white,
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Color _trendColor(DistanceTrend trend) {
     if (trend == DistanceTrend.closer) {
       return const Color(0xFF2E7D32);
     }

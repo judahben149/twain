@@ -13,6 +13,7 @@ import 'package:twain/supabase_config.dart';
 import 'package:wallpaper_sync_plugin/wallpaper_sync_plugin.dart';
 
 const _wallpaperSyncType = 'wallpaper_sync';
+const _notificationsEnabledKey = 'notifications_enabled';
 
 // Top-level function for background message handling
 @pragma('vm:entry-point')
@@ -203,28 +204,34 @@ Future<void> _processWallpaperSync(
     return;
   }
 
-  // Use sender_name from payload if available, otherwise look it up
-  final payloadSenderName = data['sender_name'] as String?;
-  final senderName = (payloadSenderName != null && payloadSenderName.isNotEmpty)
-      ? payloadSenderName
-      : await _lookupSenderName(client, wallpaper.senderId);
-  final isSender = wallpaper.senderId == currentUser.id;
-  final partnerFirstName = senderName != null
-      ? _firstName(senderName)
-      : 'Your partner';
-  final notificationBody = isSender
-      ? 'Your wallpaper was just applied.'
-      : '$partnerFirstName has set a new wallpaper for you.';
-  final notificationTitle =
-      isSender ? 'Wallpaper updated' : 'New wallpaper from $partnerFirstName';
+  // Check if notifications are enabled before showing
+  final notificationsEnabled = await _areNotificationsEnabled();
+  if (notificationsEnabled) {
+    // Use sender_name from payload if available, otherwise look it up
+    final payloadSenderName = data['sender_name'] as String?;
+    final senderName = (payloadSenderName != null && payloadSenderName.isNotEmpty)
+        ? payloadSenderName
+        : await _lookupSenderName(client, wallpaper.senderId);
+    final isSender = wallpaper.senderId == currentUser.id;
+    final partnerFirstName = senderName != null
+        ? _firstName(senderName)
+        : 'Your partner';
+    final notificationBody = isSender
+        ? 'Your wallpaper was just applied.'
+        : '$partnerFirstName has set a new wallpaper for you.';
+    final notificationTitle =
+        isSender ? 'Wallpaper updated' : 'New wallpaper from $partnerFirstName';
 
-  try {
-    await WallpaperSyncPlugin.showNotification(
-      title: notificationTitle,
-      body: notificationBody,
-    );
-  } catch (error) {
-    print('Wallpaper Sync: Failed to show notification: $error');
+    try {
+      await WallpaperSyncPlugin.showNotification(
+        title: notificationTitle,
+        body: notificationBody,
+      );
+    } catch (error) {
+      print('Wallpaper Sync: Failed to show notification: $error');
+    }
+  } else {
+    print('Wallpaper Sync: Notifications disabled by user preference');
   }
 
   if (!Platform.isAndroid) {
@@ -234,12 +241,18 @@ Future<void> _processWallpaperSync(
   }
 
   try {
+    print('Wallpaper Sync: ========== APPLYING WALLPAPER ==========');
+    print('Wallpaper Sync: Wallpaper ID: ${wallpaper.id}');
+    print('Wallpaper Sync: Image URL: ${wallpaper.imageUrl}');
+    print('Wallpaper Sync: Source type: ${wallpaper.sourceType}');
+    print('Wallpaper Sync: Sender ID: ${wallpaper.senderId}');
     await WallpaperManagerService.setWallpaper(wallpaper.imageUrl);
     await client.from('wallpapers').update({
       'status': 'applied',
       'applied_at': DateTime.now().toIso8601String(),
     }).eq('id', wallpaper.id);
     print('Wallpaper Sync: Wallpaper ${wallpaper.id} applied successfully');
+    print('Wallpaper Sync: ========================================');
   } catch (error) {
     print('Wallpaper Sync: Failed to apply wallpaper ${wallpaper.id}: $error');
     try {
@@ -317,4 +330,14 @@ String _firstName(String name) {
   final parts =
       name.split(' ').where((part) => part.trim().isNotEmpty).toList();
   return parts.isEmpty ? name : parts.first;
+}
+
+Future<bool> _areNotificationsEnabled() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_notificationsEnabledKey) ?? true;
+  } catch (error) {
+    print('Wallpaper Sync: Failed to check notification preference: $error');
+    return true; // Default to showing notifications if preference check fails
+  }
 }

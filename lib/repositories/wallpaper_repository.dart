@@ -18,6 +18,7 @@ class WallpaperRepository {
   Stream<List<Wallpaper>> watchWallpapers(String pairId) async* {
     print('WallpaperRepository: watchWallpapers → pairId=$pairId');
 
+    // Always yield cached data first for offline-first experience
     final cached = await _dbService.getWallpapersByPairId(pairId);
     if (cached.isNotEmpty) {
       print('WallpaperRepository: Emitting ${cached.length} cached wallpapers');
@@ -26,27 +27,45 @@ class WallpaperRepository {
       yield const [];
     }
 
-    final stream = _supabase
-        .from('wallpapers')
-        .stream(primaryKey: ['id'])
-        .eq('pair_id', pairId)
-        .order('created_at', ascending: false);
-
-    await for (final rows in stream) {
+    // Subscribe to realtime with automatic reconnection on errors
+    var shouldReconnect = true;
+    while (shouldReconnect) {
       try {
-        final wallpapers = rows
-            .map((row) => Wallpaper.fromJson(
-                  Map<String, dynamic>.from(row as Map),
-                ))
-            .toList();
+        final stream = _supabase
+            .from('wallpapers')
+            .stream(primaryKey: ['id'])
+            .eq('pair_id', pairId)
+            .order('created_at', ascending: false);
 
-        print(
-            'WallpaperRepository: Realtime update with ${wallpapers.length} wallpapers');
-        await _dbService.saveWallpapers(wallpapers);
-        yield wallpapers;
-      } catch (error, stack) {
-        print('WallpaperRepository: Error mapping wallpapers stream: $error');
-        Zone.current.handleUncaughtError(error, stack);
+        await for (final rows in stream) {
+          try {
+            final wallpapers = rows
+                .map((row) => Wallpaper.fromJson(
+                      Map<String, dynamic>.from(row as Map),
+                    ))
+                .toList();
+
+            print(
+                'WallpaperRepository: Realtime update with ${wallpapers.length} wallpapers');
+            await _dbService.saveWallpapers(wallpapers);
+            yield wallpapers;
+          } catch (error) {
+            print('WallpaperRepository: Error mapping wallpapers: $error');
+            // Continue streaming, don't break the loop
+          }
+        }
+      } catch (error) {
+        print('WallpaperRepository: Stream error (token expiry/network): $error');
+        // Yield cached data again so UI doesn't show error
+        final fallbackCached = await _dbService.getWallpapersByPairId(pairId);
+        if (fallbackCached.isNotEmpty) {
+          print('WallpaperRepository: Yielding cached data after stream error');
+          yield fallbackCached;
+        }
+        // Wait before retrying
+        print('WallpaperRepository: Will retry connection in 5 seconds...');
+        await Future.delayed(const Duration(seconds: 5));
+        print('WallpaperRepository: Attempting to reconnect...');
       }
     }
   }
@@ -54,6 +73,7 @@ class WallpaperRepository {
   Stream<List<SharedBoardPhoto>> watchSharedBoardPhotos(String pairId) async* {
     print('WallpaperRepository: watchSharedBoardPhotos → pairId=$pairId');
 
+    // Always yield cached data first for offline-first experience
     final cached = await _dbService.getSharedBoardPhotosByPairId(pairId);
     if (cached.isNotEmpty) {
       print(
@@ -63,28 +83,45 @@ class WallpaperRepository {
       yield const [];
     }
 
-    final stream = _supabase
-        .from('shared_board_photos')
-        .stream(primaryKey: ['id'])
-        .eq('pair_id', pairId)
-        .order('created_at', ascending: false);
-
-    await for (final rows in stream) {
+    // Subscribe to realtime with automatic reconnection on errors
+    var shouldReconnect = true;
+    while (shouldReconnect) {
       try {
-        final photos = rows
-            .map((row) => SharedBoardPhoto.fromJson(
-                  Map<String, dynamic>.from(row as Map),
-                ))
-            .toList();
+        final stream = _supabase
+            .from('shared_board_photos')
+            .stream(primaryKey: ['id'])
+            .eq('pair_id', pairId)
+            .order('created_at', ascending: false);
 
-        print(
-            'WallpaperRepository: Realtime update with ${photos.length} shared board photos');
-        await _dbService.saveSharedBoardPhotos(photos);
-        yield photos;
-      } catch (error, stack) {
-        print(
-            'WallpaperRepository: Error mapping shared board stream: $error');
-        Zone.current.handleUncaughtError(error, stack);
+        await for (final rows in stream) {
+          try {
+            final photos = rows
+                .map((row) => SharedBoardPhoto.fromJson(
+                      Map<String, dynamic>.from(row as Map),
+                    ))
+                .toList();
+
+            print(
+                'WallpaperRepository: Realtime update with ${photos.length} shared board photos');
+            await _dbService.saveSharedBoardPhotos(photos);
+            yield photos;
+          } catch (error) {
+            print('WallpaperRepository: Error mapping shared board photos: $error');
+            // Continue streaming, don't break the loop
+          }
+        }
+      } catch (error) {
+        print('WallpaperRepository: Shared board stream error: $error');
+        // Yield cached data again so UI doesn't show error
+        final fallbackCached = await _dbService.getSharedBoardPhotosByPairId(pairId);
+        if (fallbackCached.isNotEmpty) {
+          print('WallpaperRepository: Yielding cached photos after stream error');
+          yield fallbackCached;
+        }
+        // Wait before retrying
+        print('WallpaperRepository: Will retry connection in 5 seconds...');
+        await Future.delayed(const Duration(seconds: 5));
+        print('WallpaperRepository: Attempting to reconnect...');
       }
     }
   }

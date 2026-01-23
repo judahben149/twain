@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
@@ -24,43 +26,178 @@ Future<void> _downloadImageInBackground(_DownloadImageTask task) async {
   }
 }
 
+/// Maximum number of cached wallpapers to keep
+const int _maxCachedWallpapers = 50;
+
+/// Cache directory name
+const String _wallpaperCacheDir = 'wallpaper_cache';
+
 class WallpaperManagerService {
-  /// Set wallpaper from URL (downloads and applies)
+  /// Get the wallpaper cache directory
+  static Future<Directory> _getCacheDirectory() async {
+    final appDir = await getApplicationDocumentsDirectory();
+    final cacheDir = Directory('${appDir.path}/$_wallpaperCacheDir');
+    if (!await cacheDir.exists()) {
+      await cacheDir.create(recursive: true);
+    }
+    return cacheDir;
+  }
+
+  /// Generate a unique filename from URL using MD5 hash
+  static String _getCacheFilename(String url) {
+    final hash = md5.convert(utf8.encode(url)).toString();
+    return 'wallpaper_$hash.jpg';
+  }
+
+  /// Check if a wallpaper is already cached
+  static Future<String?> _getCachedPath(String imageUrl) async {
+    try {
+      final cacheDir = await _getCacheDirectory();
+      final filename = _getCacheFilename(imageUrl);
+      final cachedFile = File('${cacheDir.path}/$filename');
+
+      if (await cachedFile.exists()) {
+        final bytes = await cachedFile.length();
+        if (bytes > 0) {
+          print('WallpaperManagerService: Found cached wallpaper: ${cachedFile.path} (${bytes} bytes)');
+          return cachedFile.path;
+        }
+      }
+    } catch (e) {
+      print('WallpaperManagerService: Error checking cache: $e');
+    }
+    return null;
+  }
+
+  /// Save wallpaper to cache
+  static Future<String> _saveToCache(String imageUrl, String tempPath) async {
+    try {
+      final cacheDir = await _getCacheDirectory();
+      final filename = _getCacheFilename(imageUrl);
+      final cachePath = '${cacheDir.path}/$filename';
+
+      // Copy from temp to cache
+      await File(tempPath).copy(cachePath);
+      print('WallpaperManagerService: Saved to cache: $cachePath');
+
+      // Clean up old cache entries if needed
+      _cleanupCacheIfNeeded(cacheDir);
+
+      return cachePath;
+    } catch (e) {
+      print('WallpaperManagerService: Error saving to cache: $e');
+      return tempPath; // Return temp path as fallback
+    }
+  }
+
+  /// Clean up old cache entries to prevent unlimited growth
+  static Future<void> _cleanupCacheIfNeeded(Directory cacheDir) async {
+    try {
+      final files = await cacheDir.list().toList();
+      if (files.length <= _maxCachedWallpapers) return;
+
+      // Sort by modified time (oldest first)
+      final fileStats = <File, DateTime>{};
+      for (final entity in files) {
+        if (entity is File) {
+          final stat = await entity.stat();
+          fileStats[entity] = stat.modified;
+        }
+      }
+
+      final sortedFiles = fileStats.keys.toList()
+        ..sort((a, b) => fileStats[a]!.compareTo(fileStats[b]!));
+
+      // Delete oldest files until we're under the limit
+      final toDelete = sortedFiles.length - _maxCachedWallpapers;
+      for (var i = 0; i < toDelete; i++) {
+        await sortedFiles[i].delete();
+        print('WallpaperManagerService: Deleted old cache: ${sortedFiles[i].path}');
+      }
+    } catch (e) {
+      print('WallpaperManagerService: Error cleaning cache: $e');
+    }
+  }
+
+  /// Set wallpaper from URL (uses cache if available, otherwise downloads)
   /// Note: On Android, this may cause the app to restart
   static Future<void> setWallpaper(String imageUrl) async {
-    print('WallpaperManagerService: Setting wallpaper from URL: $imageUrl');
+    print('WallpaperManagerService: ========== WALLPAPER SET START ==========');
+    print('WallpaperManagerService: URL: $imageUrl');
 
     try {
-      // Get temp directory path first (must be done on main isolate)
-      final tempDir = await getTemporaryDirectory();
-      final filePath = '${tempDir.path}/wallpaper_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      String filePath;
 
-      // Download image in background isolate to avoid blocking main thread
-      print('WallpaperManagerService: Downloading image in background...');
-      await compute(_downloadImageInBackground, _DownloadImageTask(imageUrl, filePath));
+      // Check if wallpaper is already cached
+      final cachedPath = await _getCachedPath(imageUrl);
 
-      final bytes = await File(filePath).length();
-      print('WallpaperManagerService: Downloaded ${bytes} bytes');
+      if (cachedPath != null) {
+        // Use cached version - saves bandwidth!
+        print('WallpaperManagerService: Using CACHED wallpaper (no download needed)');
+        filePath = cachedPath;
+      } else {
+        // Download to temp first, then cache
+        print('WallpaperManagerService: Wallpaper not cached, downloading...');
+        final tempDir = await getTemporaryDirectory();
+        final tempPath = '${tempDir.path}/wallpaper_temp_${DateTime.now().millisecondsSinceEpoch}.jpg';
 
-      print('WallpaperManagerService: Applying wallpaper...');
+        await compute(_downloadImageInBackground, _DownloadImageTask(imageUrl, tempPath));
+
+        final tempFile = File(tempPath);
+        final bytes = await tempFile.length();
+        print('WallpaperManagerService: Downloaded ${bytes} bytes');
+
+        // Save to persistent cache
+        filePath = await _saveToCache(imageUrl, tempPath);
+
+        // Delete temp file
+        try {
+          await tempFile.delete();
+        } catch (_) {}
+      }
+
+      final file = File(filePath);
+      final bytes = await file.length();
+      print('WallpaperManagerService: Applying wallpaper from: $filePath (${bytes} bytes)');
 
       // Call platform method - this may cause Android to kill the app
-      // Any code after this might not execute if app is killed
       await WallpaperSyncPlugin.setWallpaper(filePath);
 
       print('WallpaperManagerService: Wallpaper set successfully');
-
-      // Clean up temp file after a delay (in case app is killed, this won't run)
-      Future.delayed(const Duration(seconds: 2), () {
-        try {
-          File(filePath).deleteSync();
-        } catch (e) {
-          print('Failed to delete temp file: $e');
-        }
-      });
+      print('WallpaperManagerService: ========== WALLPAPER SET END ==========');
     } catch (e) {
       print('WallpaperManagerService: Error: $e');
+      print('WallpaperManagerService: ========== WALLPAPER SET FAILED ==========');
       throw Exception('Failed to set wallpaper: $e');
+    }
+  }
+
+  /// Clear the wallpaper cache
+  static Future<void> clearCache() async {
+    try {
+      final cacheDir = await _getCacheDirectory();
+      if (await cacheDir.exists()) {
+        await cacheDir.delete(recursive: true);
+        print('WallpaperManagerService: Cache cleared');
+      }
+    } catch (e) {
+      print('WallpaperManagerService: Error clearing cache: $e');
+    }
+  }
+
+  /// Get cache size in bytes
+  static Future<int> getCacheSize() async {
+    try {
+      final cacheDir = await _getCacheDirectory();
+      int totalSize = 0;
+      await for (final entity in cacheDir.list()) {
+        if (entity is File) {
+          totalSize += await entity.length();
+        }
+      }
+      return totalSize;
+    } catch (e) {
+      return 0;
     }
   }
 
