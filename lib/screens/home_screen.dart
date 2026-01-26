@@ -461,34 +461,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             ),
           ),
           const Spacer(),
-          Stack(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.notifications_outlined),
-                iconSize: 28,
-                color: theme.colorScheme.onSurface,
-                onPressed: () {
-                  // TODO: Show notifications
-                },
-              ),
-              Positioned(
-                right: 8,
-                top: 8,
-                child: Container(
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    color: twainTheme.iconColor,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: theme.scaffoldBackgroundColor,
-                      width: 2,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     );

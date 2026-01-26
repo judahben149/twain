@@ -150,21 +150,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       _buildSettingsCard([
                         _buildDistanceFeatureTile(context),
                       ]),
-                      const SizedBox(height: 24),
-                      _buildSectionHeader('Notifications'),
-                      const SizedBox(height: 12),
-                      _buildSettingsCard([
-                        _buildSettingsTile(
-                          icon: Icons.notifications_outlined,
-                          title: 'Push Notifications',
-                          subtitle: 'Receive notifications from your partner',
-                          trailing: Switch(
-                            value: _notificationsEnabled,
-                            onChanged: (value) => _saveNotificationSetting(value),
-                            activeColor: context.twainTheme.iconColor,
-                          ),
-                        ),
-                      ]),
                       const BatteryOptimizationBanner(),
                       const SizedBox(height: 24),
                       _buildSectionHeader('Appearance'),

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:twain/constants/app_themes.dart';
 import 'package:twain/models/sticky_note.dart';
@@ -95,7 +94,16 @@ class _StickyNoteDetailScreenState
     final repliesAsync =
         ref.watch(stickyNoteRepliesStreamProvider(widget.note.id));
 
-    final isCurrentUserNote = widget.note.senderId == currentUser?.id;
+    // Watch the notes stream to get reactive updates for likes
+    final notesAsync = ref.watch(stickyNotesStreamProvider);
+    final note = notesAsync.whenData((notes) {
+      return notes.firstWhere(
+        (n) => n.id == widget.note.id,
+        orElse: () => widget.note,
+      );
+    }).value ?? widget.note;
+
+    final isCurrentUserNote = note.senderId == currentUser?.id;
 
     return Scaffold(
       body: Container(
@@ -122,7 +130,7 @@ class _StickyNoteDetailScreenState
                     children: [
                       // Main note card
                       _buildMainNoteCard(
-                        widget.note,
+                        note,
                         isCurrentUserNote,
                         currentUser?.id,
                         partner,
@@ -132,7 +140,7 @@ class _StickyNoteDetailScreenState
                       const SizedBox(height: 24),
 
                       // Replies section
-                      if (widget.note.hasReplies || repliesAsync.hasValue)
+                      if (note.hasReplies || repliesAsync.hasValue)
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -244,76 +252,43 @@ class _StickyNoteDetailScreenState
     ThemeData theme,
     TwainThemeExtension twainTheme,
   ) {
-    return Stack(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: _parseColor(note.color),
-            borderRadius: BorderRadius.circular(4),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.15),
-                blurRadius: 12,
-                offset: const Offset(2, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Message with handwriting font
-              Text(
-                note.message,
-                style: GoogleFonts.patrickHand(
-                  fontSize: 22,
-                  color: Colors.black87,
-                  height: 1.4,
-                  fontWeight: FontWeight.w400,
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Sender and timestamp
-              Text(
-                '${isCurrentUser ? 'You' : note.senderName ?? 'Partner'} • ${_formatDateTime(note.createdAt)}',
-                style: GoogleFonts.patrickHand(
-                  fontSize: 15,
-                  color: Colors.grey.shade700,
-                  fontWeight: FontWeight.w400,
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // Likes section
-              _buildLikesSection(note, currentUserId, partner, twainTheme),
-            ],
-          ),
-        ),
-        // Bent corner effect
-        Positioned(
-          top: 0,
-          right: 0,
-          child: ClipPath(
-            clipper: _BentCornerClipper(),
-            child: Container(
-              width: 30,
-              height: 30,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Colors.black.withOpacity(0.1),
-                    Colors.black.withOpacity(0.05),
-                  ],
-                ),
-              ),
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: _parseColor(note.color),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Message
+          Text(
+            note.message,
+            style: TextStyle(
+              fontSize: 18,
+              color: Colors.black87,
+              height: 1.4,
+              fontWeight: FontWeight.w400,
             ),
           ),
-        ),
-      ],
+          const SizedBox(height: 16),
+
+          // Sender and timestamp
+          Text(
+            '${isCurrentUser ? 'You' : note.senderName ?? 'Partner'} • ${_formatDateTime(note.createdAt)}',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.black54,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Likes section
+          _buildLikesSection(note, currentUserId, partner, twainTheme),
+        ],
+      ),
     );
   }
 
@@ -435,41 +410,55 @@ class _StickyNoteDetailScreenState
   ) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: twainTheme.cardBackgroundColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: theme.dividerColor,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Reply message with handwriting font
-            Text(
-              reply.message,
-              style: GoogleFonts.patrickHand(
-                fontSize: 16,
-                color: theme.colorScheme.onSurface,
-                height: 1.3,
-                fontWeight: FontWeight.w400,
-              ),
+      child: Row(
+        mainAxisAlignment:
+            isCurrentUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        children: [
+          Container(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.75,
             ),
-            const SizedBox(height: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: isCurrentUser
+                  ? twainTheme.iconColor.withOpacity(0.15)
+                  : twainTheme.cardBackgroundColor,
+              borderRadius: BorderRadius.only(
+                topLeft: const Radius.circular(16),
+                topRight: const Radius.circular(16),
+                bottomLeft: Radius.circular(isCurrentUser ? 16 : 4),
+                bottomRight: Radius.circular(isCurrentUser ? 4 : 16),
+              ),
+              border: isCurrentUser
+                  ? null
+                  : Border.all(color: theme.dividerColor, width: 0.5),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Reply message
+                Text(
+                  reply.message,
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: theme.colorScheme.onSurface,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 6),
 
-            // Sender and timestamp
-            Text(
-              '${isCurrentUser ? 'You' : reply.senderName ?? 'Partner'} • ${_formatTime(reply.createdAt)}',
-              style: GoogleFonts.patrickHand(
-                fontSize: 13,
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
-                fontWeight: FontWeight.w400,
-              ),
+                // Sender and timestamp
+                Text(
+                  '${isCurrentUser ? 'You' : reply.senderName ?? 'Partner'} • ${_formatTime(reply.createdAt)}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: theme.colorScheme.onSurface.withOpacity(0.5),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -563,18 +552,3 @@ class _StickyNoteDetailScreenState
   }
 }
 
-// Custom clipper for the bent corner effect
-class _BentCornerClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final path = Path();
-    path.moveTo(0, 0);
-    path.lineTo(size.width, 0);
-    path.lineTo(size.width, size.height);
-    path.close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
-}

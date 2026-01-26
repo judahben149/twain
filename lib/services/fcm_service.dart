@@ -240,28 +240,49 @@ Future<void> _processWallpaperSync(
     return;
   }
 
-  try {
-    print('Wallpaper Sync: ========== APPLYING WALLPAPER ==========');
-    print('Wallpaper Sync: Wallpaper ID: ${wallpaper.id}');
-    print('Wallpaper Sync: Image URL: ${wallpaper.imageUrl}');
-    print('Wallpaper Sync: Source type: ${wallpaper.sourceType}');
-    print('Wallpaper Sync: Sender ID: ${wallpaper.senderId}');
-    await WallpaperManagerService.setWallpaper(wallpaper.imageUrl);
-    await client.from('wallpapers').update({
-      'status': 'applied',
-      'applied_at': DateTime.now().toIso8601String(),
-    }).eq('id', wallpaper.id);
-    print('Wallpaper Sync: Wallpaper ${wallpaper.id} applied successfully');
-    print('Wallpaper Sync: ========================================');
-  } catch (error) {
-    print('Wallpaper Sync: Failed to apply wallpaper ${wallpaper.id}: $error');
+  // Retry logic with up to 5 attempts
+  const maxRetries = 5;
+  var lastError = '';
+
+  for (var attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      await client
-          .from('wallpapers')
-          .update({'status': 'failed'}).eq('id', wallpaper.id);
-    } catch (updateError) {
-      print('Wallpaper Sync: Failed to update wallpaper status: $updateError');
+      print('Wallpaper Sync: ========== APPLYING WALLPAPER (Attempt $attempt/$maxRetries) ==========');
+      print('Wallpaper Sync: Wallpaper ID: ${wallpaper.id}');
+      print('Wallpaper Sync: Image URL: ${wallpaper.imageUrl}');
+      print('Wallpaper Sync: Source type: ${wallpaper.sourceType}');
+      print('Wallpaper Sync: Sender ID: ${wallpaper.senderId}');
+
+      await WallpaperManagerService.setWallpaper(wallpaper.imageUrl);
+
+      await client.from('wallpapers').update({
+        'status': 'applied',
+        'applied_at': DateTime.now().toIso8601String(),
+      }).eq('id', wallpaper.id);
+
+      print('Wallpaper Sync: Wallpaper ${wallpaper.id} applied successfully on attempt $attempt');
+      print('Wallpaper Sync: ========================================');
+      return; // Success - exit the function
+    } catch (error) {
+      lastError = error.toString();
+      print('Wallpaper Sync: Attempt $attempt failed: $error');
+
+      if (attempt < maxRetries) {
+        // Wait before retrying with exponential backoff (1s, 2s, 4s, 8s)
+        final delaySeconds = 1 << (attempt - 1);
+        print('Wallpaper Sync: Retrying in $delaySeconds seconds...');
+        await Future.delayed(Duration(seconds: delaySeconds));
+      }
     }
+  }
+
+  // All retries failed
+  print('Wallpaper Sync: Failed to apply wallpaper ${wallpaper.id} after $maxRetries attempts: $lastError');
+  try {
+    await client
+        .from('wallpapers')
+        .update({'status': 'failed'}).eq('id', wallpaper.id);
+  } catch (updateError) {
+    print('Wallpaper Sync: Failed to update wallpaper status: $updateError');
   }
 }
 

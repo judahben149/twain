@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:twain/constants/app_themes.dart';
 import 'package:twain/models/sticky_note.dart';
@@ -596,116 +595,79 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
           ),
         );
       },
-      child: Stack(
-        children: [
-          // Main note container
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 20,
-            ),
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(4),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.15),
-                  blurRadius: 8,
-                  offset: const Offset(2, 3),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Message with handwriting font
-                Text(
-                  note.message,
-                  style: GoogleFonts.patrickHand(
-                    fontSize: 19,
-                    color: Colors.black87,
-                    height: 1.3,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                // Sender and timestamp
-                Text(
-                  '${isCurrentUser ? 'You' : note.senderName ?? 'Partner'} • ${_formatTime(note.createdAt)}',
-                  style: GoogleFonts.patrickHand(
-                    fontSize: 14,
-                    color: Colors.grey.shade700,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                // Footer row
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    // Likes section
-                    _buildLikesSection(note, currentUserId, partner, twainTheme),
-                    // Reply count
-                    if (note.hasReplies)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.05),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.chat_bubble_outline,
-                              size: 14,
-                              color: Colors.grey.shade700,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${note.replyCount}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey.shade700,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          // Bent corner effect (top-right corner)
-          Positioned(
-            top: 0,
-            right: 0,
-            child: ClipPath(
-              clipper: _BentCornerClipper(),
-              child: Container(
-                width: 24,
-                height: 24,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Colors.black.withOpacity(0.1),
-                      Colors.black.withOpacity(0.05),
-                    ],
-                  ),
-                ),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Message
+            Text(
+              note.message,
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.black87,
+                height: 1.4,
+                fontWeight: FontWeight.w400,
               ),
             ),
-          ),
-        ],
+            const SizedBox(height: 12),
+            // Sender and timestamp
+            Text(
+              '${isCurrentUser ? 'You' : note.senderName ?? 'Partner'} • ${_formatTime(note.createdAt)}',
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.black54,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Footer row
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Likes section
+                _buildLikesSection(note, currentUserId, partner, twainTheme),
+                // Reply count
+                if (note.hasReplies)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.chat_bubble_outline,
+                          size: 14,
+                          color: Colors.black54,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${note.replyCount}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.black54,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -836,18 +798,3 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
   }
 }
 
-// Custom clipper for the bent corner effect
-class _BentCornerClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final path = Path();
-    path.moveTo(0, 0);
-    path.lineTo(size.width, 0);
-    path.lineTo(size.width, size.height);
-    path.close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
-}
