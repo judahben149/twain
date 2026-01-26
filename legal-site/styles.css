@@ -1,0 +1,167 @@
+:root {
+  color-scheme: only light;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.6;
+  font-size: 16px;
+  color: #1a1a1a;
+  background-color: #ffffff;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background-color: #ffffff;
+}
+
+a {
+  color: #1a5adb;
+  text-decoration: none;
+}
+
+a:hover,
+a:focus {
+  text-decoration: underline;
+}
+
+.container {
+  width: min(90%, 800px);
+  margin: 0 auto;
+  padding: 1.5rem 0;
+}
+
+.site-header,
+.site-footer {
+  background-color: #f5f7fb;
+  border-bottom: 1px solid #e2e5ec;
+}
+
+.site-footer {
+  border-top: 1px solid #e2e5ec;
+  border-bottom: none;
+}
+
+.header-content,
+.footer-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: center;
+  text-align: center;
+}
+
+.branding {
+  font-weight: 600;
+  font-size: 1.25rem;
+}
+
+.site-nav {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  font-size: 0.95rem;
+}
+
+.site-nav span {
+  color: #7a7a7a;
+}
+
+.hero {
+  padding: 2rem 0 1rem;
+  text-align: center;
+}
+
+.hero h1 {
+  font-size: clamp(1.8rem, 4vw, 2.4rem);
+  margin-bottom: 1rem;
+}
+
+.hero p {
+  margin-bottom: 1.5rem;
+}
+
+.cta-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.cta-button,
+.cta-outline {
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.cta-button {
+  background-color: #1a5adb;
+  color: #ffffff;
+}
+
+.cta-outline {
+  border: 2px solid #1a5adb;
+  color: #1a5adb;
+}
+
+.cta-outline:hover,
+.cta-outline:focus {
+  background-color: rgba(26, 90, 219, 0.08);
+}
+
+.features ul,
+.policies ul,
+.legal-document ul {
+  padding-left: 1.25rem;
+}
+
+.features li,
+.policies li,
+.legal-document li {
+  margin-bottom: 0.5rem;
+}
+
+.legal-document h1 {
+  margin-bottom: 0.5rem;
+}
+
+.effective-date {
+  font-size: 0.95rem;
+  color: #5f6368;
+  margin-bottom: 1.5rem;
+}
+
+.legal-document section {
+  margin-bottom: 1.75rem;
+}
+
+.legal-document h2 {
+  font-size: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.legal-document p {
+  margin-bottom: 0.75rem;
+}
+
+.site-footer p {
+  margin: 0.2rem 0;
+}
+
+@media (min-width: 600px) {
+  .header-content,
+  .footer-content {
+    flex-direction: row;
+    justify-content: space-between;
+    text-align: left;
+  }
+
+  .site-nav {
+    gap: 1rem;
+  }
+}
