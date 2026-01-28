@@ -8,9 +8,11 @@ import 'package:twain/constants/app_themes.dart';
 import 'package:twain/models/app_theme_mode.dart';
 import 'package:twain/models/wallpaper_folder.dart';
 import 'package:twain/models/folder_image.dart';
+import 'package:twain/providers/auth_providers.dart';
 import 'package:twain/providers/folder_providers.dart';
 import 'package:twain/providers/theme_providers.dart';
 import 'package:twain/screens/create_folder_screen.dart';
+import 'package:twain/screens/paywall_screen.dart';
 import 'package:twain/screens/unsplash_picker_screen.dart';
 import 'package:twain/widgets/countdown_timer.dart';
 
@@ -608,6 +610,19 @@ class _FolderDetailScreenState extends ConsumerState<FolderDetailScreen> {
   // ==================== ACTIONS ====================
 
   Future<void> _toggleFolderActive(WallpaperFolder folder, bool value) async {
+    // Check for Twain Plus subscription when enabling rotation
+    if (value) {
+      final isTwainPlus = ref.read(isTwainPlusProvider);
+      if (!isTwainPlus) {
+        // Show paywall
+        final subscribed = await PaywallScreen.show(
+          context,
+          feature: PaywallFeature.wallpaperRotation,
+        );
+        if (subscribed != true) return;
+      }
+    }
+
     try {
       await ref.read(folderServiceProvider).updateFolder(
             folderId: folder.id,

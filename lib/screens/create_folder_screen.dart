@@ -5,9 +5,11 @@ import 'package:twain/constants/app_colours.dart';
 import 'package:twain/constants/app_themes.dart';
 import 'package:twain/models/app_theme_mode.dart';
 import 'package:twain/models/wallpaper_folder.dart';
+import 'package:twain/providers/auth_providers.dart';
 import 'package:twain/providers/folder_providers.dart';
 import 'package:twain/providers/theme_providers.dart';
 import 'package:twain/screens/folder_detail_screen.dart';
+import 'package:twain/screens/paywall_screen.dart';
 import 'package:twain/widgets/battery_optimization_dialog.dart';
 
 class CreateFolderScreen extends ConsumerStatefulWidget {
@@ -384,6 +386,19 @@ class _CreateFolderScreenState extends ConsumerState<CreateFolderScreen> {
   Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) {
       return;
+    }
+
+    // Check for Twain Plus subscription when creating a new folder
+    if (!isEditing) {
+      final isTwainPlus = ref.read(isTwainPlusProvider);
+      if (!isTwainPlus) {
+        // Show paywall
+        final subscribed = await PaywallScreen.show(
+          context,
+          feature: PaywallFeature.wallpaperRotation,
+        );
+        if (subscribed != true) return;
+      }
     }
 
     setState(() {

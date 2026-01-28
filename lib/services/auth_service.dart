@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:twain/models/twain_user.dart';
 import 'package:twain/supabase_config.dart';
 import 'package:twain/repositories/user_repository.dart';
+import 'package:twain/services/subscription_service.dart';
 
 class AuthService {
   final _supabase = Supabase.instance.client;
@@ -115,6 +116,9 @@ class AuthService {
       // Create or update user in database
       await _createOrUpdateUser(user);
 
+      // Set user ID in RevenueCat for subscription tracking
+      await SubscriptionService.instance.setUserId(user.id);
+
       return await _getUserFromSupabase(user.id);
     } catch (e) {
       print('Error signing in with Google: $e');
@@ -135,6 +139,9 @@ class AuthService {
 
       // Ensure user record exists in database
       await _createOrUpdateUser(user);
+
+      // Set user ID in RevenueCat for subscription tracking
+      await SubscriptionService.instance.setUserId(user.id);
 
       return await _getUserFromSupabase(user.id);
     } catch (e) {
@@ -200,6 +207,9 @@ class AuthService {
 
       // Create or update user in database
       await _createOrUpdateUser(user);
+
+      // Set user ID in RevenueCat for subscription tracking
+      await SubscriptionService.instance.setUserId(user.id);
     } catch (e) {
       print('Error verifying OTP: $e');
       rethrow;
@@ -227,6 +237,9 @@ class AuthService {
         await _userRepository!.clearAllCache();
         print('signOut: Cleared user cache');
       }
+
+      // Clear RevenueCat user ID
+      await SubscriptionService.instance.clearUserId();
 
       await google_sign_in.GoogleSignIn.instance.signOut();
       await _supabase.auth.signOut();

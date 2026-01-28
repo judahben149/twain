@@ -5,6 +5,7 @@ import 'package:twain/constants/app_themes.dart';
 import 'package:twain/models/sticky_note.dart';
 import 'package:twain/models/sticky_note_reply.dart';
 import 'package:twain/providers/auth_providers.dart';
+import 'package:twain/screens/paywall_screen.dart';
 
 class StickyNoteDetailScreen extends ConsumerStatefulWidget {
   final StickyNote note;
@@ -37,6 +38,17 @@ class _StickyNoteDetailScreenState
 
     final message = _replyController.text.trim();
     if (message.isEmpty) return;
+
+    // Check for Twain Plus subscription
+    final isTwainPlus = ref.read(isTwainPlusProvider);
+    if (!isTwainPlus) {
+      // Show paywall
+      final subscribed = await PaywallScreen.show(
+        context,
+        feature: PaywallFeature.stickyNoteReplies,
+      );
+      if (subscribed != true) return;
+    }
 
     setState(() {
       _isSending = true;

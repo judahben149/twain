@@ -7,6 +7,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:twain/services/fcm_service.dart';
+import 'package:twain/services/subscription_service.dart';
 import 'package:twain/supabase_config.dart';
 import 'package:twain/config/api_config.dart';
 import 'app.dart';
@@ -36,6 +37,15 @@ void main() async {
     clientId: Platform.isIOS ? SupabaseConfig.googleClientIdIOS : null,
     serverClientId: SupabaseConfig.googleWebClientId, // Use Web Client ID for both platforms
   );
+
+  // Initialize RevenueCat subscription service
+  await SubscriptionService.instance.initialize();
+
+  // Set user ID if already logged in
+  final currentUser = Supabase.instance.client.auth.currentUser;
+  if (currentUser != null) {
+    await SubscriptionService.instance.setUserId(currentUser.id);
+  }
 
   runApp(const ProviderScope(child: MyApp()));
 }

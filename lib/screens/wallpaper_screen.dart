@@ -15,6 +15,7 @@ import 'package:twain/screens/shared_board_screen.dart';
 import 'package:twain/screens/wallpaper_preview_screen.dart';
 import 'package:twain/screens/unsplash_browser_screen.dart';
 import 'package:twain/screens/folders_list_screen.dart';
+import 'package:twain/screens/paywall_screen.dart';
 import 'package:twain/services/wallpaper_manager_service.dart';
 import 'package:twain/services/cache/twain_cache_managers.dart';
 import 'package:twain/utils/image_url_utils.dart';
@@ -508,12 +509,24 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
           ),
           const SizedBox(height: 12),
           OutlinedButton(
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const FoldersListScreen(),
-              ),
-            ),
+            onPressed: () async {
+              // Check for Twain Plus subscription
+              final isTwainPlus = ref.read(isTwainPlusProvider);
+              if (!isTwainPlus) {
+                final subscribed = await PaywallScreen.show(
+                  context,
+                  feature: PaywallFeature.wallpaperRotation,
+                );
+                if (subscribed != true) return;
+              }
+              if (!mounted) return;
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const FoldersListScreen(),
+                ),
+              );
+            },
             style: OutlinedButton.styleFrom(
               foregroundColor: twainTheme.activeStatusTextColor,
               side: BorderSide(
@@ -540,6 +553,22 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: twainTheme.activeStatusTextColor,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    'PLUS',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ],
