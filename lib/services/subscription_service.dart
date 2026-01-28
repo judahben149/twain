@@ -7,9 +7,9 @@ import 'package:twain/models/subscription_status.dart';
 
 /// RevenueCat configuration
 class RevenueCatConfig {
-  // API Keys - Replace with production keys before release
-  static const String androidApiKey = 'test_jthDZxTflUCGYNCfjSOPyZYwOTk';
-  static const String iosApiKey = 'test_jthDZxTflUCGYNCfjSOPyZYwOTk'; // TODO: Add iOS key
+  // API Keys
+  static const String androidApiKey = 'goog_KRbvdZPJdZKoBDdcFUMnpomIpij';
+  static const String iosApiKey = ''; // TODO: Add iOS key when available
 
   // Entitlement ID - This is what you set up in RevenueCat dashboard
   static const String premiumEntitlement = 'twain_plus';
@@ -58,6 +58,14 @@ class SubscriptionService {
 
       // Fetch initial status
       await refreshStatus();
+
+      // Pre-fetch offerings to speed up paywall loading
+      try {
+        await Purchases.getOfferings();
+        debugPrint('SubscriptionService: Offerings pre-fetched');
+      } catch (e) {
+        debugPrint('SubscriptionService: Failed to pre-fetch offerings - $e');
+      }
 
       _isInitialized = true;
       debugPrint('SubscriptionService: Initialized successfully');
