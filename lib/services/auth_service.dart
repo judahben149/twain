@@ -87,6 +87,27 @@ class AuthService {
     });
   }
 
+  Future<void> updateUserPreferences(Map<String, dynamic> preferences) async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) {
+      print('updateUserPreferences: No authenticated user');
+      return;
+    }
+    try {
+      await _supabase.from('users').update({'preferences': preferences}).eq('id', user.id);
+      if (_userRepository != null) {
+        final cachedUser = await _userRepository!.getCachedUser(user.id);
+        if (cachedUser != null) {
+          final updatedUser = cachedUser.copyWith(preferences: preferences);
+          await _userRepository!.cacheUser(updatedUser);
+        }
+      }
+    } catch (e) {
+      print('updateUserPreferences error: $e');
+      rethrow;
+    }
+  }
+
   // Sign in with Google (Native)
   Future<TwainUser?> signInWithGoogle() async {
     try {

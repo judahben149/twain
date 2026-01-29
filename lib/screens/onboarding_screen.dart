@@ -25,26 +25,54 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     OnboardingPageData(
       lottiePath: 'assets/lottie/love_flying.json',
       title: 'Welcome to Twain',
-      description: 'The everything app for couples. Stay close, even when you\'re apart.',
-      gradientColors: [const Color(0xFFFFF8FB), const Color(0xFFFFEEF4)],
+      description:
+          'The everything app for couples. Stay close, even when you\'re apart.',
+      circleGradientColors: const [Color(0xFFFFF8FB), Color(0xFFFFEEF4)],
+      circleGradientColorsDark: const [Color(0xFF3A2946), Color(0xFF2C1A36)],
+      backgroundGradientColors: const [Color(0xFFFFF5FA), Color(0xFFFFEBF4)],
+      backgroundGradientColorsDark: const [
+        Color(0xFF1B1426),
+        Color(0xFF24162E)
+      ],
     ),
     OnboardingPageData(
       lottiePath: 'assets/lottie/wallpaper.json',
       title: 'Sync Wallpapers',
-      description: 'Set the same wallpaper on both your phones with a single tap. Share memories, art, or sweet moments.',
-      gradientColors: [const Color(0xFFE8D5F2), const Color(0xFFFCE4EC)],
+      description:
+          'Set the same wallpaper on both your phones with a single tap. Share memories, art, or sweet moments.',
+      circleGradientColors: const [Color(0xFFE8D5F2), Color(0xFFFCE4EC)],
+      circleGradientColorsDark: const [Color(0xFF2B2040), Color(0xFF2A1F31)],
+      backgroundGradientColors: const [Color(0xFFE6DEFB), Color(0xFFFBE7F3)],
+      backgroundGradientColorsDark: const [
+        Color(0xFF14182A),
+        Color(0xFF1C1B2B)
+      ],
     ),
     OnboardingPageData(
       lottiePath: 'assets/lottie/sticky_notes.json',
       title: 'Sweet Messages',
-      description: 'Leave colorful sticky notes for your partner. Send love notes that brighten their day.',
-      gradientColors: [const Color(0xFFFFF9C4), const Color(0xFFE1BEE7)],
+      description:
+          'Leave colorful sticky notes for your partner. Send love notes that brighten their day.',
+      circleGradientColors: const [Color(0xFFFFF9C4), Color(0xFFE1BEE7)],
+      circleGradientColorsDark: const [Color(0xFF3A321A), Color(0xFF2C2034)],
+      backgroundGradientColors: const [Color(0xFFFFF7DA), Color(0xFFE9D7F8)],
+      backgroundGradientColorsDark: const [
+        Color(0xFF1C1A12),
+        Color(0xFF231B29)
+      ],
     ),
     OnboardingPageData(
       lottiePath: 'assets/lottie/shared_board.json',
       title: 'Shared Memories',
-      description: 'Create a shared board with photos and memories. Build your story together.',
-      gradientColors: [const Color(0xFFE3F2FD), const Color(0xFFC8E6C9)],
+      description:
+          'Create a shared board with photos and memories. Build your story together.',
+      circleGradientColors: const [Color(0xFFE3F2FD), Color(0xFFC8E6C9)],
+      circleGradientColorsDark: const [Color(0xFF1F2632), Color(0xFF1C2A22)],
+      backgroundGradientColors: const [Color(0xFFE7F4FF), Color(0xFFD4F3E1)],
+      backgroundGradientColorsDark: const [
+        Color(0xFF101A24),
+        Color(0xFF142018)
+      ],
     ),
   ];
 
@@ -79,14 +107,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final theme = Theme.of(context);
     final twainTheme = context.twainTheme;
     final isLastPage = _currentPage == _pages.length - 1;
+    final currentPage = _pages[_currentPage];
+    final backgroundGradient =
+        _resolveBackgroundGradient(currentPage, theme, twainTheme);
 
     return Scaffold(
-      body: Container(
+      body: AnimatedContainer(
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOut,
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: twainTheme.gradientColors,
+            colors: backgroundGradient,
           ),
         ),
         child: SafeArea(
@@ -94,7 +127,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             children: [
               // Header with skip button
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -209,25 +243,44 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
+  List<Color> _resolveBackgroundGradient(
+    OnboardingPageData page,
+    ThemeData theme,
+    TwainThemeExtension twainTheme,
+  ) {
+    final isDark = theme.brightness == Brightness.dark;
+    if (isDark) {
+      return page.backgroundGradientColorsDark ??
+          page.backgroundGradientColors ??
+          twainTheme.gradientColors;
+    }
+    return page.backgroundGradientColors ?? twainTheme.gradientColors;
+  }
+
   Widget _buildOnboardingPage(OnboardingPageData page, ThemeData theme) {
+    final isDark = theme.brightness == Brightness.dark;
+    final circleColors = isDark
+        ? page.circleGradientColorsDark ?? page.circleGradientColors
+        : page.circleGradientColors;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 40.0),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            width: 200,
-            height: 200,
+            width: 260,
+            height: 260,
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: page.gradientColors,
+                colors: circleColors,
               ),
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: page.gradientColors.first.withOpacity(0.3),
+                  color: circleColors.first.withOpacity(isDark ? 0.5 : 0.3),
                   blurRadius: 30,
                   offset: const Offset(0, 10),
                 ),
@@ -296,12 +349,18 @@ class OnboardingPageData {
   final String lottiePath;
   final String title;
   final String description;
-  final List<Color> gradientColors;
+  final List<Color> circleGradientColors;
+  final List<Color>? circleGradientColorsDark;
+  final List<Color>? backgroundGradientColors;
+  final List<Color>? backgroundGradientColorsDark;
 
   OnboardingPageData({
     required this.lottiePath,
     required this.title,
     required this.description,
-    required this.gradientColors,
+    required this.circleGradientColors,
+    this.circleGradientColorsDark,
+    this.backgroundGradientColors,
+    this.backgroundGradientColorsDark,
   });
 }

@@ -37,7 +37,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   bool _hasCheckedBatteryOptimization = false;
   bool _hasCheckedLocationPermission = false;
   bool _hasCheckedTour = false;
-  bool _showPartnerCelebration = false;
+  bool _showPairingPrompt = false;
+  bool _hasShownPairingPrompt = false;
+  String? _lastPairId;
+
+  String? _normalizePairId(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return null;
+    }
+    return value;
+  }
+
+  bool _isPaired(TwainUser? user) => _normalizePairId(user?.pairId) != null;
+
   Timer? _locationUpdateTimer;
   ProviderSubscription<AsyncValue<TwainUser?>>? _userSubscription;
   ProviderSubscription<AsyncValue<bool>>? _distanceFeatureSubscription;
@@ -56,33 +68,56 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    final currentUserAsync = ref.read(twainUserProvider);
+    currentUserAsync.whenOrNull(
+      data: (user) {
+        _lastPairId = _normalizePairId(user?.pairId);
+        final hasSeenPrompt =
+            user?.preferences?['has_seen_pairing_prompt'] as bool? ?? false;
+        _hasShownPairingPrompt = hasSeenPrompt;
+        if (_lastPairId != null) {
+          _postFrame(_scheduleLocationSync);
+          _postFrame(() => _checkAndShowTour(isPaired: true));
+        } else {
+          if (!_hasShownPairingPrompt) {
+            _postFrame(() => _maybeShowPairingPrompt(user));
+          }
+        }
+      },
+    );
 
     _userSubscription = ref.listenManual<AsyncValue<TwainUser?>>(
       twainUserProvider,
       (previous, next) {
-        final prevPairId = previous?.maybeWhen(
-          data: (user) => user?.pairId,
-          orElse: () => null,
-        );
-        final nextPairId = next.maybeWhen(
-          data: (user) => user?.pairId,
-          orElse: () => null,
-        );
+        if (next is! AsyncData<TwainUser?>) return;
 
-        if (nextPairId != null && prevPairId != nextPairId) {
-          _hasCheckedLocationPermission = false;
-          _postFrame(_scheduleLocationSync);
+        final user = next.value;
+        final nextPairId = _normalizePairId(user?.pairId);
+        final previousPairId = _lastPairId;
+        final isPaired = nextPairId != null;
 
-          // Show celebration when user connects with a partner
-          if (prevPairId == null && nextPairId != null) {
-            _showPartnerConnectionCelebration();
+        final hasPairChanged = nextPairId != previousPairId;
+        if (hasPairChanged) {
+          if (isPaired) {
+            _hasCheckedLocationPermission = false;
+            _postFrame(_scheduleLocationSync);
+          } else {
+            _stopLocationUpdates();
+            _hasCheckedLocationPermission = false;
           }
         }
 
-        if (nextPairId == null) {
-          _stopLocationUpdates();
-          _hasCheckedLocationPermission = false;
+        if (isPaired) {
+          _dismissPairingPrompt();
+          _postFrame(() => _checkAndShowTour(isPaired: true));
+        } else {
+          _hasCheckedTour = false;
+          if (!_hasShownPairingPrompt) {
+            _postFrame(() => _maybeShowPairingPrompt(user));
+          }
         }
+
+        _lastPairId = nextPairId;
       },
       fireImmediately: false,
     );
@@ -106,31 +141,52 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _evaluateInitialLocationCheck();
-      _checkAndShowTour();
-    });
-  }
-
-  void _showPartnerConnectionCelebration() {
-    if (!mounted) return;
-
-    setState(() {
-      _showPartnerCelebration = true;
-    });
-
-    // Auto-dismiss after animation completes, then show tour
-    Future.delayed(const Duration(seconds: 4), () {
-      if (mounted) {
-        setState(() {
-          _showPartnerCelebration = false;
-        });
-        // Show tour after celebration
-        _hasCheckedTour = false;
-        _checkAndShowTour();
+      final currentUser = ref.read(twainUserProvider).value;
+      final isPaired = _isPaired(currentUser);
+      if (isPaired) {
+        _checkAndShowTour(isPaired: true);
+      } else {
+        _maybeShowPairingPrompt(currentUser);
       }
     });
   }
 
-  Future<void> _checkAndShowTour() async {
+  void _maybeShowPairingPrompt(TwainUser? user) {
+    if (_isPaired(user) || _hasShownPairingPrompt) return;
+    _showPairingPromptOverlay();
+  }
+
+  void _showPairingPromptOverlay() {
+    if (!mounted) return;
+    setState(() {
+      _showPairingPrompt = true;
+      _hasShownPairingPrompt = true;
+      _updatePromptPreference(true);
+    });
+  }
+
+  void _dismissPairingPrompt() {
+    if (!mounted || !_showPairingPrompt) return;
+    setState(() {
+      _showPairingPrompt = false;
+    });
+    _updatePromptPreference(true);
+  }
+
+  void _updatePromptPreference(bool value) {
+    final user = ref.read(twainUserProvider).value;
+    if (user == null) return;
+    final preferences = Map<String, dynamic>.from(user.preferences ?? {});
+    if (preferences['has_seen_pairing_prompt'] == value) return;
+    preferences['has_seen_pairing_prompt'] = value;
+    ref.read(authServiceProvider).updateUserPreferences(preferences);
+  }
+
+  Future<void> _checkAndShowTour({required bool isPaired}) async {
+    if (!isPaired) {
+      _hasCheckedTour = false;
+      return;
+    }
     if (_hasCheckedTour) return;
     _hasCheckedTour = true;
 
@@ -194,7 +250,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               return _buildTourContent(
                 icon: Icons.settings_outlined,
                 title: 'Settings',
-                description: 'Tap the Twain logo to access settings, manage your subscription, and customize your experience.',
+                description:
+                    'Tap the Twain logo to access settings, manage your subscription, and customize your experience.',
                 twainTheme: twainTheme,
               );
             },
@@ -213,7 +270,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               return _buildTourContent(
                 icon: Icons.person,
                 title: 'Your Profile',
-                description: 'Tap here to view and edit your profile, change your avatar, and set a nickname.',
+                description:
+                    'Tap here to view and edit your profile, change your avatar, and set a nickname.',
                 twainTheme: twainTheme,
               );
             },
@@ -232,7 +290,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               return _buildTourContent(
                 icon: Icons.favorite,
                 title: "Your Partner's Profile",
-                description: "See your partner's profile here. You can choose to display their nickname instead of their name.",
+                description:
+                    "See your partner's profile here. You can choose to display their nickname instead of their name.",
                 twainTheme: twainTheme,
               );
             },
@@ -252,7 +311,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               return _buildTourContent(
                 icon: Icons.wallpaper_outlined,
                 title: 'Sync Wallpapers',
-                description: 'Set matching wallpapers with your partner. Both of you will have the same beautiful background.',
+                description:
+                    'Set matching wallpapers with your partner. Both of you will have the same beautiful background.',
                 twainTheme: twainTheme,
               );
             },
@@ -272,7 +332,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               return _buildTourContent(
                 icon: Icons.sticky_note_2_outlined,
                 title: 'Sticky Notes',
-                description: 'Leave sweet messages for your partner. Colorful notes to brighten their day!',
+                description:
+                    'Leave sweet messages for your partner. Colorful notes to brighten their day!',
                 twainTheme: twainTheme,
               );
             },
@@ -559,175 +620,219 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   Widget build(BuildContext context) {
     final currentUser = ref.watch(twainUserProvider).value;
 
-    return Stack(
-      children: [
-        Scaffold(
-      body: Container(
-        decoration: _buildGradientBackground(context),
-        child: SafeArea(
-          child: Column(
-            children: [
-              _buildHeader(context),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 24),
-                      _buildConnectionCard(context, currentUser),
-                      const SizedBox(height: 32),
-                      Container(
-                        key: _wallpaperKey,
-                        child: _buildFeatureCard(
-                          context: context,
-                          icon: Icons.wallpaper_outlined,
-                          title: 'Wallpaper',
-                          subtitle: 'Sync your home screens',
-                          colors: [
-                            const Color(0xFFE8D5F2),
-                            const Color(0xFFFCE4EC),
-                          ],
-                          onTap: () => _handleFeatureTap(
-                            context: context,
-                            isPaired: currentUser?.pairId != null,
-                            onPaired: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const WallpaperScreen(),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildFeatureCard(
-                        context: context,
-                        icon: Icons.photo_library_outlined,
-                        title: 'Shared Board',
-                        subtitle: 'Photos & memories',
-                        colors: [
-                          const Color(0xFFE3F2FD),
-                          const Color(0xFFFFF9C4),
-                          const Color(0xFFC8E6C9),
-                        ],
-                        onTap: () => _handleFeatureTap(
-                          context: context,
-                          isPaired: currentUser?.pairId != null,
-                          onPaired: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const SharedBoardScreen(),
+    return Scaffold(
+      body: Stack(
+        children: [
+          Container(
+            decoration: _buildGradientBackground(context),
+            child: SafeArea(
+              child: Column(
+                children: [
+                  _buildHeader(context),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 24),
+                          _buildConnectionCard(context, currentUser),
+                          const SizedBox(height: 32),
+                          Container(
+                            key: _wallpaperKey,
+                            child: _buildFeatureCard(
+                              context: context,
+                              icon: Icons.wallpaper_outlined,
+                              title: 'Wallpaper',
+                              subtitle: 'Sync your home screens',
+                              colors: const [
+                                Color(0xFFE8D5F2),
+                                Color(0xFFFCE4EC),
+                              ],
+                              onTap: () => _handleFeatureTap(
+                                context: context,
+                                isPaired: currentUser?.pairId != null,
+                                onPaired: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const WallpaperScreen(),
+                                    ),
+                                  );
+                                },
                               ),
-                            );
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Container(
-                        key: _stickyNotesKey,
-                        child: _buildFeatureCard(
-                          context: context,
-                          icon: Icons.sticky_note_2_outlined,
-                          title: 'Sticky Notes',
-                          subtitle: 'Leave sweet messages',
-                          colors: [
-                            const Color(0xFFFFF9C4),
-                            const Color(0xFFFCE4EC),
-                            const Color(0xFFE1BEE7),
-                          ],
-                          onTap: () => _handleFeatureTap(
-                            context: context,
-                            isPaired: currentUser?.pairId != null,
-                            onPaired: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const StickyNotesScreen(),
-                                ),
-                              );
-                            },
+                            ),
                           ),
-                        ),
+                          const SizedBox(height: 16),
+                          _buildFeatureCard(
+                            context: context,
+                            icon: Icons.photo_library_outlined,
+                            title: 'Shared Board',
+                            subtitle: 'Photos & memories',
+                            colors: const [
+                              Color(0xFFE3F2FD),
+                              Color(0xFFFFF9C4),
+                              Color(0xFFC8E6C9),
+                            ],
+                            onTap: () => _handleFeatureTap(
+                              context: context,
+                              isPaired: currentUser?.pairId != null,
+                              onPaired: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const SharedBoardScreen(),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Container(
+                            key: _stickyNotesKey,
+                            child: _buildFeatureCard(
+                              context: context,
+                              icon: Icons.sticky_note_2_outlined,
+                              title: 'Sticky Notes',
+                              subtitle: 'Leave sweet messages',
+                              colors: const [
+                                Color(0xFFFFF9C4),
+                                Color(0xFFFCE4EC),
+                                Color(0xFFE1BEE7),
+                              ],
+                              onTap: () => _handleFeatureTap(
+                                context: context,
+                                isPaired: currentUser?.pairId != null,
+                                onPaired: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const StickyNotesScreen(),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                        ],
                       ),
-                      const SizedBox(height: 24),
-                    ],
+                    ),
                   ),
-                ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-        ),
-        ),
-        // Partner connection celebration overlay
-        if (_showPartnerCelebration)
-          Positioned.fill(
-            child: GestureDetector(
-              onTap: () {
-                setState(() {
-                  _showPartnerCelebration = false;
-                });
-              },
-              child: Container(
-                color: Colors.black.withOpacity(0.7),
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      SizedBox(
-                        width: 200,
-                        height: 200,
-                        child: Lottie.asset(
-                          'assets/lottie/love_popper.json',
-                          fit: BoxFit.contain,
-                          repeat: true,
-                          errorBuilder: (context, error, stackTrace) {
-                            debugPrint('Lottie error (love_popper): $error');
-                            return const Icon(
-                              Icons.celebration,
-                              size: 100,
+          if (_showPairingPrompt)
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: () {
+                  _dismissPairingPrompt();
+                },
+                child: Container(
+                  color: Colors.black.withOpacity(0.7),
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 260,
+                            height: 260,
+                            child: Lottie.asset(
+                              'assets/lottie/love_popper.json',
+                              fit: BoxFit.contain,
+                              repeat: true,
+                              errorBuilder: (context, error, stackTrace) {
+                                debugPrint(
+                                    'Lottie error (love_popper): $error');
+                                return const Icon(
+                                  Icons.favorite_outline,
+                                  size: 100,
+                                  color: Colors.white,
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          const Text(
+                            'Pair up to unlock Twain',
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
                               color: Colors.white,
-                            );
-                          },
-                        ),
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Pair with your partner to unlock wallpapers, sticky notes, and more.',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.white.withOpacity(0.85),
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 28),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: () {
+                                _dismissPairingPrompt();
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const PairingScreen(),
+                                  ),
+                                ).then((_) {
+                                  final latestUser =
+                                      ref.read(twainUserProvider).value;
+                                  if (!_isPaired(latestUser) &&
+                                      !_hasShownPairingPrompt) {
+                                    _postFrame(
+                                      () => _maybeShowPairingPrompt(latestUser),
+                                    );
+                                  }
+                                });
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: context.twainTheme.iconColor,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                              ),
+                              child: const Text(
+                                'Get Paired',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Tap anywhere to close',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.white.withOpacity(0.6),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 24),
-                      const Text(
-                        'You\'re now connected!',
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Start sharing wallpapers, sticky notes, and more!',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.white.withOpacity(0.8),
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 32),
-                      Text(
-                        'Tap anywhere to continue',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.white.withOpacity(0.5),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 
