@@ -122,7 +122,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   child: IntrinsicHeight(
                     child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                      padding:
+                          EdgeInsets.symmetric(horizontal: horizontalPadding),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -211,7 +212,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ),
       child: Row(
         children: [
-          Icon(Icons.error_outline, color: twainTheme.destructiveColor, size: 20),
+          Icon(Icons.error_outline,
+              color: twainTheme.destructiveColor, size: 20),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -264,11 +266,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         if (Platform.isIOS) ...[
           const SizedBox(height: 16),
           SocialLoginButton(
-            onPressed: _isLoading ? null : () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Apple Sign-In coming soon')),
-              );
-            },
+            onPressed: _isLoading
+                ? null
+                : () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text('Apple Sign-In coming soon')),
+                    );
+                  },
             text: 'Apple',
             icon: SvgPicture.asset(
               'assets/images/apple-icon.svg',
@@ -296,12 +301,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
           ),
           GestureDetector(
-            onTap: _isLoading ? null : () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const SignupScreen()),
-              );
-            },
+            onTap: _isLoading
+                ? null
+                : () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const SignupScreen()),
+                    );
+                  },
             child: Text(
               'Sign up',
               style: TextStyle(

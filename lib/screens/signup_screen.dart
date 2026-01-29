@@ -38,7 +38,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     final password = _passwordController.text;
     final confirmPassword = _confirmPasswordController.text;
 
-    if (name.isEmpty || email.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
+    if (name.isEmpty ||
+        email.isEmpty ||
+        password.isEmpty ||
+        confirmPassword.isEmpty) {
       setState(() {
         _errorMessage = 'Please fill in all fields';
       });
@@ -222,7 +225,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       ),
       child: Row(
         children: [
-          Icon(Icons.error_outline, color: twainTheme.destructiveColor, size: 20),
+          Icon(Icons.error_outline,
+              color: twainTheme.destructiveColor, size: 20),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -243,11 +247,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       label: 'Full Name',
       child: TextField(
         controller: controller,
-        decoration: const InputDecoration(
+        decoration: buildTwainFilledInputDecoration(
+          context,
           hintText: 'Enter your name',
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.all(Radius.circular(14)),
-          ),
         ),
       ),
     );
@@ -297,11 +299,14 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         if (Platform.isIOS) ...[
           const SizedBox(height: 16),
           SocialLoginButton(
-            onPressed: _isLoading ? null : () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Apple Sign-In coming soon')),
-              );
-            },
+            onPressed: _isLoading
+                ? null
+                : () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text('Apple Sign-In coming soon')),
+                    );
+                  },
             text: 'Apple',
             icon: SvgPicture.asset(
               'assets/images/apple-icon.svg',
