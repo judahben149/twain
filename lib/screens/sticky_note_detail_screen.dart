@@ -40,14 +40,19 @@ class _StickyNoteDetailScreenState
     if (message.isEmpty) return;
 
     // Check for Twain Plus subscription
-    final isTwainPlus = ref.read(isTwainPlusProvider);
+    var isTwainPlus = ref.read(isTwainPlusProvider);
     if (!isTwainPlus) {
       // Show paywall
-      final subscribed = await PaywallScreen.show(
+      await PaywallScreen.show(
         context,
         feature: PaywallFeature.stickyNoteReplies,
       );
-      if (subscribed != true) return;
+      // Refresh and re-check subscription status after paywall
+      ref.invalidate(subscriptionStatusProvider);
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (!mounted) return;
+      isTwainPlus = ref.read(isTwainPlusProvider);
+      if (!isTwainPlus) return;
     }
 
     setState(() {

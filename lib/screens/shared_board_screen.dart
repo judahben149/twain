@@ -2,11 +2,17 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:twain/constants/app_themes.dart';
 import 'package:twain/models/shared_board_photo.dart';
 import 'package:twain/providers/wallpaper_providers.dart';
 import 'package:twain/providers/auth_providers.dart';
+import 'package:twain/screens/paywall_screen.dart';
 import 'package:twain/screens/wallpaper_preview_screen.dart';
+
+const int _maxDailyUploads = 5;
+const String _dailyUploadsKey = 'shared_board_daily_uploads';
+const String _dailyUploadsDateKey = 'shared_board_uploads_date';
 
 class SharedBoardScreen extends ConsumerStatefulWidget {
   const SharedBoardScreen({super.key});
@@ -17,6 +23,45 @@ class SharedBoardScreen extends ConsumerStatefulWidget {
 
 class _SharedBoardScreenState extends ConsumerState<SharedBoardScreen> {
   bool _isUploading = false;
+  int _todayUploads = 0;
+  bool _hasLoadedUploads = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDailyUploads();
+  }
+
+  Future<void> _loadDailyUploads() async {
+    final prefs = await SharedPreferences.getInstance();
+    final storedDate = prefs.getString(_dailyUploadsDateKey);
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+
+    if (storedDate == today) {
+      _todayUploads = prefs.getInt(_dailyUploadsKey) ?? 0;
+    } else {
+      // Reset for new day
+      _todayUploads = 0;
+      await prefs.setString(_dailyUploadsDateKey, today);
+      await prefs.setInt(_dailyUploadsKey, 0);
+    }
+
+    if (mounted) {
+      setState(() {
+        _hasLoadedUploads = true;
+      });
+    }
+  }
+
+  Future<void> _incrementDailyUploads() async {
+    final prefs = await SharedPreferences.getInstance();
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    await prefs.setString(_dailyUploadsDateKey, today);
+    _todayUploads++;
+    await prefs.setInt(_dailyUploadsKey, _todayUploads);
+  }
+
+  bool get _canUploadToday => _todayUploads < _maxDailyUploads;
 
   @override
   Widget build(BuildContext context) {
@@ -70,29 +115,7 @@ class _SharedBoardScreenState extends ConsumerState<SharedBoardScreen> {
                     ),
                   ),
                   const SizedBox(height: 32),
-                  ElevatedButton.icon(
-                    onPressed: _isUploading ? null : _uploadPhoto,
-                    icon: const Icon(Icons.add_photo_alternate, size: 24),
-                    label: const Text(
-                      'Upload Photo',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: twainTheme.iconColor,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 32,
-                        vertical: 16,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 2,
-                    ),
-                  ),
+                  _buildUploadButton(twainTheme),
                 ],
               ),
             );
@@ -245,25 +268,138 @@ class _SharedBoardScreenState extends ConsumerState<SharedBoardScreen> {
       ),
       floatingActionButton: photosAsync.maybeWhen(
         data: (photos) => photos.isNotEmpty
-            ? FloatingActionButton(
-                onPressed: _isUploading ? null : _uploadPhoto,
-                backgroundColor: _isUploading
-                    ? theme.colorScheme.onSurface.withOpacity(0.4)
-                    : twainTheme.iconColor,
-                child: _isUploading
-                    ? const SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : const Icon(Icons.add, size: 28),
-              )
+            ? _buildUploadFab(theme, twainTheme)
             : null,
         orElse: () => null,
       ),
+    );
+  }
+
+  Widget _buildUploadButton(TwainThemeExtension twainTheme) {
+    final isTwainPlus = ref.watch(isTwainPlusProvider);
+
+    return Column(
+      children: [
+        ElevatedButton.icon(
+          onPressed: _isUploading ? null : _uploadPhoto,
+          icon: const Icon(Icons.add_photo_alternate, size: 24),
+          label: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Upload Photo',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              if (!isTwainPlus) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '$_todayUploads/$_maxDailyUploads',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: twainTheme.iconColor,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(
+              horizontal: 32,
+              vertical: 16,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            elevation: 2,
+          ),
+        ),
+        if (!isTwainPlus) ...[
+          const SizedBox(height: 12),
+          TextButton(
+            onPressed: () async {
+              await PaywallScreen.show(
+                context,
+                feature: PaywallFeature.sharedBoardUpload,
+              );
+              ref.invalidate(subscriptionStatusProvider);
+            },
+            child: Text(
+              'Upgrade for unlimited uploads',
+              style: TextStyle(
+                fontSize: 13,
+                color: twainTheme.activeStatusTextColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildUploadFab(ThemeData theme, TwainThemeExtension twainTheme) {
+    final isTwainPlus = ref.watch(isTwainPlusProvider);
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        FloatingActionButton(
+          onPressed: _isUploading ? null : _uploadPhoto,
+          backgroundColor: _isUploading
+              ? theme.colorScheme.onSurface.withOpacity(0.4)
+              : twainTheme.iconColor,
+          child: _isUploading
+              ? const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
+              : const Icon(Icons.add, size: 28),
+        ),
+        if (!isTwainPlus)
+          Positioned(
+            top: -4,
+            right: -4,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: twainTheme.activeStatusTextColor,
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Text(
+                '$_todayUploads/$_maxDailyUploads',
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -281,6 +417,37 @@ class _SharedBoardScreenState extends ConsumerState<SharedBoardScreen> {
 
   Future<void> _uploadPhoto() async {
     if (_isUploading) return;
+
+    // Check for Twain Plus subscription
+    var isTwainPlus = ref.read(isTwainPlusProvider);
+    if (!isTwainPlus) {
+      // Check daily upload limit for free users
+      if (!_canUploadToday) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Daily upload limit reached ($_maxDailyUploads/day). Upgrade to Twain Plus for unlimited uploads!'),
+            backgroundColor: context.twainTheme.destructiveColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            action: SnackBarAction(
+              label: 'Upgrade',
+              textColor: Colors.white,
+              onPressed: () async {
+                await PaywallScreen.show(
+                  context,
+                  feature: PaywallFeature.sharedBoardUpload,
+                );
+                ref.invalidate(subscriptionStatusProvider);
+              },
+            ),
+          ),
+        );
+        return;
+      }
+    }
 
     final ImagePicker picker = ImagePicker();
 
@@ -322,21 +489,33 @@ class _SharedBoardScreenState extends ConsumerState<SharedBoardScreen> {
       final service = ref.read(wallpaperServiceProvider);
       await service.uploadToSharedBoard(File(image.path));
 
+      // Increment daily upload count for free users
+      final isTwainPlusNow = ref.read(isTwainPlusProvider);
+      if (!isTwainPlusNow) {
+        await _incrementDailyUploads();
+      }
+
       if (!mounted) return;
 
       // Dismiss loading snackbar and show success
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Row(
             children: [
-              Icon(Icons.check_circle, color: Colors.white),
-              SizedBox(width: 16),
-              Text('Photo uploaded successfully!'),
+              const Icon(Icons.check_circle, color: Colors.white),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  isTwainPlusNow
+                      ? 'Photo uploaded successfully!'
+                      : 'Photo uploaded! (${_maxDailyUploads - _todayUploads} uploads remaining today)',
+                ),
+              ),
             ],
           ),
           backgroundColor: Colors.green,
-          duration: Duration(seconds: 2),
+          duration: const Duration(seconds: 2),
         ),
       );
     } catch (e) {

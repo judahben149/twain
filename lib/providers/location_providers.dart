@@ -10,7 +10,7 @@ import 'package:twain/repositories/location_repository.dart';
 import 'package:twain/services/location_service.dart';
 
 const _distanceFeaturePrefKey = 'distance_meter_enabled';
-const _defaultFeatureEnabled = true;
+const _defaultFeatureEnabled = false;
 
 final locationRepositoryProvider = Provider<LocationRepository>((ref) {
   final dbService = ref.watch(databaseServiceProvider);

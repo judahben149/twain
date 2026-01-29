@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:lottie/lottie.dart';
 import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
 import 'package:twain/constants/app_themes.dart';
 import 'package:twain/models/distance_state.dart';
@@ -36,11 +37,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   bool _hasCheckedBatteryOptimization = false;
   bool _hasCheckedLocationPermission = false;
   bool _hasCheckedTour = false;
+  bool _showPartnerCelebration = false;
   Timer? _locationUpdateTimer;
   ProviderSubscription<AsyncValue<TwainUser?>>? _userSubscription;
   ProviderSubscription<AsyncValue<bool>>? _distanceFeatureSubscription;
 
   // Tour keys
+  final GlobalKey _settingsKey = GlobalKey();
   final GlobalKey _userAvatarKey = GlobalKey();
   final GlobalKey _partnerAvatarKey = GlobalKey();
   final GlobalKey _stickyNotesKey = GlobalKey();
@@ -69,6 +72,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         if (nextPairId != null && prevPairId != nextPairId) {
           _hasCheckedLocationPermission = false;
           _postFrame(_scheduleLocationSync);
+
+          // Show celebration when user connects with a partner
+          if (prevPairId == null && nextPairId != null) {
+            _showPartnerConnectionCelebration();
+          }
         }
 
         if (nextPairId == null) {
@@ -99,6 +107,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       if (!mounted) return;
       _evaluateInitialLocationCheck();
       _checkAndShowTour();
+    });
+  }
+
+  void _showPartnerConnectionCelebration() {
+    if (!mounted) return;
+
+    setState(() {
+      _showPartnerCelebration = true;
+    });
+
+    // Auto-dismiss after animation completes, then show tour
+    Future.delayed(const Duration(seconds: 4), () {
+      if (mounted) {
+        setState(() {
+          _showPartnerCelebration = false;
+        });
+        // Show tour after celebration
+        _hasCheckedTour = false;
+        _checkAndShowTour();
+      }
     });
   }
 
@@ -153,6 +181,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   List<TargetFocus> _createTourTargets(TwainThemeExtension twainTheme) {
     return [
+      TargetFocus(
+        identify: 'settings',
+        keyTarget: _settingsKey,
+        alignSkip: Alignment.bottomRight,
+        shape: ShapeLightFocus.RRect,
+        radius: 12,
+        contents: [
+          TargetContent(
+            align: ContentAlign.bottom,
+            builder: (context, controller) {
+              return _buildTourContent(
+                icon: Icons.settings_outlined,
+                title: 'Settings',
+                description: 'Tap the Twain logo to access settings, manage your subscription, and customize your experience.',
+                twainTheme: twainTheme,
+              );
+            },
+          ),
+        ],
+      ),
       TargetFocus(
         identify: 'user_avatar',
         keyTarget: _userAvatarKey,
@@ -511,7 +559,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   Widget build(BuildContext context) {
     final currentUser = ref.watch(twainUserProvider).value;
 
-    return Scaffold(
+    return Stack(
+      children: [
+        Scaffold(
       body: Container(
         decoration: _buildGradientBackground(context),
         child: SafeArea(
@@ -610,7 +660,74 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             ],
           ),
         ),
-      ),
+        ),
+        ),
+        // Partner connection celebration overlay
+        if (_showPartnerCelebration)
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  _showPartnerCelebration = false;
+                });
+              },
+              child: Container(
+                color: Colors.black.withOpacity(0.7),
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 200,
+                        height: 200,
+                        child: Lottie.asset(
+                          'assets/lottie/love_popper.json',
+                          fit: BoxFit.contain,
+                          repeat: true,
+                          errorBuilder: (context, error, stackTrace) {
+                            debugPrint('Lottie error (love_popper): $error');
+                            return const Icon(
+                              Icons.celebration,
+                              size: 100,
+                              color: Colors.white,
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      const Text(
+                        'You\'re now connected!',
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Start sharing wallpapers, sticky notes, and more!',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.white.withOpacity(0.8),
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 32),
+                      Text(
+                        'Tap anywhere to continue',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.white.withOpacity(0.5),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -632,6 +749,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       child: Row(
         children: [
           GestureDetector(
+            key: _settingsKey,
             onTap: () {
               Navigator.push(
                 context,

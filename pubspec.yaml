@@ -73,6 +73,12 @@ dependencies:
   # App tour/tutorial
   tutorial_coach_mark: ^1.2.11
 
+  # Lottie animations
+  lottie: ^3.1.0
+
+  # URL launcher for opening links
+  url_launcher: ^6.2.5
+
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
@@ -106,6 +112,7 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/images/
+    - assets/lottie/
     - .env
 
   # An image asset can refer to one or more resolution-specific "variants", see

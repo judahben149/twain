@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:lottie/lottie.dart';
 import 'package:twain/constants/app_themes.dart';
 import 'package:twain/services/onboarding_service.dart';
-import 'package:twain/widgets/onboarding_page.dart';
 
 class OnboardingScreen extends StatefulWidget {
   final VoidCallback onComplete;
@@ -23,25 +23,25 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   final List<OnboardingPageData> _pages = [
     OnboardingPageData(
-      icon: Icons.favorite,
+      lottiePath: 'assets/lottie/love_flying.json',
       title: 'Welcome to Twain',
-      description: 'The everything app for couples. Stay connected with your partner in beautiful ways.',
-      gradientColors: [AppThemes.appAccentColor, const Color(0xFFE91E63)],
+      description: 'The everything app for couples. Stay close, even when you\'re apart.',
+      gradientColors: [const Color(0xFFFFF8FB), const Color(0xFFFFEEF4)],
     ),
     OnboardingPageData(
-      icon: Icons.wallpaper_outlined,
+      lottiePath: 'assets/lottie/wallpaper.json',
       title: 'Sync Wallpapers',
       description: 'Set the same wallpaper on both your phones with a single tap. Share memories, art, or sweet moments.',
       gradientColors: [const Color(0xFFE8D5F2), const Color(0xFFFCE4EC)],
     ),
     OnboardingPageData(
-      icon: Icons.sticky_note_2_outlined,
+      lottiePath: 'assets/lottie/sticky_notes.json',
       title: 'Sweet Messages',
       description: 'Leave colorful sticky notes for your partner. Send love notes that brighten their day.',
       gradientColors: [const Color(0xFFFFF9C4), const Color(0xFFE1BEE7)],
     ),
     OnboardingPageData(
-      icon: Icons.photo_library_outlined,
+      lottiePath: 'assets/lottie/shared_board.json',
       title: 'Shared Memories',
       description: 'Create a shared board with photos and memories. Build your story together.',
       gradientColors: [const Color(0xFFE3F2FD), const Color(0xFFC8E6C9)],
@@ -148,12 +148,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   },
                   itemBuilder: (context, index) {
                     final page = _pages[index];
-                    return OnboardingPage(
-                      icon: page.icon,
-                      title: page.title,
-                      description: page.description,
-                      gradientColors: page.gradientColors,
-                    );
+                    return _buildOnboardingPage(page, theme);
                   },
                 ),
               ),
@@ -214,6 +209,71 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
+  Widget _buildOnboardingPage(OnboardingPageData page, ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 40.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 200,
+            height: 200,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: page.gradientColors,
+              ),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: page.gradientColors.first.withOpacity(0.3),
+                  blurRadius: 30,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: ClipOval(
+              child: Lottie.asset(
+                page.lottiePath,
+                fit: BoxFit.contain,
+                repeat: true,
+                errorBuilder: (context, error, stackTrace) {
+                  debugPrint('Lottie error (${page.lottiePath}): $error');
+                  return Icon(
+                    Icons.favorite,
+                    size: 80,
+                    color: Colors.white,
+                  );
+                },
+              ),
+            ),
+          ),
+          const SizedBox(height: 48),
+          Text(
+            page.title,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            page.description,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              color: theme.colorScheme.onSurface.withOpacity(0.6),
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildDotIndicator(int index, TwainThemeExtension twainTheme) {
     final isActive = index == _currentPage;
 
@@ -233,13 +293,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 }
 
 class OnboardingPageData {
-  final IconData icon;
+  final String lottiePath;
   final String title;
   final String description;
   final List<Color> gradientColors;
 
   OnboardingPageData({
-    required this.icon,
+    required this.lottiePath,
     required this.title,
     required this.description,
     required this.gradientColors,

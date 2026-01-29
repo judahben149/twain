@@ -390,14 +390,19 @@ class _CreateFolderScreenState extends ConsumerState<CreateFolderScreen> {
 
     // Check for Twain Plus subscription when creating a new folder
     if (!isEditing) {
-      final isTwainPlus = ref.read(isTwainPlusProvider);
+      var isTwainPlus = ref.read(isTwainPlusProvider);
       if (!isTwainPlus) {
         // Show paywall
-        final subscribed = await PaywallScreen.show(
+        await PaywallScreen.show(
           context,
           feature: PaywallFeature.wallpaperRotation,
         );
-        if (subscribed != true) return;
+        // Refresh and re-check subscription status after paywall
+        ref.invalidate(subscriptionStatusProvider);
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (!mounted) return;
+        isTwainPlus = ref.read(isTwainPlusProvider);
+        if (!isTwainPlus) return;
       }
     }
 

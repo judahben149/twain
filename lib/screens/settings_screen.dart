@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:twain/constants/app_themes.dart';
 import 'package:twain/providers/auth_providers.dart';
 import 'package:twain/providers/location_providers.dart';
@@ -187,18 +188,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           icon: Icons.description_outlined,
                           title: 'Terms of Service',
                           subtitle: 'Read our terms',
-                          onTap: () {
-                            // TODO: Open terms of service
-                          },
+                          onTap: () => _launchUrl('https://twain-legal-site.vercel.app/terms.html'),
                         ),
                         _buildDivider(),
                         _buildSettingsTile(
                           icon: Icons.privacy_tip_outlined,
                           title: 'Privacy Policy',
                           subtitle: 'Read our privacy policy',
-                          onTap: () {
-                            // TODO: Open privacy policy
-                          },
+                          onTap: () => _launchUrl('https://twain-legal-site.vercel.app/privacy.html'),
                         ),
                       ]),
                       const SizedBox(height: 32),
@@ -613,6 +610,37 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
       );
       Navigator.pop(context);
+    }
+  }
+
+  Future<void> _launchUrl(String urlString) async {
+    final url = Uri.parse(urlString);
+    try {
+      if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Could not open the link'),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error opening link: $e'),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
     }
   }
 
