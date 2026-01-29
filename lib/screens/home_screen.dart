@@ -39,6 +39,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   bool _hasCheckedTour = false;
   bool _showPairingPrompt = false;
   bool _hasShownPairingPrompt = false;
+  bool _hasInitializedPreferences = false;
+  bool _hasPendingTourCheck = false;
   String? _lastPairId;
 
   String? _normalizePairId(String? value) {
@@ -63,26 +65,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   final AppTourService _appTourService = AppTourService();
   TutorialCoachMark? _tutorialCoachMark;
+  bool _isTourActive = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+
+    // Initialize from current user if data is already available
     final currentUserAsync = ref.read(twainUserProvider);
     currentUserAsync.whenOrNull(
       data: (user) {
-        _lastPairId = _normalizePairId(user?.pairId);
-        final hasSeenPrompt =
-            user?.preferences?['has_seen_pairing_prompt'] as bool? ?? false;
-        _hasShownPairingPrompt = hasSeenPrompt;
-        if (_lastPairId != null) {
-          _postFrame(_scheduleLocationSync);
-          _postFrame(() => _checkAndShowTour(isPaired: true));
-        } else {
-          if (!_hasShownPairingPrompt) {
-            _postFrame(() => _maybeShowPairingPrompt(user));
-          }
-        }
+        _initializePreferencesFromUser(user);
       },
     );
 
@@ -92,11 +86,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         if (next is! AsyncData<TwainUser?>) return;
 
         final user = next.value;
+
+        // Initialize preferences on first data load
+        if (!_hasInitializedPreferences && user != null) {
+          _initializePreferencesFromUser(user);
+        }
+
         final nextPairId = _normalizePairId(user?.pairId);
-        final previousPairId = _lastPairId;
         final isPaired = nextPairId != null;
 
-        final hasPairChanged = nextPairId != previousPairId;
+        final hasPairChanged = nextPairId != _lastPairId;
         if (hasPairChanged) {
           if (isPaired) {
             _hasCheckedLocationPermission = false;
@@ -107,15 +106,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           }
         }
 
-        if (isPaired) {
-          _dismissPairingPrompt();
-          _postFrame(() => _checkAndShowTour(isPaired: true));
-        } else {
-          _hasCheckedTour = false;
-          if (!_hasShownPairingPrompt) {
-            _postFrame(() => _maybeShowPairingPrompt(user));
-          }
-        }
+        // TODO: Re-enable tour and pairing prompt later
+        // Tour and pairing prompt disabled for now - will fix later
 
         _lastPairId = nextPairId;
       },
@@ -141,13 +133,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _evaluateInitialLocationCheck();
+
+      // Handle initial state after first frame
       final currentUser = ref.read(twainUserProvider).value;
-      final isPaired = _isPaired(currentUser);
-      if (isPaired) {
-        _checkAndShowTour(isPaired: true);
-      } else {
-        _maybeShowPairingPrompt(currentUser);
+      if (currentUser != null && !_hasInitializedPreferences) {
+        _initializePreferencesFromUser(currentUser);
       }
+
+      // TODO: Re-enable tour and pairing prompt later
+      // Tour and pairing prompt disabled for now - will fix later
+    });
+  }
+
+  void _initializePreferencesFromUser(TwainUser? user) {
+    if (_hasInitializedPreferences) return;
+    _hasInitializedPreferences = true;
+
+    _lastPairId = _normalizePairId(user?.pairId);
+    final hasSeenPrompt =
+        user?.preferences?['has_seen_pairing_prompt'] as bool? ?? false;
+    _hasShownPairingPrompt = hasSeenPrompt;
+
+    // Schedule location sync if paired
+    if (_lastPairId != null) {
+      _postFrame(_scheduleLocationSync);
+    }
+  }
+
+  void _scheduleTourCheck() {
+    // Prevent multiple pending tour checks
+    if (_hasPendingTourCheck) return;
+    _hasPendingTourCheck = true;
+    _postFrame(() {
+      _hasPendingTourCheck = false;
+      _checkAndShowTour(isPaired: true);
     });
   }
 
@@ -184,27 +203,56 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   Future<void> _checkAndShowTour({required bool isPaired}) async {
     if (!isPaired) {
-      _hasCheckedTour = false;
       return;
     }
-    if (_hasCheckedTour) return;
+    // Double-check both flags to prevent any race condition
+    if (_hasCheckedTour || _isTourActive) return;
     _hasCheckedTour = true;
 
     final hasCompletedTour = await _appTourService.hasCompletedTour();
-    if (!hasCompletedTour && mounted) {
+    if (!hasCompletedTour && mounted && !_isTourActive) {
       // Small delay to let the UI settle
       await Future.delayed(const Duration(milliseconds: 500));
-      if (mounted) {
+      if (mounted && !_isTourActive) {
         _showTour();
       }
     }
   }
 
   void _showTour() {
+    // Final guard - ensure tour isn't already active
+    if (_isTourActive) {
+      debugPrint('Tour already active, skipping');
+      return;
+    }
+    _isTourActive = true;
+
+    // Dismiss any existing tutorial overlay
+    _tutorialCoachMark?.finish();
+    _tutorialCoachMark = null;
+
     final twainTheme = context.twainTheme;
+    final targets = _createTourTargets(twainTheme);
+    _showSequentialTour(targets, 0);
+  }
+
+  void _showSequentialTour(List<TargetFocus> targets, int index) {
+    if (!mounted) {
+      // Widget disposed - don't mark as completed, user didn't finish
+      _isTourActive = false;
+      return;
+    }
+    if (index >= targets.length) {
+      // All targets shown - mark as completed
+      _isTourActive = false;
+      _appTourService.markTourCompleted();
+      return;
+    }
+
+    var skipCalled = false;
 
     _tutorialCoachMark = TutorialCoachMark(
-      targets: _createTourTargets(twainTheme),
+      targets: [targets[index]],
       colorShadow: Colors.black,
       opacityShadow: 0.8,
       paddingFocus: 10,
@@ -224,9 +272,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         ),
       ),
       onFinish: () {
-        _appTourService.markTourCompleted();
+        if (skipCalled) return;
+        _tutorialCoachMark = null;
+        if (index + 1 < targets.length) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            Future.delayed(const Duration(milliseconds: 80), () {
+              _showSequentialTour(targets, index + 1);
+            });
+          });
+        } else {
+          _isTourActive = false;
+          _appTourService.markTourCompleted();
+        }
       },
       onSkip: () {
+        skipCalled = true;
+        _tutorialCoachMark = null;
+        _isTourActive = false;
         _appTourService.markTourCompleted();
         return true;
       },
@@ -725,112 +787,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               ),
             ),
           ),
-          if (_showPairingPrompt)
-            Positioned.fill(
-              child: GestureDetector(
-                onTap: () {
-                  _dismissPairingPrompt();
-                },
-                child: Container(
-                  color: Colors.black.withOpacity(0.7),
-                  child: Center(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          SizedBox(
-                            width: 260,
-                            height: 260,
-                            child: Lottie.asset(
-                              'assets/lottie/love_popper.json',
-                              fit: BoxFit.contain,
-                              repeat: true,
-                              errorBuilder: (context, error, stackTrace) {
-                                debugPrint(
-                                    'Lottie error (love_popper): $error');
-                                return const Icon(
-                                  Icons.favorite_outline,
-                                  size: 100,
-                                  color: Colors.white,
-                                );
-                              },
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          const Text(
-                            'Pair up to unlock Twain',
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Pair with your partner to unlock wallpapers, sticky notes, and more.',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.white.withOpacity(0.85),
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 28),
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              onPressed: () {
-                                _dismissPairingPrompt();
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const PairingScreen(),
-                                  ),
-                                ).then((_) {
-                                  final latestUser =
-                                      ref.read(twainUserProvider).value;
-                                  if (!_isPaired(latestUser) &&
-                                      !_hasShownPairingPrompt) {
-                                    _postFrame(
-                                      () => _maybeShowPairingPrompt(latestUser),
-                                    );
-                                  }
-                                });
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.white,
-                                foregroundColor: context.twainTheme.iconColor,
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                              ),
-                              child: const Text(
-                                'Get Paired',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Tap anywhere to close',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.white.withOpacity(0.6),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
+          // TODO: Re-enable love popper pairing prompt later
+          // Love popper disabled for now - will fix later
+          // if (_showPairingPrompt) ...
         ],
       ),
     );
