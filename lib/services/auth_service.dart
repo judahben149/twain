@@ -57,6 +57,7 @@ class AuthService {
                 id: data['id'],
                 email: data['email'],
                 displayName: data['display_name'],
+                nickname: data['nickname'],
                 avatarUrl: data['avatar_url'],
                 pairId: data['pair_id'],
                 fcmToken: data['fcm_token'],
@@ -307,6 +308,7 @@ class AuthService {
         id: data['id'],
         email: data['email'],
         displayName: data['display_name'],
+        nickname: data['nickname'],
         avatarUrl: data['avatar_url'],
         pairId: data['pair_id'],
         fcmToken: data['fcm_token'],
@@ -328,6 +330,7 @@ class AuthService {
   // Update user profile
   Future<void> updateUserProfile({
     String? displayName,
+    String? nickname,
     String? avatarUrl,
     String? status,
     String? fcmToken,
@@ -341,6 +344,7 @@ class AuthService {
 
     final updates = <String, dynamic>{};
     if (displayName != null) updates['display_name'] = displayName;
+    if (nickname != null) updates['nickname'] = nickname;
     if (avatarUrl != null) updates['avatar_url'] = avatarUrl;
     if (status != null) updates['status'] = status;
     if (fcmToken != null) updates['fcm_token'] = fcmToken;
@@ -445,6 +449,7 @@ class AuthService {
       id: partnerData['id'],
       email: partnerData['email'],
       displayName: partnerData['display_name'],
+      nickname: partnerData['nickname'],
       avatarUrl: partnerData['avatar_url'],
       pairId: partnerData['pair_id'],
       fcmToken: partnerData['fcm_token'],
@@ -503,6 +508,7 @@ class AuthService {
                 id: data['id'],
                 email: data['email'],
                 displayName: data['display_name'],
+                nickname: data['nickname'],
                 avatarUrl: data['avatar_url'],
                 pairId: data['pair_id'],
                 fcmToken: data['fcm_token'],

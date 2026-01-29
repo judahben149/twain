@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:twain/constants/app_themes.dart';
 import 'package:twain/models/sticky_note.dart';
+import 'package:twain/models/content_report.dart';
 import 'package:twain/providers/auth_providers.dart';
 import 'package:twain/services/sticky_notes_service.dart';
 import 'package:twain/screens/sticky_note_detail_screen.dart';
+import 'package:twain/widgets/report_bottom_sheet.dart';
 
 class StickyNotesScreen extends ConsumerStatefulWidget {
   const StickyNotesScreen({super.key});
@@ -593,6 +595,14 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
           MaterialPageRoute(
             builder: (context) => StickyNoteDetailScreen(note: note),
           ),
+        );
+      },
+      onLongPress: () {
+        // Show report bottom sheet
+        ReportBottomSheet.show(
+          context,
+          contentId: note.id,
+          contentType: ContentType.stickyNote,
         );
       },
       child: Container(

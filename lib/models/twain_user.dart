@@ -3,6 +3,7 @@ class TwainUser {
   final String id;
   final String email;
   final String displayName;
+  final String? nickname;
   final String? avatarUrl;
   final String? pairId;
   final String? fcmToken;
@@ -18,6 +19,7 @@ class TwainUser {
     required this.id,
     required this.email,
     required this.displayName,
+    this.nickname,
     this.avatarUrl,
     this.pairId,
     this.fcmToken,
@@ -35,6 +37,7 @@ class TwainUser {
       id: json['id'] as String,
       email: json['email'] as String,
       displayName: json['display_name'] as String,
+      nickname: json['nickname'] as String?,
       avatarUrl: json['avatar_url'] as String?,
       pairId: json['pair_id'] as String?,
       fcmToken: json['fcm_token'] as String?,
@@ -55,6 +58,7 @@ class TwainUser {
       'id': id,
       'email': email,
       'display_name': displayName,
+      'nickname': nickname,
       'avatar_url': avatarUrl,
       'pair_id': pairId,
       'fcm_token': fcmToken,
@@ -72,6 +76,7 @@ class TwainUser {
     String? id,
     String? email,
     String? displayName,
+    String? nickname,
     String? avatarUrl,
     String? pairId,
     String? fcmToken,
@@ -87,6 +92,7 @@ class TwainUser {
       id: id ?? this.id,
       email: email ?? this.email,
       displayName: displayName ?? this.displayName,
+      nickname: nickname ?? this.nickname,
       avatarUrl: avatarUrl ?? this.avatarUrl,
       pairId: pairId ?? this.pairId,
       fcmToken: fcmToken ?? this.fcmToken,

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
 import 'package:twain/constants/app_themes.dart';
 import 'package:twain/models/distance_state.dart';
 import 'package:twain/models/twain_user.dart';
@@ -19,6 +20,7 @@ import 'package:twain/widgets/battery_optimization_dialog.dart';
 import 'package:twain/widgets/location_permission_dialog.dart';
 import 'package:twain/providers/location_providers.dart';
 import 'package:twain/services/location_service.dart';
+import 'package:twain/services/app_tour_service.dart';
 import 'package:twain/widgets/distance_meter_widget.dart';
 import 'package:twain/widgets/directional_dots.dart';
 
@@ -33,9 +35,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     with WidgetsBindingObserver {
   bool _hasCheckedBatteryOptimization = false;
   bool _hasCheckedLocationPermission = false;
+  bool _hasCheckedTour = false;
   Timer? _locationUpdateTimer;
   ProviderSubscription<AsyncValue<TwainUser?>>? _userSubscription;
   ProviderSubscription<AsyncValue<bool>>? _distanceFeatureSubscription;
+
+  // Tour keys
+  final GlobalKey _userAvatarKey = GlobalKey();
+  final GlobalKey _partnerAvatarKey = GlobalKey();
+  final GlobalKey _stickyNotesKey = GlobalKey();
+  final GlobalKey _wallpaperKey = GlobalKey();
+
+  final AppTourService _appTourService = AppTourService();
+  TutorialCoachMark? _tutorialCoachMark;
 
   @override
   void initState() {
@@ -86,7 +98,191 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _evaluateInitialLocationCheck();
+      _checkAndShowTour();
     });
+  }
+
+  Future<void> _checkAndShowTour() async {
+    if (_hasCheckedTour) return;
+    _hasCheckedTour = true;
+
+    final hasCompletedTour = await _appTourService.hasCompletedTour();
+    if (!hasCompletedTour && mounted) {
+      // Small delay to let the UI settle
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (mounted) {
+        _showTour();
+      }
+    }
+  }
+
+  void _showTour() {
+    final twainTheme = context.twainTheme;
+
+    _tutorialCoachMark = TutorialCoachMark(
+      targets: _createTourTargets(twainTheme),
+      colorShadow: Colors.black,
+      opacityShadow: 0.8,
+      paddingFocus: 10,
+      hideSkip: false,
+      skipWidget: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: const Text(
+          'Skip Tour',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+      onFinish: () {
+        _appTourService.markTourCompleted();
+      },
+      onSkip: () {
+        _appTourService.markTourCompleted();
+        return true;
+      },
+    );
+
+    _tutorialCoachMark!.show(context: context);
+  }
+
+  List<TargetFocus> _createTourTargets(TwainThemeExtension twainTheme) {
+    return [
+      TargetFocus(
+        identify: 'user_avatar',
+        keyTarget: _userAvatarKey,
+        alignSkip: Alignment.bottomRight,
+        shape: ShapeLightFocus.Circle,
+        contents: [
+          TargetContent(
+            align: ContentAlign.bottom,
+            builder: (context, controller) {
+              return _buildTourContent(
+                icon: Icons.person,
+                title: 'Your Profile',
+                description: 'Tap here to view and edit your profile, change your avatar, and set a nickname.',
+                twainTheme: twainTheme,
+              );
+            },
+          ),
+        ],
+      ),
+      TargetFocus(
+        identify: 'partner_avatar',
+        keyTarget: _partnerAvatarKey,
+        alignSkip: Alignment.bottomRight,
+        shape: ShapeLightFocus.Circle,
+        contents: [
+          TargetContent(
+            align: ContentAlign.bottom,
+            builder: (context, controller) {
+              return _buildTourContent(
+                icon: Icons.favorite,
+                title: "Your Partner's Profile",
+                description: "See your partner's profile here. You can choose to display their nickname instead of their name.",
+                twainTheme: twainTheme,
+              );
+            },
+          ),
+        ],
+      ),
+      TargetFocus(
+        identify: 'wallpaper',
+        keyTarget: _wallpaperKey,
+        alignSkip: Alignment.bottomRight,
+        shape: ShapeLightFocus.RRect,
+        radius: 20,
+        contents: [
+          TargetContent(
+            align: ContentAlign.bottom,
+            builder: (context, controller) {
+              return _buildTourContent(
+                icon: Icons.wallpaper_outlined,
+                title: 'Sync Wallpapers',
+                description: 'Set matching wallpapers with your partner. Both of you will have the same beautiful background.',
+                twainTheme: twainTheme,
+              );
+            },
+          ),
+        ],
+      ),
+      TargetFocus(
+        identify: 'sticky_notes',
+        keyTarget: _stickyNotesKey,
+        alignSkip: Alignment.topRight,
+        shape: ShapeLightFocus.RRect,
+        radius: 20,
+        contents: [
+          TargetContent(
+            align: ContentAlign.top,
+            builder: (context, controller) {
+              return _buildTourContent(
+                icon: Icons.sticky_note_2_outlined,
+                title: 'Sticky Notes',
+                description: 'Leave sweet messages for your partner. Colorful notes to brighten their day!',
+                twainTheme: twainTheme,
+              );
+            },
+          ),
+        ],
+      ),
+    ];
+  }
+
+  Widget _buildTourContent({
+    required IconData icon,
+    required String title,
+    required String description,
+    required TwainThemeExtension twainTheme,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: twainTheme.iconColor.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            description,
+            style: TextStyle(
+              fontSize: 15,
+              color: Colors.white.withOpacity(0.9),
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -330,26 +526,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       const SizedBox(height: 24),
                       _buildConnectionCard(context, currentUser),
                       const SizedBox(height: 32),
-                      _buildFeatureCard(
-                        context: context,
-                        icon: Icons.wallpaper_outlined,
-                        title: 'Wallpaper',
-                        subtitle: 'Sync your home screens',
-                        colors: [
-                          const Color(0xFFE8D5F2),
-                          const Color(0xFFFCE4EC),
-                        ],
-                        onTap: () => _handleFeatureTap(
+                      Container(
+                        key: _wallpaperKey,
+                        child: _buildFeatureCard(
                           context: context,
-                          isPaired: currentUser?.pairId != null,
-                          onPaired: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const WallpaperScreen(),
-                              ),
-                            );
-                          },
+                          icon: Icons.wallpaper_outlined,
+                          title: 'Wallpaper',
+                          subtitle: 'Sync your home screens',
+                          colors: [
+                            const Color(0xFFE8D5F2),
+                            const Color(0xFFFCE4EC),
+                          ],
+                          onTap: () => _handleFeatureTap(
+                            context: context,
+                            isPaired: currentUser?.pairId != null,
+                            onPaired: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const WallpaperScreen(),
+                                ),
+                              );
+                            },
+                          ),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -377,27 +576,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         ),
                       ),
                       const SizedBox(height: 16),
-                      _buildFeatureCard(
-                        context: context,
-                        icon: Icons.sticky_note_2_outlined,
-                        title: 'Sticky Notes',
-                        subtitle: 'Leave sweet messages',
-                        colors: [
-                          const Color(0xFFFFF9C4),
-                          const Color(0xFFFCE4EC),
-                          const Color(0xFFE1BEE7),
-                        ],
-                        onTap: () => _handleFeatureTap(
+                      Container(
+                        key: _stickyNotesKey,
+                        child: _buildFeatureCard(
                           context: context,
-                          isPaired: currentUser?.pairId != null,
-                          onPaired: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const StickyNotesScreen(),
-                              ),
-                            );
-                          },
+                          icon: Icons.sticky_note_2_outlined,
+                          title: 'Sticky Notes',
+                          subtitle: 'Leave sweet messages',
+                          colors: [
+                            const Color(0xFFFFF9C4),
+                            const Color(0xFFFCE4EC),
+                            const Color(0xFFE1BEE7),
+                          ],
+                          onTap: () => _handleFeatureTap(
+                            context: context,
+                            isPaired: currentUser?.pairId != null,
+                            onPaired: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const StickyNotesScreen(),
+                                ),
+                              );
+                            },
+                          ),
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -425,7 +627,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   Widget _buildHeader(BuildContext context) {
     final theme = Theme.of(context);
-    final twainTheme = context.twainTheme;
     return Padding(
       padding: const EdgeInsets.all(20.0),
       child: Row(
@@ -556,68 +757,75 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         locationAvailable &&
         distanceState.status != DistanceStatus.hidden;
 
-    final userAvatar = currentUser != null
-        ? _buildAvatarWithTwainAvatar(
-            context: context,
-            user: currentUser,
-            name: 'You',
-            color: AppThemes.appAccentColor,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => UserProfileScreen(user: currentUser),
-                ),
-              );
-            },
-          )
-        : _buildAvatar(
-            context: context,
-            label: 'YO',
-            name: 'You',
-            color: AppThemes.appAccentColor,
-            onTap: null,
-          );
-
-    final partnerAvatar = pairedUserAsync.when(
-      data: (partner) => partner != null
+    final userAvatar = Container(
+      key: _userAvatarKey,
+      child: currentUser != null
           ? _buildAvatarWithTwainAvatar(
               context: context,
-              user: partner,
-              name: partner.displayName ?? 'Partner',
-              color: const Color(0xFFE91E63),
+              user: currentUser,
+              name: 'You',
+              color: AppThemes.appAccentColor,
               onTap: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) =>
-                        PartnerProfileScreen(partner: partner),
+                    builder: (context) => UserProfileScreen(user: currentUser),
                   ),
                 );
               },
             )
           : _buildAvatar(
               context: context,
-              label: 'PA',
-              name: 'Partner',
-              color: const Color(0xFFE91E63),
+              label: 'YO',
+              name: 'You',
+              color: AppThemes.appAccentColor,
               onTap: null,
             ),
-      loading: () => SizedBox(
-        width: 80,
-        height: 80,
-        child: Center(
-          child: CircularProgressIndicator(
-            color: context.twainTheme.iconColor,
+    );
+
+    final partnerDisplayName = ref.watch(partnerDisplayNameProvider);
+    final partnerAvatar = Container(
+      key: _partnerAvatarKey,
+      child: pairedUserAsync.when(
+        data: (partner) => partner != null
+            ? _buildAvatarWithTwainAvatar(
+                context: context,
+                user: partner,
+                name: partnerDisplayName ?? partner.displayName,
+                color: const Color(0xFFE91E63),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          PartnerProfileScreen(partner: partner),
+                    ),
+                  );
+                },
+              )
+            : _buildAvatar(
+                context: context,
+                label: 'PA',
+                name: 'Partner',
+                color: const Color(0xFFE91E63),
+                onTap: null,
+              ),
+        loading: () => SizedBox(
+          width: 80,
+          height: 80,
+          child: Center(
+            child: CircularProgressIndicator(
+              color: context.twainTheme.iconColor,
+            ),
           ),
         ),
-      ),
-      error: (_, __) => _buildAvatar(
-        context: context,
-        label: 'PA',
-        name: 'Partner',
-        color: const Color(0xFFE91E63),
-        onTap: null,
+        error: (_, __) => _buildAvatar(
+          context: context,
+          label: 'PA',
+          name: 'Partner',
+          color: const Color(0xFFE91E63),
+          onTap: null,
+        ),
       ),
     );
 

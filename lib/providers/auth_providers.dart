@@ -3,6 +3,7 @@ import 'package:twain/services/auth_service.dart';
 import 'package:twain/services/database_service.dart';
 import 'package:twain/services/sticky_notes_service.dart';
 import 'package:twain/services/subscription_service.dart';
+import 'package:twain/services/report_service.dart';
 import 'package:twain/models/sticky_note.dart';
 import 'package:twain/models/sticky_note_reply.dart';
 import 'package:twain/models/subscription_status.dart';
@@ -56,6 +57,18 @@ final pairedUserProvider = StreamProvider.autoDispose<TwainUser?>((ref) {
   return auth.pairedUserStream();
 });
 
+// Show partner's nickname or real name based on user preference
+final partnerDisplayNameProvider = Provider<String?>((ref) {
+  final partner = ref.watch(pairedUserProvider).value;
+  final currentUser = ref.watch(twainUserProvider).value;
+  if (partner == null) return null;
+
+  final showNickname = currentUser?.preferences?['show_partner_nickname'] ?? false;
+  return (showNickname && partner.nickname != null && partner.nickname!.isNotEmpty)
+      ? partner.nickname
+      : partner.displayName;
+});
+
 // Sticky Notes service provider with repository
 final stickyNotesServiceProvider = Provider<StickyNotesService>((ref) {
   final repository = ref.watch(stickyNotesRepositoryProvider);
@@ -107,4 +120,13 @@ final isTwainPlusProvider = Provider<bool>((ref) {
 final subscriptionOfferingsProvider = FutureProvider<List<SubscriptionOffering>>((ref) async {
   final service = ref.watch(subscriptionServiceProvider);
   return service.getOfferings();
+});
+
+// ============================================================================
+// Report Service Providers
+// ============================================================================
+
+/// Report service provider
+final reportServiceProvider = Provider<ReportService>((ref) {
+  return ReportService();
 });

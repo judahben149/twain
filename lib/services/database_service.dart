@@ -29,7 +29,7 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 5,
+      version: 6,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -42,6 +42,7 @@ class DatabaseService {
         id TEXT PRIMARY KEY,
         email TEXT NOT NULL,
         display_name TEXT,
+        nickname TEXT,
         avatar_url TEXT,
         pair_id TEXT,
         fcm_token TEXT,
@@ -304,6 +305,16 @@ class DatabaseService {
 
       print('Database migration to v5 completed successfully');
     }
+
+    if (oldVersion < 6) {
+      print('Migrating database from v5 to v6...');
+      try {
+        await db.execute('ALTER TABLE users ADD COLUMN nickname TEXT');
+      } catch (error) {
+        print('Migration to v6: nickname column already exists? $error');
+      }
+      print('Database migration to v6 completed successfully');
+    }
   }
 
   // User operations
@@ -317,6 +328,7 @@ class DatabaseService {
         'id': user.id,
         'email': user.email,
         'display_name': user.displayName,
+        'nickname': user.nickname,
         'avatar_url': user.avatarUrl,
         'pair_id': user.pairId,
         'fcm_token': user.fcmToken,
@@ -350,6 +362,7 @@ class DatabaseService {
       id: data['id'],
       email: data['email'],
       displayName: data['display_name'],
+      nickname: data['nickname'],
       avatarUrl: data['avatar_url'],
       pairId: data['pair_id'],
       fcmToken: data['fcm_token'],
@@ -380,6 +393,7 @@ class DatabaseService {
       id: data['id'],
       email: data['email'],
       displayName: data['display_name'],
+      nickname: data['nickname'],
       avatarUrl: data['avatar_url'],
       pairId: data['pair_id'],
       fcmToken: data['fcm_token'],

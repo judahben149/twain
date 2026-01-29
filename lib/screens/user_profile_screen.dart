@@ -4,6 +4,7 @@ import 'package:twain/constants/app_themes.dart';
 import 'package:twain/models/twain_user.dart';
 import 'package:twain/providers/auth_providers.dart';
 import 'package:twain/screens/avatar_selector_screen.dart';
+import 'package:twain/screens/edit_profile_screen.dart';
 import 'package:twain/widgets/stable_avatar.dart';
 
 class UserProfileScreen extends ConsumerWidget {
@@ -78,6 +79,7 @@ class UserProfileScreen extends ConsumerWidget {
   }
 
   Widget _buildHeader(BuildContext context, ThemeData theme) {
+    final twainTheme = context.twainTheme;
     return Padding(
       padding: const EdgeInsets.all(20.0),
       child: Row(
@@ -96,6 +98,19 @@ class UserProfileScreen extends ConsumerWidget {
               fontWeight: FontWeight.bold,
               color: theme.colorScheme.onSurface,
             ),
+          ),
+          const Spacer(),
+          IconButton(
+            icon: Icon(Icons.edit_outlined, color: twainTheme.iconColor),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const EditProfileScreen(),
+                ),
+              );
+            },
+            tooltip: 'Edit Profile',
           ),
         ],
       ),
@@ -179,7 +194,15 @@ class UserProfileScreen extends ConsumerWidget {
           _buildInfoRow(
             icon: Icons.person_outline,
             label: 'Display Name',
-            value: user.displayName ?? 'Not set',
+            value: user.displayName,
+            theme: theme,
+            twainTheme: twainTheme,
+          ),
+          const SizedBox(height: 20),
+          _buildInfoRow(
+            icon: Icons.favorite_outline,
+            label: 'Nickname',
+            value: user.nickname?.isNotEmpty == true ? user.nickname! : 'Not set',
             theme: theme,
             twainTheme: twainTheme,
           ),

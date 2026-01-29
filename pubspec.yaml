@@ -70,6 +70,9 @@ dependencies:
   # Environment variables
   flutter_dotenv: ^5.1.0
 
+  # App tour/tutorial
+  tutorial_coach_mark: ^1.2.11
+
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8

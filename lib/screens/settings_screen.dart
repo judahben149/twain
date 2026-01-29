@@ -10,6 +10,7 @@ import 'package:twain/providers/location_providers.dart';
 import 'package:twain/screens/user_profile_screen.dart';
 import 'package:twain/screens/pairing_screen.dart';
 import 'package:twain/services/location_service.dart';
+import 'package:twain/services/app_tour_service.dart';
 import 'package:twain/widgets/theme_selector.dart';
 import 'package:twain/widgets/battery_optimization_dialog.dart';
 import 'package:twain/widgets/location_permission_dialog.dart';
@@ -149,6 +150,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       const SizedBox(height: 12),
                       _buildSettingsCard([
                         _buildDistanceFeatureTile(context),
+                        if (isPaired) ...[
+                          _buildDivider(),
+                          _buildNicknameToggleTile(context),
+                        ],
                       ]),
                       const BatteryOptimizationBanner(),
                       const SizedBox(height: 24),
@@ -156,6 +161,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       const SizedBox(height: 12),
                       _buildSettingsCard([
                         const ThemeSelector(),
+                      ]),
+                      const SizedBox(height: 24),
+                      _buildSectionHeader('Help'),
+                      const SizedBox(height: 12),
+                      _buildSettingsCard([
+                        _buildSettingsTile(
+                          icon: Icons.play_circle_outline,
+                          title: 'Replay App Tour',
+                          subtitle: 'See the app introduction again',
+                          onTap: () => _replayAppTour(context),
+                        ),
                       ]),
                       const SizedBox(height: 24),
                       _buildSectionHeader('About'),
@@ -351,6 +367,51 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  Widget _buildNicknameToggleTile(BuildContext context) {
+    final currentUser = ref.watch(twainUserProvider).value;
+    final partner = ref.watch(pairedUserProvider).value;
+    final showNickname = currentUser?.preferences?['show_partner_nickname'] ?? false;
+    final hasNickname = partner?.nickname?.isNotEmpty == true;
+
+    return _buildSettingsTile(
+      icon: Icons.favorite_outline,
+      title: "Show Partner's Nickname",
+      subtitle: hasNickname
+          ? 'Display "${partner!.nickname}" instead of "${partner.displayName}"'
+          : 'Your partner has not set a nickname yet',
+      trailing: Switch(
+        value: showNickname,
+        onChanged: hasNickname
+            ? (value) => _handleNicknameToggle(value)
+            : null,
+        activeColor: context.twainTheme.iconColor,
+      ),
+    );
+  }
+
+  Future<void> _handleNicknameToggle(bool enable) async {
+    final currentUser = ref.read(twainUserProvider).value;
+    if (currentUser == null) return;
+
+    final updatedPreferences = Map<String, dynamic>.from(currentUser.preferences ?? {});
+    updatedPreferences['show_partner_nickname'] = enable;
+
+    try {
+      await ref.read(authServiceProvider).updateUserProfile(
+        preferences: updatedPreferences,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update setting: $e'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _handleDistanceFeatureToggle(BuildContext context, bool enable) async {
     final controller = ref.read(distanceFeatureProvider.notifier);
     final messenger = ScaffoldMessenger.of(context);
@@ -534,6 +595,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _replayAppTour(BuildContext context) async {
+    final appTourService = AppTourService();
+    await appTourService.resetTour();
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('App tour will show when you return to the home screen'),
+          backgroundColor: context.twainTheme.iconColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+      Navigator.pop(context);
+    }
   }
 
   void _showDisconnectDialog(BuildContext context) {
