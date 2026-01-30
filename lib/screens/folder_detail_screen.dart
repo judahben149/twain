@@ -615,16 +615,14 @@ class _FolderDetailScreenState extends ConsumerState<FolderDetailScreen> {
       var isTwainPlus = ref.read(isTwainPlusProvider);
       if (!isTwainPlus) {
         // Show paywall
-        await PaywallScreen.show(
+        final purchased = await PaywallScreen.show(
           context,
           feature: PaywallFeature.wallpaperRotation,
         );
-        // Refresh and re-check subscription status after paywall
-        ref.invalidate(subscriptionStatusProvider);
-        await Future.delayed(const Duration(milliseconds: 500));
+        if (!purchased) return;
         if (!mounted) return;
-        isTwainPlus = ref.read(isTwainPlusProvider);
-        if (!isTwainPlus) return;
+        // Invalidate provider to reflect updated status in UI
+        ref.invalidate(subscriptionStatusProvider);
       }
     }
 

@@ -513,16 +513,14 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
               // Check for Twain Plus subscription
               var isTwainPlus = ref.read(isTwainPlusProvider);
               if (!isTwainPlus) {
-                await PaywallScreen.show(
+                final purchased = await PaywallScreen.show(
                   context,
                   feature: PaywallFeature.wallpaperRotation,
                 );
-                // Refresh and re-check subscription status after paywall
-                ref.invalidate(subscriptionStatusProvider);
-                await Future.delayed(const Duration(milliseconds: 500));
+                if (!purchased) return;
                 if (!mounted) return;
-                isTwainPlus = ref.read(isTwainPlusProvider);
-                if (!isTwainPlus) return;
+                // Invalidate provider to reflect updated status in UI
+                ref.invalidate(subscriptionStatusProvider);
               }
               if (!mounted) return;
               Navigator.push(

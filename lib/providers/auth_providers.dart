@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:twain/services/auth_service.dart';
 import 'package:twain/services/database_service.dart';
@@ -106,8 +107,13 @@ final subscriptionStatusStreamProvider = StreamProvider<SubscriptionStatus>((ref
 
 /// Current subscription status (synchronous access)
 final subscriptionStatusProvider = Provider<SubscriptionStatus>((ref) {
-  final asyncStatus = ref.watch(subscriptionStatusStreamProvider);
-  return asyncStatus.valueOrNull ?? SubscriptionService.instance.currentStatus;
+  // Watch the stream to trigger rebuilds when status changes
+  ref.watch(subscriptionStatusStreamProvider);
+  // Always return the current status from the service (authoritative source)
+  // This is more reliable than valueOrNull which can be null for broadcast streams
+  final status = SubscriptionService.instance.currentStatus;
+  debugPrint('subscriptionStatusProvider: returning status - isSubscribed=${status.isSubscribed}, productId=${status.activeProductId}');
+  return status;
 });
 
 /// Whether user has Twain Plus subscription

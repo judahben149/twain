@@ -330,11 +330,13 @@ class _SharedBoardScreenState extends ConsumerState<SharedBoardScreen> {
           const SizedBox(height: 12),
           TextButton(
             onPressed: () async {
-              await PaywallScreen.show(
+              final purchased = await PaywallScreen.show(
                 context,
                 feature: PaywallFeature.sharedBoardUpload,
               );
-              ref.invalidate(subscriptionStatusProvider);
+              if (purchased) {
+                ref.invalidate(subscriptionStatusProvider);
+              }
             },
             child: Text(
               'Upgrade for unlimited uploads',
@@ -436,11 +438,13 @@ class _SharedBoardScreenState extends ConsumerState<SharedBoardScreen> {
               label: 'Upgrade',
               textColor: Colors.white,
               onPressed: () async {
-                await PaywallScreen.show(
+                final purchased = await PaywallScreen.show(
                   context,
                   feature: PaywallFeature.sharedBoardUpload,
                 );
-                ref.invalidate(subscriptionStatusProvider);
+                if (purchased) {
+                  ref.invalidate(subscriptionStatusProvider);
+                }
               },
             ),
           ),

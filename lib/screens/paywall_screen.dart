@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
+import 'package:twain/services/subscription_service.dart';
 
 /// Feature that triggered the paywall - used for analytics
 enum PaywallFeature {
@@ -17,12 +18,17 @@ class PaywallScreen {
     PaywallFeature feature = PaywallFeature.general,
   }) async {
     try {
-      final result = await RevenueCatUI.presentPaywallIfNeeded('twain_plus');
+      final result = await RevenueCatUI.presentPaywallIfNeeded(RevenueCatConfig.premiumEntitlement);
+      debugPrint('PaywallScreen.show: PaywallResult = $result');
 
       // PaywallResult indicates what happened
       switch (result) {
         case PaywallResult.purchased:
         case PaywallResult.restored:
+          // Refresh subscription status to ensure state is synchronized
+          debugPrint('PaywallScreen.show: Purchase/restore successful, refreshing status...');
+          final status = await SubscriptionService.instance.refreshStatus();
+          debugPrint('PaywallScreen.show: After refresh - isSubscribed=${status.isSubscribed}, productId=${status.activeProductId}');
           return true;
         case PaywallResult.notPresented:
           // User already has entitlement
@@ -46,6 +52,8 @@ class PaywallScreen {
       switch (result) {
         case PaywallResult.purchased:
         case PaywallResult.restored:
+          // Refresh subscription status to ensure state is synchronized
+          await SubscriptionService.instance.refreshStatus();
           return true;
         case PaywallResult.notPresented:
         case PaywallResult.cancelled:

@@ -11,8 +11,8 @@ class RevenueCatConfig {
   static const String androidApiKey = 'goog_KRbvdZPJdZKoBDdcFUMnpomIpij';
   static const String iosApiKey = ''; // TODO: Add iOS key when available
 
-  // Entitlement ID
-  static const String premiumEntitlement = 'twain_plus';
+  // Entitlement ID (must match exactly what's configured in RevenueCat dashboard)
+  static const String premiumEntitlement = 'Twain Plus';
 
   // Product IDs from Play Console
   static const String monthlyProductId = 'twain_plus_v1:monthly-autorenewing';
@@ -251,7 +251,10 @@ class SubscriptionService {
   }
 
   void _handleCustomerInfoUpdate(CustomerInfo customerInfo) {
+    debugPrint('SubscriptionService: CustomerInfo update received');
+    debugPrint('SubscriptionService: Active entitlements: ${customerInfo.entitlements.active.keys.toList()}');
     final status = _parseCustomerInfo(customerInfo);
+    debugPrint('SubscriptionService: Parsed status - isSubscribed=${status.isSubscribed}');
     _updateStatus(status);
   }
 
@@ -263,8 +266,11 @@ class SubscriptionService {
 
   SubscriptionStatus _parseCustomerInfo(CustomerInfo customerInfo) {
     final entitlement = customerInfo.entitlements.active[RevenueCatConfig.premiumEntitlement];
+    debugPrint('SubscriptionService._parseCustomerInfo: Looking for entitlement "${RevenueCatConfig.premiumEntitlement}"');
+    debugPrint('SubscriptionService._parseCustomerInfo: Entitlement found = ${entitlement != null}, isActive = ${entitlement?.isActive}');
 
     if (entitlement == null || !entitlement.isActive) {
+      debugPrint('SubscriptionService._parseCustomerInfo: Returning FREE status');
       return SubscriptionStatus.free;
     }
 
