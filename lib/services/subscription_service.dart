@@ -11,7 +11,7 @@ class RevenueCatConfig {
   static const String androidApiKey = 'goog_KRbvdZPJdZKoBDdcFUMnpomIpij';
   static const String iosApiKey = ''; // TODO: Add iOS key when available
 
-  // Entitlement ID - This is what you set up in RevenueCat dashboard
+  // Entitlement ID
   static const String premiumEntitlement = 'twain_plus';
 
   // Product IDs from Play Console
