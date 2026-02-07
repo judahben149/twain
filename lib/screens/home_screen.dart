@@ -17,6 +17,7 @@ import 'package:twain/screens/wallpaper_screen.dart';
 import 'package:twain/screens/shared_board_screen.dart';
 import 'package:twain/screens/settings_screen.dart';
 import 'package:twain/widgets/stable_avatar.dart';
+import 'package:twain/widgets/scrolling_text.dart';
 import 'package:twain/widgets/battery_optimization_dialog.dart';
 import 'package:twain/widgets/location_permission_dialog.dart';
 import 'package:twain/providers/location_providers.dart';
@@ -1133,13 +1134,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             ),
           ),
           const SizedBox(height: 8),
-          Text(
-            name,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: theme.colorScheme.onSurface,
+          SizedBox(
+            width: 80,
+            child: ScrollingText(
+              text: name,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.onSurface,
+              ),
             ),
           ),
         ],
@@ -1185,13 +1188,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             ),
           ),
           const SizedBox(height: 8),
-          Text(
-            name,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: theme.colorScheme.onSurface,
+          SizedBox(
+            width: 80,
+            child: ScrollingText(
+              text: name,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.onSurface,
+              ),
             ),
           ),
         ],
