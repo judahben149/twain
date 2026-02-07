@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:qr_code_scanner/qr_code_scanner.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:twain/constants/app_themes.dart';
 import 'package:twain/providers/auth_providers.dart';
 import 'package:twain/screens/home_screen.dart';
@@ -19,12 +21,39 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
   final _codeController = TextEditingController();
   String? _generatedCode;
   bool _isLoading = false;
+  bool _isCheckingExisting = true;
   String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkExistingCode();
+  }
 
   @override
   void dispose() {
     _codeController.dispose();
     super.dispose();
+  }
+
+  Future<void> _checkExistingCode() async {
+    try {
+      final authService = ref.read(authServiceProvider);
+      final existingCode = await authService.getExistingInviteCode();
+
+      if (mounted) {
+        setState(() {
+          _generatedCode = existingCode;
+          _isCheckingExisting = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isCheckingExisting = false;
+        });
+      }
+    }
   }
 
   Future<void> _generateCode() async {
@@ -104,6 +133,177 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
     );
   }
 
+  void _showShareOptions() {
+    if (_generatedCode == null) return;
+
+    final theme = Theme.of(context);
+    final twainTheme = context.twainTheme;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          decoration: BoxDecoration(
+            color: twainTheme.cardBackgroundColor,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(24),
+              topRight: Radius.circular(24),
+            ),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: theme.dividerColor,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Share Invite Code',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  _buildShareOption(
+                    icon: Icons.copy,
+                    title: 'Copy Code',
+                    subtitle: 'Copy code to clipboard',
+                    onTap: () {
+                      Clipboard.setData(ClipboardData(text: _generatedCode!));
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Text('Code copied to clipboard'),
+                          backgroundColor: twainTheme.iconColor,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      );
+                    },
+                    theme: theme,
+                    twainTheme: twainTheme,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildShareOption(
+                    icon: Icons.share,
+                    title: 'Share via...',
+                    subtitle: 'Share with other apps',
+                    onTap: () {
+                      Navigator.pop(context);
+                      Share.share(
+                        'Join me on Twain! Use my invite code: $_generatedCode',
+                        subject: 'Twain Invite Code',
+                      );
+                    },
+                    theme: theme,
+                    twainTheme: twainTheme,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildShareOption(
+                    icon: Icons.link,
+                    title: 'Share as Link',
+                    subtitle: 'Share a link with your code',
+                    onTap: () {
+                      Navigator.pop(context);
+                      Share.share(
+                        'Join me on Twain! Download the app and use my invite code: $_generatedCode\n\nhttps://twain.app/invite/$_generatedCode',
+                        subject: 'Twain Invite',
+                      );
+                    },
+                    theme: theme,
+                    twainTheme: twainTheme,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildShareOption({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+    required ThemeData theme,
+    required TwainThemeExtension twainTheme,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: theme.dividerColor.withOpacity(0.7),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: twainTheme.iconBackgroundColor,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                icon,
+                color: twainTheme.iconColor,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right,
+              color: theme.colorScheme.onSurface.withOpacity(0.4),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -144,7 +344,7 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
                       const SizedBox(height: 32),
                       _buildHeader(theme),
                       const SizedBox(height: 32),
-                      _buildToggleButtons(theme, twainTheme),
+                      _buildTabSelector(theme, twainTheme),
                       const SizedBox(height: 48),
                       if (_errorMessage != null) ...{
                         _buildErrorMessage(twainTheme),
@@ -207,73 +407,107 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
     );
   }
 
-  Widget _buildToggleButtons(ThemeData theme, TwainThemeExtension twainTheme) {
-    return Row(
-      children: [
-        Expanded(
-          child: _buildToggleButton(
-            'Generate Code',
-            _isGenerateMode,
-            Icons.add,
-            () => setState(() => _isGenerateMode = true),
-            theme,
-            twainTheme,
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _buildToggleButton(
-            'Enter Code',
-            !_isGenerateMode,
-            Icons.camera_alt_outlined,
-            () => setState(() => _isGenerateMode = false),
-            theme,
-            twainTheme,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildToggleButton(
-    String text,
-    bool isActive,
-    IconData icon,
-    VoidCallback onPressed,
-    ThemeData theme,
-    TwainThemeExtension twainTheme,
-  ) {
-    return ElevatedButton.icon(
-      onPressed: onPressed,
-      icon: Icon(
-        icon,
-        color: isActive ? Colors.white : twainTheme.iconColor,
-        size: 20,
-      ),
-      label: Text(
-        text,
-        style: TextStyle(
-          color: isActive ? Colors.white : twainTheme.iconColor,
-          fontWeight: FontWeight.bold,
+  Widget _buildTabSelector(ThemeData theme, TwainThemeExtension twainTheme) {
+    return Container(
+      decoration: BoxDecoration(
+        color: twainTheme.cardBackgroundColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.dividerColor,
+          width: 1,
         ),
       ),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: isActive
-            ? twainTheme.iconColor
-            : twainTheme.cardBackgroundColor,
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(
-            color: twainTheme.iconColor,
-            width: isActive ? 0 : 1,
+      child: Row(
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _isGenerateMode = true),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  color: _isGenerateMode
+                      ? twainTheme.iconColor
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  'Generate Code',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: _isGenerateMode
+                        ? Colors.white
+                        : theme.colorScheme.onSurface.withOpacity(0.7),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+            ),
           ),
-        ),
+          Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _isGenerateMode = false),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  color: !_isGenerateMode
+                      ? twainTheme.iconColor
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  'Enter Code',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: !_isGenerateMode
+                        ? Colors.white
+                        : theme.colorScheme.onSurface.withOpacity(0.7),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildGenerateMode(ThemeData theme, TwainThemeExtension twainTheme) {
+    // Show loading while checking for existing code
+    if (_isCheckingExisting) {
+      return Column(
+        children: [
+          Container(
+            width: 200,
+            height: 200,
+            decoration: BoxDecoration(
+              color: twainTheme.cardBackgroundColor,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: theme.dividerColor,
+                width: 2,
+              ),
+            ),
+            child: Center(
+              child: CircularProgressIndicator(
+                color: twainTheme.iconColor,
+              ),
+            ),
+          ),
+          const SizedBox(height: 32),
+          Text(
+            'Checking for existing code...',
+            style: TextStyle(
+              fontSize: 14,
+              color: theme.colorScheme.onSurface.withOpacity(0.6),
+            ),
+          ),
+        ],
+      );
+    }
+
     return Column(
       children: [
         if (_generatedCode != null) ...[
@@ -309,6 +543,40 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
               color: theme.colorScheme.onSurface,
             ),
           ),
+          const SizedBox(height: 24),
+          // Share button
+          ElevatedButton.icon(
+            onPressed: _showShareOptions,
+            icon: const Icon(Icons.share, size: 20),
+            label: const Text(
+              'Share Code',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: twainTheme.iconColor,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Generate new code button
+          TextButton(
+            onPressed: _isLoading ? null : _generateCode,
+            child: Text(
+              _isLoading ? 'Generating...' : 'Generate New Code',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: twainTheme.iconColor,
+              ),
+            ),
+          ),
         ] else ...[
           Container(
             width: 200,
@@ -330,15 +598,13 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
               ),
             ),
           ),
+          const SizedBox(height: 32),
+          GradientButton(
+            onPressed: _isLoading ? null : _generateCode,
+            text: _isLoading ? 'Generating...' : 'Generate Invite Code',
+            icon: _isLoading ? null : Icons.qr_code,
+          ),
         ],
-        const SizedBox(height: 32),
-        GradientButton(
-          onPressed: _isLoading ? null : _generateCode,
-          text: _isLoading
-              ? 'Generating...'
-              : (_generatedCode != null ? 'Regenerate Invite Code' : 'Generate Invite Code'),
-          icon: _isLoading ? null : Icons.qr_code,
-        ),
       ],
     );
   }

@@ -559,6 +559,25 @@ class AuthService {
     });
   }
 
+  // Get existing invite code for current user (if any)
+  Future<String?> getExistingInviteCode() async {
+    final user = currentUser;
+    if (user == null) return null;
+
+    try {
+      final userData = await _supabase
+          .from('users')
+          .select('invite_code')
+          .eq('id', user.id)
+          .maybeSingle();
+
+      return userData?['invite_code'] as String?;
+    } catch (e) {
+      print('Error getting existing invite code: $e');
+      return null;
+    }
+  }
+
   // Generate a unique invite code for the current user
   Future<String> generateInviteCode() async {
     try {

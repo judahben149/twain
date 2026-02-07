@@ -122,6 +122,12 @@ final isTwainPlusProvider = Provider<bool>((ref) {
   return status.isTwainPlus;
 });
 
+/// Whether subscription is shared from partner
+final isSharedSubscriptionProvider = Provider<bool>((ref) {
+  final status = ref.watch(subscriptionStatusProvider);
+  return status.isFromPartner;
+});
+
 /// Available subscription offerings
 final subscriptionOfferingsProvider = FutureProvider<List<SubscriptionOffering>>((ref) async {
   final service = ref.watch(subscriptionServiceProvider);

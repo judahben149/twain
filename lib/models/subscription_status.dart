@@ -4,19 +4,27 @@ class SubscriptionStatus {
   final String? activeProductId;
   final DateTime? expirationDate;
   final bool willRenew;
+  final bool isSharedSubscription;
 
   const SubscriptionStatus({
     required this.isSubscribed,
     this.activeProductId,
     this.expirationDate,
     this.willRenew = false,
+    this.isSharedSubscription = false,
   });
 
   /// Default free status
-  static const free = SubscriptionStatus(isSubscribed: false);
+  static const free = SubscriptionStatus(
+    isSubscribed: false,
+    isSharedSubscription: false,
+  );
 
   /// Check if user has Twain Plus
   bool get isTwainPlus => isSubscribed;
+
+  /// Check if subscription is from partner
+  bool get isFromPartner => isSharedSubscription;
 
   /// Check if subscription is expiring soon (within 7 days)
   bool get isExpiringSoon {
@@ -30,18 +38,20 @@ class SubscriptionStatus {
     String? activeProductId,
     DateTime? expirationDate,
     bool? willRenew,
+    bool? isSharedSubscription,
   }) {
     return SubscriptionStatus(
       isSubscribed: isSubscribed ?? this.isSubscribed,
       activeProductId: activeProductId ?? this.activeProductId,
       expirationDate: expirationDate ?? this.expirationDate,
       willRenew: willRenew ?? this.willRenew,
+      isSharedSubscription: isSharedSubscription ?? this.isSharedSubscription,
     );
   }
 
   @override
   String toString() {
-    return 'SubscriptionStatus(isSubscribed: $isSubscribed, activeProductId: $activeProductId, expirationDate: $expirationDate, willRenew: $willRenew)';
+    return 'SubscriptionStatus(isSubscribed: $isSubscribed, activeProductId: $activeProductId, expirationDate: $expirationDate, willRenew: $willRenew, isSharedSubscription: $isSharedSubscription)';
   }
 }
 

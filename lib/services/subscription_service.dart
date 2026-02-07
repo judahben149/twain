@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:twain/models/subscription_status.dart';
 
 /// RevenueCat configuration
@@ -101,18 +102,119 @@ class SubscriptionService {
     }
   }
 
-  /// Refresh subscription status from RevenueCat
+  /// Refresh subscription status from RevenueCat and check partner subscription
   Future<SubscriptionStatus> refreshStatus() async {
     if (!_isInitialized) return SubscriptionStatus.free;
 
     try {
+      // First check local RevenueCat status
       final customerInfo = await Purchases.getCustomerInfo();
-      final status = _parseCustomerInfo(customerInfo);
-      _updateStatus(status);
-      return status;
+      final localStatus = _parseCustomerInfo(customerInfo);
+
+      if (localStatus.isSubscribed) {
+        // User has their own subscription - sync to Supabase for partner to see
+        await syncSubscriptionToSupabase(localStatus);
+        _updateStatus(localStatus);
+        return localStatus;
+      }
+
+      // User doesn't have their own subscription - check if partner has Plus
+      final partnerStatus = await checkPartnerSubscription();
+      if (partnerStatus != null && partnerStatus.isSubscribed) {
+        // Partner has Plus, share it with user
+        final sharedStatus = partnerStatus.copyWith(isSharedSubscription: true);
+        _updateStatus(sharedStatus);
+        return sharedStatus;
+      }
+
+      // No subscription from either user or partner
+      _updateStatus(localStatus);
+      return localStatus;
     } catch (e) {
       debugPrint('SubscriptionService: Failed to refresh status - $e');
       return _currentStatus;
+    }
+  }
+
+  /// Sync current user's subscription status to Supabase
+  Future<void> syncSubscriptionToSupabase(SubscriptionStatus status) async {
+    try {
+      final supabase = Supabase.instance.client;
+      final userId = supabase.auth.currentUser?.id;
+
+      if (userId == null) {
+        debugPrint('SubscriptionService: No user logged in, skipping sync');
+        return;
+      }
+
+      await supabase.from('users').update({
+        'subscription_status': status.isSubscribed ? 'active' : 'free',
+        'subscription_product_id': status.activeProductId,
+        'subscription_expires_at': status.expirationDate?.toIso8601String(),
+        'subscription_updated_at': DateTime.now().toUtc().toIso8601String(),
+      }).eq('id', userId);
+
+      debugPrint('SubscriptionService: Synced subscription to Supabase');
+    } catch (e) {
+      debugPrint('SubscriptionService: Failed to sync subscription to Supabase - $e');
+      // Don't throw - this is a non-critical operation
+    }
+  }
+
+  /// Check if partner has an active subscription
+  Future<SubscriptionStatus?> checkPartnerSubscription() async {
+    try {
+      final supabase = Supabase.instance.client;
+      final userId = supabase.auth.currentUser?.id;
+
+      if (userId == null) {
+        debugPrint('SubscriptionService: No user logged in');
+        return null;
+      }
+
+      // Call RPC function to get pair subscription status
+      final result = await supabase.rpc(
+        'get_pair_subscription_status',
+        params: {'user_id': userId},
+      );
+
+      if (result == null || (result is List && result.isEmpty)) {
+        debugPrint('SubscriptionService: No pair subscription data');
+        return null;
+      }
+
+      // Handle the result - it could be a list or a single object
+      final data = result is List ? result.first : result;
+
+      final hasPlus = data['has_plus'] as bool? ?? false;
+      final subscriberId = data['subscriber_id'] as String?;
+      final expiresAtStr = data['expires_at'] as String?;
+
+      debugPrint('SubscriptionService: Partner subscription check - hasPlus=$hasPlus, subscriberId=$subscriberId');
+
+      if (!hasPlus) {
+        return null;
+      }
+
+      // Only return partner subscription if it's not the current user
+      if (subscriberId == userId) {
+        // This is the user's own subscription
+        return null;
+      }
+
+      DateTime? expiresAt;
+      if (expiresAtStr != null) {
+        expiresAt = DateTime.tryParse(expiresAtStr);
+      }
+
+      return SubscriptionStatus(
+        isSubscribed: true,
+        expirationDate: expiresAt,
+        isSharedSubscription: true,
+      );
+    } catch (e) {
+      debugPrint('SubscriptionService: Failed to check partner subscription - $e');
+      return null;
     }
   }
 

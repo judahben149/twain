@@ -98,6 +98,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         ),
                       ]),
                       const SizedBox(height: 24),
+                      _buildSectionHeader('Subscription'),
+                      const SizedBox(height: 12),
+                      _buildSubscriptionCard(),
+                      const SizedBox(height: 24),
                       _buildSectionHeader('Connection'),
                       const SizedBox(height: 12),
                       _buildSettingsCard([
@@ -321,6 +325,64 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         children: children,
       ),
     );
+  }
+
+  Widget _buildSubscriptionCard() {
+    final isTwainPlus = ref.watch(isTwainPlusProvider);
+    final isSharedSubscription = ref.watch(isSharedSubscriptionProvider);
+    final twainTheme = context.twainTheme;
+
+    String subtitle;
+    Widget? trailing;
+
+    if (isTwainPlus) {
+      if (isSharedSubscription) {
+        subtitle = 'Twain Plus (shared by partner)';
+      } else {
+        subtitle = 'Twain Plus active';
+      }
+      trailing = Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: twainTheme.activeStatusColor,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          'PLUS',
+          style: TextStyle(
+            color: twainTheme.activeStatusTextColor,
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      );
+    } else {
+      subtitle = 'Free plan';
+      trailing = Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          'FREE',
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      );
+    }
+
+    return _buildSettingsCard([
+      _buildSettingsTile(
+        icon: Icons.workspace_premium,
+        title: 'Subscription',
+        subtitle: subtitle,
+        trailing: trailing,
+      ),
+    ]);
   }
 
   Widget _buildDistanceFeatureTile(BuildContext context) {

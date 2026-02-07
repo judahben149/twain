@@ -19,6 +19,7 @@ import 'package:twain/screens/paywall_screen.dart';
 import 'package:twain/services/wallpaper_manager_service.dart';
 import 'package:twain/services/cache/twain_cache_managers.dart';
 import 'package:twain/utils/image_url_utils.dart';
+import 'package:twain/screens/wallpaper_detail_screen.dart';
 
 enum _WallpaperSource { sharedBoard, device, unsplash }
 
@@ -1349,12 +1350,24 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
     }
   }
 
-  Future<void> _applyWallpaper(Wallpaper wallpaper, TwainThemeExtension twainTheme) async {
+  // Helper to get appropriate text color for snackbar based on background
+  Color _getSnackBarTextColor(Color backgroundColor) {
+    // Calculate luminance to determine if background is light or dark
+    final luminance = backgroundColor.computeLuminance();
+    return luminance > 0.5 ? Colors.black : Colors.white;
+  }
+
+  // Sync a pending wallpaper (force apply)
+  Future<void> _syncWallpaper(Wallpaper wallpaper, TwainThemeExtension twainTheme) async {
     final theme = Theme.of(context);
     if (!Platform.isAndroid) {
+      final textColor = _getSnackBarTextColor(twainTheme.destructiveBackgroundColor);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Wallpaper can only be applied on Android'),
+          content: Text(
+            'Wallpaper can only be applied on Android',
+            style: TextStyle(color: textColor),
+          ),
           backgroundColor: twainTheme.destructiveBackgroundColor,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
@@ -1371,6 +1384,8 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
 
     try {
       // Show loading message
+      final loadingBgColor = twainTheme.cardBackgroundColor;
+      final loadingTextColor = _getSnackBarTextColor(loadingBgColor);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
@@ -1383,12 +1398,15 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                   strokeWidth: 2,
                 ),
               ),
-              SizedBox(width: 16),
-              Text('Applying wallpaper...'),
+              const SizedBox(width: 16),
+              Text(
+                'Syncing wallpaper...',
+                style: TextStyle(color: loadingTextColor),
+              ),
             ],
           ),
-          duration: Duration(seconds: 10),
-          backgroundColor: twainTheme.cardBackgroundColor,
+          duration: const Duration(seconds: 10),
+          backgroundColor: loadingBgColor,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -1416,9 +1434,12 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
         SnackBar(
           content: Row(
             children: [
-              Icon(Icons.check_circle, color: theme.colorScheme.onPrimary),
+              const Icon(Icons.check_circle, color: Colors.white),
               const SizedBox(width: 16),
-              const Text('Wallpaper applied successfully!'),
+              const Text(
+                'Wallpaper synced successfully!',
+                style: TextStyle(color: Colors.white),
+              ),
             ],
           ),
           backgroundColor: twainTheme.iconColor,
@@ -1445,10 +1466,144 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
         SnackBar(
           content: Row(
             children: [
-              Icon(Icons.error, color: theme.colorScheme.onPrimary),
+              const Icon(Icons.error, color: Colors.white),
               const SizedBox(width: 16),
               Expanded(
-                child: Text('Failed to apply wallpaper: ${e.toString()}'),
+                child: Text(
+                  'Failed to sync wallpaper: ${e.toString()}',
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: twainTheme.destructiveColor,
+          duration: const Duration(seconds: 4),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _applyingWallpapers.remove(wallpaper.id);
+        });
+      }
+    }
+  }
+
+  // Reapply an already applied wallpaper (creates new record in moments)
+  Future<void> _reapplyWallpaper(Wallpaper wallpaper, TwainThemeExtension twainTheme) async {
+    final theme = Theme.of(context);
+    if (!Platform.isAndroid) {
+      final textColor = _getSnackBarTextColor(twainTheme.destructiveBackgroundColor);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Wallpaper can only be applied on Android',
+            style: TextStyle(color: textColor),
+          ),
+          backgroundColor: twainTheme.destructiveBackgroundColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _applyingWallpapers.add(wallpaper.id);
+    });
+
+    try {
+      // Show loading message
+      final loadingBgColor = twainTheme.cardBackgroundColor;
+      final loadingTextColor = _getSnackBarTextColor(loadingBgColor);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  color: twainTheme.iconColor,
+                  strokeWidth: 2,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Text(
+                'Re-applying wallpaper...',
+                style: TextStyle(color: loadingTextColor),
+              ),
+            ],
+          ),
+          duration: const Duration(seconds: 10),
+          backgroundColor: loadingBgColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: context.isDarkMode
+                ? BorderSide(color: theme.dividerColor, width: 0.5)
+                : BorderSide.none,
+          ),
+        ),
+      );
+
+      // Apply wallpaper using native Android code
+      await WallpaperManagerService.setWallpaper(wallpaper.imageUrl);
+
+      if (!mounted) return;
+
+      // Create a new reapply record in the database
+      final service = ref.read(wallpaperServiceProvider);
+      await service.reapplyWallpaper(
+        imageUrl: wallpaper.imageUrl,
+        originalWallpaperId: wallpaper.id,
+      );
+
+      if (!mounted) return;
+
+      // Show success message
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white),
+              const SizedBox(width: 16),
+              const Text(
+                'Wallpaper re-applied successfully!',
+                style: TextStyle(color: Colors.white),
+              ),
+            ],
+          ),
+          backgroundColor: twainTheme.iconColor,
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error, color: Colors.white),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  'Failed to re-apply wallpaper: ${e.toString()}',
+                  style: const TextStyle(color: Colors.white),
+                ),
               ),
             ],
           ),
@@ -1478,10 +1633,13 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
     TwainThemeExtension twainTheme, {
     bool compact = false,
   }) {
-    // Determine if current user should see the Apply button
-    final shouldShowApply = wallpaper.status == 'pending' &&
-        (wallpaper.applyTo == 'both' || wallpaper.senderId != currentUserId) &&
-        Platform.isAndroid;
+    // Determine button type:
+    // - "Sync" for pending wallpapers where current user is the recipient (force sync)
+    // - "Reapply" for already applied wallpapers (reuse this wallpaper)
+    final isPendingForMe = wallpaper.status == 'pending' &&
+        (wallpaper.applyTo == 'both' || wallpaper.senderId != currentUserId);
+    final showSyncButton = isPendingForMe && Platform.isAndroid;
+    final showReapplyButton = !isPendingForMe && Platform.isAndroid;
 
     final isApplying = _applyingWallpapers.contains(wallpaper.id);
     final thumbSize = compact ? 52.0 : 60.0;
@@ -1496,197 +1654,289 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
       color: theme.colorScheme.onSurface.withOpacity(0.6),
     );
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: twainTheme.cardBackgroundColor,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: compact || context.isDarkMode
-            ? null
-            : [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-        border: context.isDarkMode
-            ? Border.all(color: theme.dividerColor, width: 0.5)
-            : null,
-      ),
-      child: Padding(
-        padding: padding,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Wallpaper thumbnail
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-            child: CachedNetworkImage(
-              imageUrl: buildOptimizedImageUrl(
-                wallpaper.imageUrl,
-                width: 720,
-                quality: 70,
-              ),
-              cacheManager:
-                  TwainCacheManagers.getManager(TwainCacheBucket.wallpaperImages),
-              width: thumbSize,
-              height: thumbSize,
-              fit: BoxFit.cover,
-              fadeInDuration: const Duration(milliseconds: 60),
-              fadeOutDuration: const Duration(milliseconds: 60),
-              placeholderFadeInDuration: const Duration(milliseconds: 60),
-              useOldImageOnUrlChange: true,
-              progressIndicatorBuilder: (context, url, progress) {
-                final value = progress.progress;
-                if (value != null && value >= 1.0) {
-                  return const SizedBox.shrink();
-                }
-                return Container(
-                  width: thumbSize,
-                  height: thumbSize,
-                  color: theme.colorScheme.surface,
-                  child: Center(
-                    child: SizedBox(
-                      width: 28,
-                      height: 28,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          CircularProgressIndicator(
-                            value: value,
-                            strokeWidth: 2,
-                            color: twainTheme.iconColor,
-                          ),
-                          if (value != null)
-                            Text(
-                              '${(value * 100).clamp(0, 100).toStringAsFixed(0)}%',
-                              style: TextStyle(
-                                fontSize: 8,
-                                fontWeight: FontWeight.w600,
-                                color: twainTheme.iconColor,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              },
-                errorWidget: (context, url, error) => Container(
-                  width: thumbSize,
-                  height: thumbSize,
-                  color: theme.colorScheme.surface,
-                  child: Icon(
-                    Icons.image_not_supported,
-                    color: theme.colorScheme.onSurface.withOpacity(0.4),
-                  ),
-                ),
-              ),
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => WallpaperDetailScreen(
+              wallpaper: wallpaper,
+              isCurrentUser: isCurrentUser,
             ),
-
-            SizedBox(width: compact ? 12 : 16),
-
-            // Info
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        isCurrentUser ? 'You' : 'Partner',
-                        style: titleStyle,
-                      ),
-                      SizedBox(width: compact ? 6 : 8),
-                      Text(
-                        'set wallpaper',
-                        style: subtitleStyle,
-                      ),
-                    ],
+          ),
+        );
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: twainTheme.cardBackgroundColor,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: compact || context.isDarkMode
+              ? null
+              : [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
                   ),
-
-                  SizedBox(height: compact ? 2 : 4),
-
-                  Text(
-                    _getApplyToText(wallpaper.applyTo),
-                    style: TextStyle(
-                      fontSize: compact ? 11 : 13,
-                      color: theme.colorScheme.onSurface.withOpacity(0.5),
-                    ),
-                  ),
-
-                  SizedBox(height: compact ? 6 : 8),
-
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.access_time,
-                        size: compact ? 13 : 14,
-                        color: theme.colorScheme.onSurface.withOpacity(0.4),
-                      ),
-                      SizedBox(width: compact ? 3 : 4),
-                      Text(
-                        _formatDateTime(wallpaper.createdAt),
-                        style: TextStyle(
-                          fontSize: compact ? 11 : 12,
-                          color: theme.colorScheme.onSurface.withOpacity(0.5),
+                ],
+          border: context.isDarkMode
+              ? Border.all(color: theme.dividerColor, width: 0.5)
+              : null,
+        ),
+        child: Padding(
+          padding: padding,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Wallpaper thumbnail
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+              child: CachedNetworkImage(
+                imageUrl: buildOptimizedImageUrl(
+                  wallpaper.imageUrl,
+                  width: 720,
+                  quality: 70,
+                ),
+                cacheManager:
+                    TwainCacheManagers.getManager(TwainCacheBucket.wallpaperImages),
+                width: thumbSize,
+                height: thumbSize,
+                fit: BoxFit.cover,
+                fadeInDuration: const Duration(milliseconds: 60),
+                fadeOutDuration: const Duration(milliseconds: 60),
+                placeholderFadeInDuration: const Duration(milliseconds: 60),
+                useOldImageOnUrlChange: true,
+                progressIndicatorBuilder: (context, url, progress) {
+                  final value = progress.progress;
+                  if (value != null && value >= 1.0) {
+                    return const SizedBox.shrink();
+                  }
+                  return Container(
+                    width: thumbSize,
+                    height: thumbSize,
+                    color: theme.colorScheme.surface,
+                    child: Center(
+                      child: SizedBox(
+                        width: 28,
+                        height: 28,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            CircularProgressIndicator(
+                              value: value,
+                              strokeWidth: 2,
+                              color: twainTheme.iconColor,
+                            ),
+                            if (value != null)
+                              Text(
+                                '${(value * 100).clamp(0, 100).toStringAsFixed(0)}%',
+                                style: TextStyle(
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.w600,
+                                  color: twainTheme.iconColor,
+                                ),
+                              ),
+                          ],
                         ),
                       ),
-                      SizedBox(width: compact ? 12 : 16),
-                      _buildStatusBadge(
-                        wallpaper.status,
-                        theme,
-                        twainTheme,
-                        subtle: compact,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            // Apply button (only on Android for pending wallpapers)
-            if (shouldShowApply)
-              Column(
-                children: [
-                  SizedBox(height: compact ? 0 : 4),
-                  ElevatedButton(
-                    onPressed: isApplying
-                        ? null
-                        : () => _applyWallpaper(wallpaper, twainTheme),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: twainTheme.iconColor,
-                      foregroundColor: theme.colorScheme.onPrimary,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      elevation: compact ? 0 : 1,
                     ),
-                    child: isApplying
-                        ? SizedBox(
-                            width: compact ? 14 : 16,
-                            height: compact ? 14 : 16,
-                            child: CircularProgressIndicator(
-                              color: theme.colorScheme.onPrimary,
-                              strokeWidth: 2,
+                  );
+                },
+                  errorWidget: (context, url, error) => Container(
+                    width: thumbSize,
+                    height: thumbSize,
+                    color: theme.colorScheme.surface,
+                    child: Icon(
+                      Icons.image_not_supported,
+                      color: theme.colorScheme.onSurface.withOpacity(0.4),
+                    ),
+                  ),
+                ),
+              ),
+
+              SizedBox(width: compact ? 12 : 16),
+
+              // Info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          isCurrentUser ? 'You' : 'Partner',
+                          style: titleStyle,
+                        ),
+                        SizedBox(width: compact ? 6 : 8),
+                        Text(
+                          wallpaper.sourceType == 'reapply' ? 're-applied' : 'set wallpaper',
+                          style: subtitleStyle,
+                        ),
+                        if (wallpaper.sourceType == 'reapply') ...[
+                          SizedBox(width: compact ? 6 : 8),
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: compact ? 5 : 6,
+                              vertical: compact ? 2 : 3,
                             ),
-                          )
-                        : const Text(
-                            'Apply',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
+                            decoration: BoxDecoration(
+                              color: twainTheme.iconColor.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.replay,
+                                  size: compact ? 10 : 12,
+                                  color: twainTheme.iconColor,
+                                ),
+                                SizedBox(width: compact ? 2 : 3),
+                                Text(
+                                  'Re-applied',
+                                  style: TextStyle(
+                                    fontSize: compact ? 9 : 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: twainTheme.iconColor,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                  ),
-                ],
+                        ],
+                      ],
+                    ),
+
+                    SizedBox(height: compact ? 2 : 4),
+
+                    Text(
+                      _getApplyToText(wallpaper.applyTo),
+                      style: TextStyle(
+                        fontSize: compact ? 11 : 13,
+                        color: theme.colorScheme.onSurface.withOpacity(0.5),
+                      ),
+                    ),
+
+                    SizedBox(height: compact ? 6 : 8),
+
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.access_time,
+                          size: compact ? 13 : 14,
+                          color: theme.colorScheme.onSurface.withOpacity(0.4),
+                        ),
+                        SizedBox(width: compact ? 3 : 4),
+                        Text(
+                          _formatDateTime(wallpaper.createdAt),
+                          style: TextStyle(
+                            fontSize: compact ? 11 : 12,
+                            color: theme.colorScheme.onSurface.withOpacity(0.5),
+                          ),
+                        ),
+                        SizedBox(width: compact ? 12 : 16),
+                        _buildStatusBadge(
+                          wallpaper.status,
+                          theme,
+                          twainTheme,
+                          subtle: compact,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-          ],
+
+              // Sync button - for pending wallpapers (force sync to apply)
+              if (showSyncButton)
+                Column(
+                  children: [
+                    SizedBox(height: compact ? 0 : 4),
+                    ElevatedButton.icon(
+                      onPressed: isApplying
+                          ? null
+                          : () => _syncWallpaper(wallpaper, twainTheme),
+                      icon: isApplying
+                          ? const SizedBox.shrink()
+                          : Icon(Icons.sync, size: compact ? 14 : 16),
+                      label: isApplying
+                          ? SizedBox(
+                              width: compact ? 14 : 16,
+                              height: compact ? 14 : 16,
+                              child: CircularProgressIndicator(
+                                color: theme.colorScheme.onPrimary,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Text(
+                              'Sync',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: twainTheme.iconColor,
+                        foregroundColor: theme.colorScheme.onPrimary,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: compact ? 12 : 14,
+                          vertical: 8,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        elevation: compact ? 0 : 1,
+                      ),
+                    ),
+                  ],
+                ),
+
+              // Reapply button - for already applied wallpapers
+              if (showReapplyButton)
+                Column(
+                  children: [
+                    SizedBox(height: compact ? 0 : 4),
+                    OutlinedButton(
+                      onPressed: isApplying
+                          ? null
+                          : () => _reapplyWallpaper(wallpaper, twainTheme),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: twainTheme.iconColor,
+                        side: BorderSide(
+                          color: twainTheme.iconColor,
+                          width: 1.5,
+                        ),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: compact ? 10 : 12,
+                          vertical: 8,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: isApplying
+                          ? SizedBox(
+                              width: compact ? 14 : 16,
+                              height: compact ? 14 : 16,
+                              child: CircularProgressIndicator(
+                                color: twainTheme.iconColor,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : Text(
+                              'Reapply',
+                              style: TextStyle(
+                                fontSize: compact ? 12 : 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                    ),
+                  ],
+                ),
+            ],
+          ),
         ),
       ),
     );

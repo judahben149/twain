@@ -134,6 +134,40 @@ class WallpaperService {
     print('Wallpaper record created, FCM notification will be triggered');
   }
 
+  // Reapply an existing wallpaper (creates a new record in moments list)
+  Future<void> reapplyWallpaper({
+    required String imageUrl,
+    required String originalWallpaperId,
+  }) async {
+    final user = currentUser;
+    if (user == null) throw Exception('No user logged in');
+
+    final userData = await _supabase
+        .from('users')
+        .select('pair_id')
+        .eq('id', user.id)
+        .single();
+    final pairId = userData['pair_id'] as String?;
+    if (pairId == null) throw Exception('No pair found');
+
+    print('Reapplying wallpaper for pair: $pairId');
+    print('Image URL: $imageUrl');
+    print('Original wallpaper ID: $originalWallpaperId');
+
+    // Create new wallpaper record with source_type 'reapply'
+    await _supabase.from('wallpapers').insert({
+      'pair_id': pairId,
+      'sender_id': user.id,
+      'image_url': imageUrl,
+      'source_type': 'reapply',
+      'apply_to': 'both', // Reapply is always for the current user only effectively
+      'status': 'applied', // Already applied since we're reapplying
+      'applied_at': DateTime.now().toIso8601String(),
+    }).select().single();
+
+    print('Reapply wallpaper record created');
+  }
+
   // Mark wallpaper as applied
   Future<void> markWallpaperApplied(String wallpaperId) async {
     print('Marking wallpaper $wallpaperId as applied');
