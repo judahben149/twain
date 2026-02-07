@@ -5,6 +5,7 @@ import 'package:twain/providers/wallpaper_providers.dart';
 import 'package:twain/navigation/app_navigator.dart';
 import 'package:twain/services/notification_router.dart';
 import 'package:twain/widgets/auth_gate.dart';
+import 'package:twain/widgets/connectivity_banner.dart';
 import 'package:twain/widgets/dynamic_theme_builder.dart';
 
 class MyApp extends ConsumerStatefulWidget {
@@ -61,6 +62,9 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
           theme: lightTheme,
           darkTheme: darkTheme,
           themeMode: themeMode,
+          builder: (context, child) {
+            return ConnectivityBanner(child: child ?? const SizedBox.shrink());
+          },
           home: const AuthGate(),
         );
       },

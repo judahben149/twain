@@ -7,6 +7,7 @@ import 'package:twain/models/content_report.dart';
 import 'package:twain/providers/auth_providers.dart';
 import 'package:twain/services/sticky_notes_service.dart';
 import 'package:twain/screens/sticky_note_detail_screen.dart';
+import 'package:twain/utils/connectivity_utils.dart';
 import 'package:twain/widgets/report_bottom_sheet.dart';
 
 class StickyNotesScreen extends ConsumerStatefulWidget {
@@ -40,6 +41,7 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
 
   Future<void> _sendMessage() async {
     if (_isSending) return;
+    if (!checkConnectivity(context, ref)) return;
 
     final message = _messageController.text.trim();
     if (message.isEmpty) return;
@@ -82,6 +84,8 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
   }
 
   Future<void> _toggleLike(StickyNote note) async {
+    if (!checkConnectivity(context, ref)) return;
+
     final currentUserId = ref.read(twainUserProvider).value?.id;
     if (currentUserId == null) return;
 

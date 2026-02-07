@@ -12,6 +12,7 @@ import 'package:twain/services/cache/twain_cache_managers.dart';
 import 'package:twain/services/image_download_service.dart';
 import 'package:twain/screens/paywall_screen.dart';
 import 'package:twain/services/wallpaper_manager_service.dart';
+import 'package:twain/utils/connectivity_utils.dart';
 
 class WallpaperDetailScreen extends ConsumerStatefulWidget {
   final Wallpaper wallpaper;
@@ -72,6 +73,7 @@ class _WallpaperDetailScreenState extends ConsumerState<WallpaperDetailScreen> {
       _showSnackBar('Wallpaper can only be applied on Android', isError: true);
       return;
     }
+    if (!checkConnectivity(context, ref)) return;
 
     setState(() => _isApplying = true);
 
@@ -100,6 +102,7 @@ class _WallpaperDetailScreenState extends ConsumerState<WallpaperDetailScreen> {
       _showSnackBar('Wallpaper can only be applied on Android', isError: true);
       return;
     }
+    if (!checkConnectivity(context, ref)) return;
 
     // Check for Twain Plus subscription
     var isTwainPlus = ref.read(isTwainPlusProvider);
@@ -138,6 +141,8 @@ class _WallpaperDetailScreenState extends ConsumerState<WallpaperDetailScreen> {
   }
 
   Future<void> _downloadToGallery() async {
+    if (!checkConnectivity(context, ref)) return;
+
     setState(() => _isDownloading = true);
 
     try {

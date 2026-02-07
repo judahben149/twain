@@ -19,6 +19,7 @@ import 'package:twain/screens/paywall_screen.dart';
 import 'package:twain/services/wallpaper_manager_service.dart';
 import 'package:twain/services/cache/twain_cache_managers.dart';
 import 'package:twain/utils/image_url_utils.dart';
+import 'package:twain/utils/connectivity_utils.dart';
 import 'package:twain/screens/wallpaper_detail_screen.dart';
 
 enum _WallpaperSource { sharedBoard, device, unsplash }
@@ -1391,6 +1392,7 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
       );
       return;
     }
+    if (!checkConnectivity(context, ref)) return;
 
     setState(() {
       _applyingWallpapers.add(wallpaper.id);
@@ -1527,6 +1529,7 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
       );
       return;
     }
+    if (!checkConnectivity(context, ref)) return;
 
     setState(() {
       _applyingWallpapers.add(wallpaper.id);
@@ -1868,29 +1871,10 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                 Column(
                   children: [
                     SizedBox(height: compact ? 0 : 4),
-                    ElevatedButton.icon(
+                    ElevatedButton(
                       onPressed: isApplying
                           ? null
                           : () => _syncWallpaper(wallpaper, twainTheme),
-                      icon: isApplying
-                          ? const SizedBox.shrink()
-                          : Icon(Icons.sync, size: compact ? 14 : 16),
-                      label: isApplying
-                          ? SizedBox(
-                              width: compact ? 14 : 16,
-                              height: compact ? 14 : 16,
-                              child: CircularProgressIndicator(
-                                color: theme.colorScheme.onPrimary,
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : const Text(
-                              'Sync',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: twainTheme.iconColor,
                         foregroundColor: theme.colorScheme.onPrimary,
@@ -1903,6 +1887,30 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                         ),
                         elevation: compact ? 0 : 1,
                       ),
+                      child: isApplying
+                          ? SizedBox(
+                              width: compact ? 14 : 16,
+                              height: compact ? 14 : 16,
+                              child: CircularProgressIndicator(
+                                color: theme.colorScheme.onPrimary,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : Row(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.sync, size: compact ? 14 : 16),
+                                const SizedBox(width: 6),
+                                const Text(
+                                  'Sync',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
                     ),
                   ],
                 ),

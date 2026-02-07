@@ -9,6 +9,7 @@ import 'package:twain/providers/wallpaper_providers.dart';
 import 'package:twain/providers/auth_providers.dart';
 import 'package:twain/screens/paywall_screen.dart';
 import 'package:twain/screens/wallpaper_preview_screen.dart';
+import 'package:twain/utils/connectivity_utils.dart';
 
 const int _maxDailyUploads = 1;
 const String _dailyUploadsKey = 'shared_board_daily_uploads';
@@ -419,6 +420,7 @@ class _SharedBoardScreenState extends ConsumerState<SharedBoardScreen> {
 
   Future<void> _uploadPhoto() async {
     if (_isUploading) return;
+    if (!checkConnectivity(context, ref)) return;
 
     // Check for Twain Plus subscription
     var isTwainPlus = ref.read(isTwainPlusProvider);
@@ -598,6 +600,8 @@ class _SharedBoardScreenState extends ConsumerState<SharedBoardScreen> {
   }
 
   Future<void> _deletePhoto(SharedBoardPhoto photo) async {
+    if (!checkConnectivity(context, ref)) return;
+
     try {
       // Show loading snackbar
       ScaffoldMessenger.of(context).showSnackBar(
