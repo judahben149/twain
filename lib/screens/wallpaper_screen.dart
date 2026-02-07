@@ -532,9 +532,9 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
               );
             },
             style: OutlinedButton.styleFrom(
-              foregroundColor: twainTheme.activeStatusTextColor,
+              foregroundColor: twainTheme.iconColor,
               side: BorderSide(
-                color: twainTheme.activeStatusTextColor,
+                color: twainTheme.iconColor,
                 width: 2,
               ),
               padding: const EdgeInsets.symmetric(vertical: 16),
@@ -549,7 +549,7 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                 Icon(
                   Icons.autorenew_rounded,
                   size: 20,
-                  color: twainTheme.activeStatusTextColor,
+                  color: twainTheme.iconColor,
                 ),
                 const SizedBox(width: 8),
                 const Text(
@@ -559,22 +559,24 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: twainTheme.activeStatusTextColor,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Text(
-                    'PLUS',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                if (!ref.watch(isTwainPlusProvider)) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: twainTheme.iconColor,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text(
+                      'PLUS',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
@@ -1901,7 +1903,20 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                     OutlinedButton(
                       onPressed: isApplying
                           ? null
-                          : () => _reapplyWallpaper(wallpaper, twainTheme),
+                          : () async {
+                              var isTwainPlus = ref.read(isTwainPlusProvider);
+                              if (!isTwainPlus) {
+                                final purchased = await PaywallScreen.show(
+                                  context,
+                                  feature: PaywallFeature.wallpaperReapply,
+                                );
+                                if (!purchased) return;
+                                if (!mounted) return;
+                                ref.invalidate(subscriptionStatusProvider);
+                              }
+                              if (!mounted) return;
+                              _reapplyWallpaper(wallpaper, twainTheme);
+                            },
                       style: OutlinedButton.styleFrom(
                         foregroundColor: twainTheme.iconColor,
                         side: BorderSide(
@@ -1925,12 +1940,35 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                                 strokeWidth: 2,
                               ),
                             )
-                          : Text(
-                              'Reapply',
-                              style: TextStyle(
-                                fontSize: compact ? 12 : 14,
-                                fontWeight: FontWeight.w600,
-                              ),
+                          : Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'Reapply',
+                                  style: TextStyle(
+                                    fontSize: compact ? 12 : 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                if (!ref.watch(isTwainPlusProvider)) ...[
+                                  SizedBox(width: compact ? 4 : 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      color: twainTheme.iconColor,
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      'PLUS',
+                                      style: TextStyle(
+                                        fontSize: compact ? 7 : 8,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                     ),
                   ],

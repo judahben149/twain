@@ -9,6 +9,7 @@ import 'package:twain/providers/auth_providers.dart';
 import 'package:twain/providers/wallpaper_providers.dart';
 import 'package:twain/services/cache/twain_cache_managers.dart';
 import 'package:twain/services/image_download_service.dart';
+import 'package:twain/screens/paywall_screen.dart';
 import 'package:twain/services/wallpaper_manager_service.dart';
 
 class WallpaperDetailScreen extends ConsumerStatefulWidget {
@@ -68,6 +69,18 @@ class _WallpaperDetailScreenState extends ConsumerState<WallpaperDetailScreen> {
     if (!Platform.isAndroid) {
       _showSnackBar('Wallpaper can only be applied on Android', isError: true);
       return;
+    }
+
+    // Check for Twain Plus subscription
+    var isTwainPlus = ref.read(isTwainPlusProvider);
+    if (!isTwainPlus) {
+      final purchased = await PaywallScreen.show(
+        context,
+        feature: PaywallFeature.wallpaperReapply,
+      );
+      if (!purchased) return;
+      if (!mounted) return;
+      ref.invalidate(subscriptionStatusProvider);
     }
 
     setState(() => _isApplying = true);
@@ -367,11 +380,34 @@ class _WallpaperDetailScreenState extends ConsumerState<WallpaperDetailScreen> {
                                         ),
                                       )
                                     : Icon(buttonIcon, size: 20),
-                                label: Text(
-                                  _isApplying ? loadingText : buttonText,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                                label: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      _isApplying ? loadingText : buttonText,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    if (!isPendingForMe && !_isApplying && !ref.watch(isTwainPlusProvider)) ...[
+                                      const SizedBox(width: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          'PLUS',
+                                          style: TextStyle(
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.bold,
+                                            color: twainTheme.iconColor,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: twainTheme.iconColor,

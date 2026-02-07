@@ -5,6 +5,7 @@ import 'package:twain/services/subscription_service.dart';
 /// Feature that triggered the paywall - used for analytics
 enum PaywallFeature {
   wallpaperRotation,
+  wallpaperReapply,
   stickyNoteReplies,
   sharedBoardUpload,
   general,
