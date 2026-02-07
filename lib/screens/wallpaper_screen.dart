@@ -1896,20 +1896,12 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                                 strokeWidth: 2,
                               ),
                             )
-                          : Row(
-                              mainAxisSize: MainAxisSize.min,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.sync, size: compact ? 14 : 16),
-                                const SizedBox(width: 6),
-                                const Text(
-                                  'Sync',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
+                          : const Text(
+                              'Sync',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                     ),
                   ],
