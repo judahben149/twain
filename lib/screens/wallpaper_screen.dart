@@ -203,12 +203,24 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 32),
             child: Text(
-              '$error',
+              'Something went wrong. Please check your connection and try again.',
               style: TextStyle(
                 fontSize: 12,
                 color: theme.colorScheme.onSurface.withOpacity(0.5),
               ),
               textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: () {
+              ref.invalidate(wallpapersStreamProvider);
+            },
+            icon: const Icon(Icons.refresh),
+            label: const Text('Retry'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: twainTheme.iconColor,
+              foregroundColor: Colors.white,
             ),
           ),
         ],
@@ -1344,7 +1356,7 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to pick image: $e'),
+            content: const Text('Failed to pick image. Please try again.'),
             backgroundColor: twainTheme.destructiveColor,
           ),
         );
@@ -1472,7 +1484,7 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
               const SizedBox(width: 16),
               Expanded(
                 child: Text(
-                  'Failed to sync wallpaper: ${e.toString()}',
+                  'Failed to sync wallpaper. Please try again.',
                   style: const TextStyle(color: Colors.white),
                 ),
               ),
@@ -1603,7 +1615,7 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
               const SizedBox(width: 16),
               Expanded(
                 child: Text(
-                  'Failed to re-apply wallpaper: ${e.toString()}',
+                  'Failed to re-apply wallpaper. Please try again.',
                   style: const TextStyle(color: Colors.white),
                 ),
               ),

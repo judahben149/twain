@@ -69,7 +69,7 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to send message: $e')),
+          const SnackBar(content: Text('Failed to send message. Please try again.')),
         );
       }
     } finally {
@@ -104,7 +104,7 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to like note: $e')),
+          const SnackBar(content: Text('Failed to like note. Please try again.')),
         );
       }
     }
@@ -346,9 +346,48 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
                     );
                   },
                   error: (error, stack) => Center(
-                    child: Text(
-                      'Error loading notes: $error',
-                      style: TextStyle(color: theme.colorScheme.onSurface),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          size: 64,
+                          color: twainTheme.destructiveColor,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Error loading notes',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 32),
+                          child: Text(
+                            'Something went wrong. Please check your connection and try again.',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: theme.colorScheme.onSurface.withOpacity(0.5),
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            ref.invalidate(stickyNotesStreamProvider);
+                          },
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Retry'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: twainTheme.iconColor,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),

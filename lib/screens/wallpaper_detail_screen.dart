@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:palette_generator/palette_generator.dart';
 import 'package:twain/constants/app_themes.dart';
 import 'package:twain/models/wallpaper.dart';
 import 'package:twain/providers/auth_providers.dart';
@@ -29,6 +30,35 @@ class WallpaperDetailScreen extends ConsumerStatefulWidget {
 class _WallpaperDetailScreenState extends ConsumerState<WallpaperDetailScreen> {
   bool _isApplying = false;
   bool _isDownloading = false;
+  Color? _dominantColor;
+
+  @override
+  void initState() {
+    super.initState();
+    _extractPalette();
+  }
+
+  Future<void> _extractPalette() async {
+    try {
+      final imageProvider = CachedNetworkImageProvider(
+        widget.wallpaper.imageUrl,
+        cacheManager: TwainCacheManagers.getManager(TwainCacheBucket.wallpaperImages),
+      );
+      final palette = await PaletteGenerator.fromImageProvider(
+        imageProvider,
+        size: const Size(200, 200),
+        maximumColorCount: 16,
+      );
+      if (!mounted) return;
+      final color = palette.vibrantColor?.color ??
+          palette.dominantColor?.color;
+      if (color != null) {
+        setState(() => _dominantColor = color);
+      }
+    } catch (_) {
+      // Fallback to theme color — no-op since _dominantColor stays null
+    }
+  }
 
   // Helper to get appropriate text color for snackbar based on background
   Color _getSnackBarTextColor(Color backgroundColor) {
@@ -56,7 +86,7 @@ class _WallpaperDetailScreenState extends ConsumerState<WallpaperDetailScreen> {
       _showSnackBar('Wallpaper synced successfully!');
     } catch (e) {
       if (!mounted) return;
-      _showSnackBar('Failed to sync wallpaper: $e', isError: true);
+      _showSnackBar('Failed to sync wallpaper. Please try again.', isError: true);
     } finally {
       if (mounted) {
         setState(() => _isApplying = false);
@@ -99,7 +129,7 @@ class _WallpaperDetailScreenState extends ConsumerState<WallpaperDetailScreen> {
       _showSnackBar('Wallpaper re-applied successfully!');
     } catch (e) {
       if (!mounted) return;
-      _showSnackBar('Failed to re-apply wallpaper: $e', isError: true);
+      _showSnackBar('Failed to re-apply wallpaper. Please try again.', isError: true);
     } finally {
       if (mounted) {
         setState(() => _isApplying = false);
@@ -124,7 +154,7 @@ class _WallpaperDetailScreenState extends ConsumerState<WallpaperDetailScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      _showSnackBar('Failed to download: $e', isError: true);
+      _showSnackBar('Failed to save image. Please try again.', isError: true);
     } finally {
       if (mounted) {
         setState(() => _isDownloading = false);
@@ -366,55 +396,59 @@ class _WallpaperDetailScreenState extends ConsumerState<WallpaperDetailScreen> {
                           // Sync / Reapply button (Android only)
                           if (Platform.isAndroid)
                             Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: _isApplying
-                                    ? null
-                                    : (isPendingForMe ? _syncWallpaper : _reapplyWallpaper),
-                                icon: _isApplying
-                                    ? SizedBox(
-                                        width: 20,
-                                        height: 20,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: theme.colorScheme.onPrimary,
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 500),
+                                curve: Curves.easeOut,
+                                child: ElevatedButton.icon(
+                                  onPressed: _isApplying
+                                      ? null
+                                      : (isPendingForMe ? _syncWallpaper : _reapplyWallpaper),
+                                  icon: _isApplying
+                                      ? SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: theme.colorScheme.onPrimary,
+                                          ),
+                                        )
+                                      : Icon(buttonIcon, size: 20),
+                                  label: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        _isApplying ? loadingText : buttonText,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
                                         ),
-                                      )
-                                    : Icon(buttonIcon, size: 20),
-                                label: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      _isApplying ? loadingText : buttonText,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w600,
                                       ),
-                                    ),
-                                    if (!isPendingForMe && !_isApplying && !ref.watch(isTwainPlusProvider)) ...[
-                                      const SizedBox(width: 6),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white,
-                                          borderRadius: BorderRadius.circular(6),
-                                        ),
-                                        child: Text(
-                                          'PLUS',
-                                          style: TextStyle(
-                                            fontSize: 9,
-                                            fontWeight: FontWeight.bold,
-                                            color: twainTheme.iconColor,
+                                      if (!isPendingForMe && !_isApplying && !ref.watch(isTwainPlusProvider)) ...[
+                                        const SizedBox(width: 6),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          child: Text(
+                                            'PLUS',
+                                            style: TextStyle(
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.bold,
+                                              color: _dominantColor ?? twainTheme.iconColor,
+                                            ),
                                           ),
                                         ),
-                                      ),
+                                      ],
                                     ],
-                                  ],
-                                ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: twainTheme.iconColor,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: _dominantColor ?? twainTheme.iconColor,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(vertical: 14),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
                                   ),
                                 ),
                               ),
@@ -423,30 +457,37 @@ class _WallpaperDetailScreenState extends ConsumerState<WallpaperDetailScreen> {
 
                           // Download button
                           Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: _isDownloading ? null : _downloadToGallery,
-                              icon: _isDownloading
-                                  ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : const Icon(Icons.download, size: 20),
-                              label: Text(
-                                _isDownloading ? 'Saving...' : 'Download',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 500),
+                              curve: Curves.easeOut,
+                              child: OutlinedButton.icon(
+                                onPressed: _isDownloading ? null : _downloadToGallery,
+                                icon: _isDownloading
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : const Icon(Icons.download, size: 20),
+                                label: Text(
+                                  _isDownloading ? 'Saving...' : 'Download',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
-                              ),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.white,
-                                side: const BorderSide(color: Colors.white, width: 2),
-                                padding: const EdgeInsets.symmetric(vertical: 14),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.white,
+                                  side: BorderSide(
+                                    color: _dominantColor ?? Colors.white,
+                                    width: 2,
+                                  ),
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
                                 ),
                               ),
                             ),

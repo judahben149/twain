@@ -10,7 +10,7 @@ import 'package:twain/providers/auth_providers.dart';
 import 'package:twain/screens/paywall_screen.dart';
 import 'package:twain/screens/wallpaper_preview_screen.dart';
 
-const int _maxDailyUploads = 5;
+const int _maxDailyUploads = 1;
 const String _dailyUploadsKey = 'shared_board_daily_uploads';
 const String _dailyUploadsDateKey = 'shared_board_uploads_date';
 
@@ -71,7 +71,7 @@ class _SharedBoardScreenState extends ConsumerState<SharedBoardScreen> {
     final currentUser = ref.watch(twainUserProvider).value;
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
           'Shared Board',
@@ -241,7 +241,7 @@ class _SharedBoardScreenState extends ConsumerState<SharedBoardScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 32),
                 child: Text(
-                  '$error',
+                  'Unable to load photos. Please check your connection and try again.',
                   style: TextStyle(
                     fontSize: 14,
                     color: theme.colorScheme.onSurface.withOpacity(0.5),
@@ -339,7 +339,7 @@ class _SharedBoardScreenState extends ConsumerState<SharedBoardScreen> {
               }
             },
             child: Text(
-              'Upgrade for unlimited uploads',
+              'Upgrade for increased uploads',
               style: TextStyle(
                 fontSize: 13,
                 color: twainTheme.activeStatusTextColor,
@@ -428,7 +428,7 @@ class _SharedBoardScreenState extends ConsumerState<SharedBoardScreen> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Daily upload limit reached ($_maxDailyUploads/day). Upgrade to Twain Plus for unlimited uploads!'),
+            content: Text('Daily upload limit reached ($_maxDailyUploads/day). Upgrade to Twain Plus for increased uploads!'),
             backgroundColor: context.twainTheme.destructiveColor,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
@@ -533,7 +533,7 @@ class _SharedBoardScreenState extends ConsumerState<SharedBoardScreen> {
               const Icon(Icons.error, color: Colors.white),
               const SizedBox(width: 16),
               Expanded(
-                child: Text('Failed to upload: ${e.toString()}'),
+                child: const Text('Upload failed. Please try again.'),
               ),
             ],
           ),
@@ -650,7 +650,7 @@ class _SharedBoardScreenState extends ConsumerState<SharedBoardScreen> {
               const Icon(Icons.error, color: Colors.white),
               const SizedBox(width: 16),
               Expanded(
-                child: Text('Failed to delete: ${e.toString()}'),
+                child: const Text('Delete failed. Please try again.'),
               ),
             ],
           ),
