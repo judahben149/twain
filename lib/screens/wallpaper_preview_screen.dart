@@ -448,6 +448,9 @@ class _WallpaperPreviewScreenState
 
   Future<void> _confirmSetWallpaper() async {
     if (_isProcessing) return;
+    print('WallpaperPreview: ========== CONFIRM SET START ==========');
+    print('WallpaperPreview: applyTo=$_applyTo, sourceType=${widget.sourceType}');
+    print('WallpaperPreview: hasUnsplash=${widget.unsplashWallpaper != null}, hasFile=${widget.imageFile != null}, hasUrl=${widget.imageUrl != null}');
 
     setState(() {
       _isProcessing = true;
@@ -499,16 +502,18 @@ class _WallpaperPreviewScreenState
         );
 
         // Download full resolution image to temp directory
+        print('WallpaperPreview: [Unsplash] Downloading full resolution...');
         final localPath = await wallpaperManager.downloadUnsplashImage(
           widget.unsplashWallpaper!.fullUrl,
           widget.unsplashWallpaper!.id,
         );
+        print('WallpaperPreview: [Unsplash] Downloaded to: $localPath');
 
-        if (!mounted) return;
+        if (!mounted) { print('WallpaperPreview: [Unsplash] Not mounted after download'); return; }
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
         // Upload to shared board (this makes it accessible to both users)
-        if (!mounted) return;
+        if (!mounted) { print('WallpaperPreview: [Unsplash] Not mounted before upload'); return; }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
@@ -540,10 +545,12 @@ class _WallpaperPreviewScreenState
           ),
         );
 
+        print('WallpaperPreview: [Unsplash] Uploading to shared board...');
         final photo = await service.uploadToSharedBoard(File(localPath));
         imageUrl = photo.imageUrl;
+        print('WallpaperPreview: [Unsplash] Uploaded, imageUrl=$imageUrl');
 
-        if (!mounted) return;
+        if (!mounted) { print('WallpaperPreview: [Unsplash] Not mounted after upload'); return; }
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
         // Trigger Unsplash download tracking (API requirement)
@@ -584,17 +591,21 @@ class _WallpaperPreviewScreenState
           ),
         );
 
+        print('WallpaperPreview: [Device] Uploading file to shared board...');
         final photo = await service.uploadToSharedBoard(widget.imageFile!);
         imageUrl = photo.imageUrl;
+        print('WallpaperPreview: [Device] Uploaded, imageUrl=$imageUrl');
 
-        if (!mounted) return;
+        if (!mounted) { print('WallpaperPreview: [Device] Not mounted after upload'); return; }
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
       } else {
         imageUrl = widget.imageUrl!;
+        print('WallpaperPreview: [SharedBoard] Using existing URL: $imageUrl');
       }
 
       // Set wallpaper (creates record, triggers FCM)
-      if (!mounted) return;
+      if (!mounted) { print('WallpaperPreview: Not mounted before setWallpaper'); return; }
+      print('WallpaperPreview: Calling service.setWallpaper...');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
@@ -634,12 +645,14 @@ class _WallpaperPreviewScreenState
           sourceType: widget.sourceType,
           applyTo: _applyTo,
         );
+        print('WallpaperPreview: service.setWallpaper completed successfully');
 
         // If we reach here, wallpaper was set successfully
         // Note: On Android with applyTo='both', the app may be killed before this code runs
-        if (!mounted) return;
+        if (!mounted) { print('WallpaperPreview: Not mounted after setWallpaper'); return; }
 
         // Dismiss loading snackbar and show success
+        print('WallpaperPreview: Showing success snackbar...');
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -666,9 +679,11 @@ class _WallpaperPreviewScreenState
         );
 
         // Navigate back to home
+        print('WallpaperPreview: Navigating back to home...');
         await Future.delayed(const Duration(milliseconds: 500));
-        if (!mounted) return;
+        if (!mounted) { print('WallpaperPreview: Not mounted before popUntil'); return; }
         Navigator.popUntil(context, (route) => route.isFirst);
+        print('WallpaperPreview: ========== CONFIRM SET END (success) ==========');
       } catch (e) {
         // Check if it's an expected error (app being killed) or a real error
         // If error message contains typical app termination indicators, treat as success
@@ -679,16 +694,19 @@ class _WallpaperPreviewScreenState
 
         if (isAppTermination) {
           // App was likely killed by Android to apply wallpaper - this is success
-          print('App terminated while setting wallpaper (expected behavior)');
+          print('WallpaperPreview: App terminated while setting wallpaper (expected behavior)');
           // Don't show error - the wallpaper was set successfully
           return;
         }
 
         // Real error - rethrow to be handled by outer catch block
+        print('WallpaperPreview: Inner error during setWallpaper: $e');
         rethrow;
       }
     } catch (e) {
-      if (!mounted) return;
+      print('WallpaperPreview: ========== CONFIRM SET FAILED ==========');
+      print('WallpaperPreview: Error: $e');
+      if (!mounted) { print('WallpaperPreview: Not mounted in outer catch'); return; }
 
       setState(() {
         _isProcessing = false;
