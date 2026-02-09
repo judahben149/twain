@@ -247,7 +247,7 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
           );
     final applyToText =
         wallpaper == null ? null : _getApplyToText(wallpaper.applyTo);
-    final showFallbackLabel = wallpaper == null ? false : !Platform.isAndroid;
+    final showFallbackLabel = false;
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -1375,23 +1375,6 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
   // Sync a pending wallpaper (force apply)
   Future<void> _syncWallpaper(Wallpaper wallpaper, TwainThemeExtension twainTheme) async {
     final theme = Theme.of(context);
-    if (!Platform.isAndroid) {
-      final textColor = _getSnackBarTextColor(twainTheme.destructiveBackgroundColor);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Wallpaper can only be applied on Android',
-            style: TextStyle(color: textColor),
-          ),
-          backgroundColor: twainTheme.destructiveBackgroundColor,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      );
-      return;
-    }
     if (!checkConnectivity(context, ref)) return;
 
     setState(() {
@@ -1452,9 +1435,11 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
             children: [
               const Icon(Icons.check_circle, color: Colors.white),
               const SizedBox(width: 16),
-              const Text(
-                'Wallpaper synced successfully!',
-                style: TextStyle(color: Colors.white),
+              Text(
+                Platform.isIOS
+                    ? 'Wallpaper saved! Run your Shortcut to apply it.'
+                    : 'Wallpaper synced successfully!',
+                style: const TextStyle(color: Colors.white),
               ),
             ],
           ),
@@ -1512,23 +1497,6 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
   // Reapply an already applied wallpaper (creates new record in moments)
   Future<void> _reapplyWallpaper(Wallpaper wallpaper, TwainThemeExtension twainTheme) async {
     final theme = Theme.of(context);
-    if (!Platform.isAndroid) {
-      final textColor = _getSnackBarTextColor(twainTheme.destructiveBackgroundColor);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Wallpaper can only be applied on Android',
-            style: TextStyle(color: textColor),
-          ),
-          backgroundColor: twainTheme.destructiveBackgroundColor,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      );
-      return;
-    }
     if (!checkConnectivity(context, ref)) return;
 
     setState(() {
@@ -1592,9 +1560,11 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
             children: [
               const Icon(Icons.check_circle, color: Colors.white),
               const SizedBox(width: 16),
-              const Text(
-                'Wallpaper re-applied successfully!',
-                style: TextStyle(color: Colors.white),
+              Text(
+                Platform.isIOS
+                    ? 'Wallpaper saved! Run your Shortcut to apply it.'
+                    : 'Wallpaper re-applied successfully!',
+                style: const TextStyle(color: Colors.white),
               ),
             ],
           ),
@@ -1655,8 +1625,8 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
     // - "Reapply" for already applied wallpapers (reuse this wallpaper)
     final isPendingForMe = wallpaper.status == 'pending' &&
         (wallpaper.applyTo == 'both' || wallpaper.senderId != currentUserId);
-    final showSyncButton = isPendingForMe && Platform.isAndroid;
-    final showReapplyButton = !isPendingForMe && Platform.isAndroid;
+    final showSyncButton = isPendingForMe;
+    final showReapplyButton = !isPendingForMe;
 
     final isApplying = _applyingWallpapers.contains(wallpaper.id);
     final thumbSize = compact ? 52.0 : 60.0;
@@ -1896,9 +1866,9 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                                 strokeWidth: 2,
                               ),
                             )
-                          : const Text(
-                              'Sync',
-                              style: TextStyle(
+                          : Text(
+                              Platform.isIOS ? 'Save' : 'Sync',
+                              style: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
                               ),

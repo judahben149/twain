@@ -12,6 +12,8 @@ flutter:
       android:
         package: com.judahben149.wallpaper_sync_plugin
         pluginClass: WallpaperSyncPlugin
+      ios:
+        pluginClass: WallpaperSyncPlugin
 
 dependencies:
   flutter:

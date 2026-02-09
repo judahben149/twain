@@ -55,8 +55,22 @@
 				<string>io.supabase.twain</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.938115338806-thnn6ia1nfacc2pcqh77u2bnd0vn4nkp</string>
+			</array>
+		</dict>
 	</array>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Twain needs your location to show the distance between you and your partner.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Twain needs access to your photo library to save and select wallpapers.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Twain needs permission to save wallpapers to your photo library.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Twain needs camera access to take photos for your shared board.</string>
 </dict>
 </plist>

@@ -13,6 +13,7 @@ import 'package:twain/services/image_download_service.dart';
 import 'package:twain/screens/paywall_screen.dart';
 import 'package:twain/services/wallpaper_manager_service.dart';
 import 'package:twain/utils/connectivity_utils.dart';
+import 'package:wallpaper_sync_plugin/wallpaper_sync_plugin.dart';
 
 class WallpaperDetailScreen extends ConsumerStatefulWidget {
   final Wallpaper wallpaper;
@@ -31,6 +32,7 @@ class WallpaperDetailScreen extends ConsumerStatefulWidget {
 class _WallpaperDetailScreenState extends ConsumerState<WallpaperDetailScreen> {
   bool _isApplying = false;
   bool _isDownloading = false;
+  bool _isSavingForShortcut = false;
   Color? _dominantColor;
 
   @override
@@ -69,10 +71,6 @@ class _WallpaperDetailScreenState extends ConsumerState<WallpaperDetailScreen> {
 
   // Sync a pending wallpaper (force apply)
   Future<void> _syncWallpaper() async {
-    if (!Platform.isAndroid) {
-      _showSnackBar('Wallpaper can only be applied on Android', isError: true);
-      return;
-    }
     if (!checkConnectivity(context, ref)) return;
 
     setState(() => _isApplying = true);
@@ -85,7 +83,11 @@ class _WallpaperDetailScreenState extends ConsumerState<WallpaperDetailScreen> {
       await service.markWallpaperApplied(widget.wallpaper.id);
 
       if (!mounted) return;
-      _showSnackBar('Wallpaper synced successfully!');
+      _showSnackBar(
+        Platform.isIOS
+            ? 'Wallpaper saved! Run your Shortcut to apply it.'
+            : 'Wallpaper synced successfully!',
+      );
     } catch (e) {
       if (!mounted) return;
       _showSnackBar('Failed to sync wallpaper. Please try again.', isError: true);
@@ -98,10 +100,6 @@ class _WallpaperDetailScreenState extends ConsumerState<WallpaperDetailScreen> {
 
   // Reapply an already applied wallpaper (creates new record in moments)
   Future<void> _reapplyWallpaper() async {
-    if (!Platform.isAndroid) {
-      _showSnackBar('Wallpaper can only be applied on Android', isError: true);
-      return;
-    }
     if (!checkConnectivity(context, ref)) return;
 
     // Check for Twain Plus subscription
@@ -129,7 +127,11 @@ class _WallpaperDetailScreenState extends ConsumerState<WallpaperDetailScreen> {
       );
 
       if (!mounted) return;
-      _showSnackBar('Wallpaper re-applied successfully!');
+      _showSnackBar(
+        Platform.isIOS
+            ? 'Wallpaper saved! Run your Shortcut to apply it.'
+            : 'Wallpaper re-applied successfully!',
+      );
     } catch (e) {
       if (!mounted) return;
       _showSnackBar('Failed to re-apply wallpaper. Please try again.', isError: true);
@@ -163,6 +165,58 @@ class _WallpaperDetailScreenState extends ConsumerState<WallpaperDetailScreen> {
     } finally {
       if (mounted) {
         setState(() => _isDownloading = false);
+      }
+    }
+  }
+
+  /// Explicitly save the wallpaper to the iOS App Group container and show
+  /// detailed feedback so we can diagnose whether the save is working.
+  Future<void> _saveForShortcut() async {
+    if (!checkConnectivity(context, ref)) return;
+
+    setState(() => _isSavingForShortcut = true);
+
+    try {
+      // Step 1: Download / get from cache
+      await WallpaperManagerService.setWallpaper(widget.wallpaper.imageUrl);
+
+      // Step 2: Read back debug info to confirm it landed in the App Group
+      final debugInfo = await WallpaperSyncPlugin.getDebugInfo();
+
+      if (!mounted) return;
+
+      final containerExists = debugInfo['containerExists'] == true;
+      final wallpaperExists = debugInfo['wallpaperExists'] == true;
+      final fileSize = debugInfo['wallpaperFileSize'];
+
+      if (!containerExists) {
+        _showSnackBar(
+          'App Group container NOT found. The App Group '
+          '"group.com.judahben149.twain" may not be configured in your '
+          'Apple Developer provisioning profile.',
+          isError: true,
+        );
+      } else if (!wallpaperExists) {
+        _showSnackBar(
+          'App Group container exists but the wallpaper file was not found. '
+          'The save may have failed silently.',
+          isError: true,
+        );
+      } else {
+        final sizeStr = fileSize != null
+            ? ' (${(fileSize / 1024).round()} KB)'
+            : '';
+        _showSnackBar(
+          'Wallpaper saved to App Group$sizeStr. '
+          'Run your Shortcut to apply it!',
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      _showSnackBar('Failed to save for Shortcut: $e', isError: true);
+    } finally {
+      if (mounted) {
+        setState(() => _isSavingForShortcut = false);
       }
     }
   }
@@ -217,7 +271,12 @@ class _WallpaperDetailScreenState extends ConsumerState<WallpaperDetailScreen> {
     final isReapplied = widget.wallpaper.sourceType == 'reapply';
 
     // Button text and icon based on status
-    final buttonText = isPendingForMe ? 'Sync Wallpaper' : 'Reapply';
+    final String buttonText;
+    if (Platform.isIOS) {
+      buttonText = isPendingForMe ? 'Save for Shortcut' : 'Reapply';
+    } else {
+      buttonText = isPendingForMe ? 'Sync Wallpaper' : 'Reapply';
+    }
     final buttonIcon = isPendingForMe ? Icons.sync : Icons.replay;
     final loadingText = isPendingForMe ? 'Syncing...' : 'Re-applying...';
 
@@ -398,9 +457,8 @@ class _WallpaperDetailScreenState extends ConsumerState<WallpaperDetailScreen> {
                       // Action buttons
                       Row(
                         children: [
-                          // Sync / Reapply button (Android only)
-                          if (Platform.isAndroid)
-                            Expanded(
+                          // Sync / Reapply button
+                          Expanded(
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 500),
                                 curve: Curves.easeOut,
@@ -458,7 +516,7 @@ class _WallpaperDetailScreenState extends ConsumerState<WallpaperDetailScreen> {
                                 ),
                               ),
                             ),
-                          if (Platform.isAndroid) const SizedBox(width: 12),
+                          const SizedBox(width: 12),
 
                           // Download button
                           Expanded(
@@ -499,6 +557,46 @@ class _WallpaperDetailScreenState extends ConsumerState<WallpaperDetailScreen> {
                           ),
                         ],
                       ),
+
+                      // iOS-only: Save for Shortcut button
+                      if (Platform.isIOS) ...[
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: _isSavingForShortcut ? null : _saveForShortcut,
+                            icon: _isSavingForShortcut
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Icon(Icons.shortcut, size: 20),
+                            label: Text(
+                              _isSavingForShortcut
+                                  ? 'Saving to Shortcut...'
+                                  : 'Save for Shortcut',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              side: BorderSide(
+                                color: (_dominantColor ?? twainTheme.iconColor).withOpacity(0.6),
+                                width: 1.5,
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

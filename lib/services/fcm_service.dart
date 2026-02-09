@@ -234,13 +234,42 @@ Future<void> _processWallpaperSync(
     print('Wallpaper Sync: Notifications disabled by user preference');
   }
 
-  if (!Platform.isAndroid) {
-    print(
-        'Wallpaper Sync: Wallpaper auto-apply currently only supported on Android.');
+  if (Platform.isIOS) {
+    // iOS path: save to App Group container (simple file copy, no retry needed)
+    try {
+      print('Wallpaper Sync: ========== SAVING WALLPAPER FOR iOS SHORTCUTS ==========');
+      print('Wallpaper Sync: Wallpaper ID: ${wallpaper.id}');
+      print('Wallpaper Sync: Image URL: ${wallpaper.imageUrl}');
+
+      await WallpaperManagerService.setWallpaper(wallpaper.imageUrl);
+
+      await client.from('wallpapers').update({
+        'status': 'applied',
+        'applied_at': DateTime.now().toIso8601String(),
+      }).eq('id', wallpaper.id);
+
+      print('Wallpaper Sync: Wallpaper ${wallpaper.id} saved to App Group for Shortcuts');
+      print('Wallpaper Sync: ========================================');
+    } catch (error) {
+      print('Wallpaper Sync: Failed to save wallpaper for iOS: $error');
+      try {
+        await client
+            .from('wallpapers')
+            .update({'status': 'failed'}).eq('id', wallpaper.id);
+      } catch (updateError) {
+        print('Wallpaper Sync: Failed to update wallpaper status: $updateError');
+      }
+    }
     return;
   }
 
-  // Retry logic with up to 5 attempts
+  if (!Platform.isAndroid) {
+    print(
+        'Wallpaper Sync: Wallpaper auto-apply not supported on this platform.');
+    return;
+  }
+
+  // Android path: Retry logic with up to 5 attempts
   const maxRetries = 5;
   var lastError = '';
 

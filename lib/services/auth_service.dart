@@ -1,4 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
+import 'package:crypto/crypto.dart';
 import 'package:google_sign_in/google_sign_in.dart' as google_sign_in;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:twain/models/twain_user.dart';
@@ -108,28 +111,56 @@ class AuthService {
     }
   }
 
+  /// Generates a cryptographically secure random nonce string.
+  String _generateRawNonce([int length = 32]) {
+    final random = Random.secure();
+    final values = List<int>.generate(length, (_) => random.nextInt(256));
+    return base64Url.encode(values).replaceAll('=', '');
+  }
+
+  /// Returns the SHA256 hash of [input].
+  String _sha256ofString(String input) {
+    final bytes = utf8.encode(input);
+    return sha256.convert(bytes).toString();
+  }
+
   // Sign in with Google (Native)
   Future<TwainUser?> signInWithGoogle() async {
     try {
+      String? rawNonce;
+
+      if (Platform.isIOS) {
+        // On iOS, Google Sign-In embeds a nonce in the ID token.
+        // We must generate one and pass the raw nonce to Supabase so it can
+        // verify it against the hashed nonce in the token.
+        rawNonce = _generateRawNonce();
+        final hashedNonce = _sha256ofString(rawNonce);
+
+        // Re-initialize with the hashed nonce so it gets embedded in the ID token
+        await google_sign_in.GoogleSignIn.instance.initialize(
+          clientId: SupabaseConfig.googleClientIdIOS,
+          serverClientId: SupabaseConfig.googleWebClientId,
+          nonce: hashedNonce,
+        );
+      }
+
       // Get the already-initialized GoogleSignIn instance
       final googleSignIn = google_sign_in.GoogleSignIn.instance;
 
-      // Authenticate the user - this shows native Android Credential Manager UI
+      // Authenticate the user
       final googleUser = await googleSignIn.authenticate();
 
-      // Get the authentication tokens directly without requesting additional scopes
-      // This avoids triggering the WebView flow
+      // Get the authentication tokens
       final idToken = googleUser.authentication.idToken;
 
       if (idToken == null) {
         throw Exception('Failed to get ID token from Google');
       }
 
-      // For Supabase, we primarily need the ID token
-      // Access token can be obtained from authorization if needed later
       final response = await _supabase.auth.signInWithIdToken(
         provider: OAuthProvider.google,
         idToken: idToken,
+        nonce: rawNonce,
       );
 
       final user = response.user;

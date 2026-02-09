@@ -121,7 +121,7 @@ class WallpaperService {
 
     final wallpaper = Wallpaper.fromJson(inserted);
 
-    final shouldApplyLocally = Platform.isAndroid && applyTo != 'partner';
+    final shouldApplyLocally = (Platform.isAndroid || Platform.isIOS) && applyTo != 'partner';
     if (shouldApplyLocally) {
       try {
         await WallpaperManagerService.setWallpaper(imageUrl);

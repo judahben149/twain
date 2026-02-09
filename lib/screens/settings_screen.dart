@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,6 +16,7 @@ import 'package:twain/services/app_tour_service.dart';
 import 'package:twain/widgets/theme_selector.dart';
 import 'package:twain/widgets/battery_optimization_dialog.dart';
 import 'package:twain/widgets/location_permission_dialog.dart';
+import 'package:twain/screens/ios_shortcut_setup_screen.dart';
 
 const String _notificationsEnabledKey = 'notifications_enabled';
 
@@ -158,6 +160,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         if (isPaired) ...[
                           _buildDivider(),
                           _buildNicknameToggleTile(context),
+                        ],
+                        if (Platform.isIOS) ...[
+                          _buildDivider(),
+                          _buildSettingsTile(
+                            icon: Icons.app_shortcut,
+                            title: 'Wallpaper Shortcuts Setup',
+                            subtitle: 'Set up automatic wallpaper syncing on iOS',
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const IosShortcutSetupScreen(),
+                                ),
+                              );
+                            },
+                          ),
                         ],
                       ]),
                       const BatteryOptimizationBanner(),

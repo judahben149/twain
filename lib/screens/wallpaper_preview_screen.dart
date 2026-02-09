@@ -295,10 +295,22 @@ class _WallpaperPreviewScreenState
                               ),
                               textAlign: TextAlign.center,
                             ),
-                            if (_applyTo == 'both') ...[
+                            if (_applyTo == 'both' && Platform.isAndroid) ...[
                               const SizedBox(height: 4),
                               Text(
                                 'When you apply, the app will restart briefly',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: theme.colorScheme.onSurface.withOpacity(0.5),
+                                  fontStyle: FontStyle.italic,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                            if (Platform.isIOS) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                'On iPhone, run your Shortcut to apply the wallpaper after syncing.',
                                 style: TextStyle(
                                   fontSize: 11,
                                   color: theme.colorScheme.onSurface.withOpacity(0.5),
