@@ -38,12 +38,9 @@ Twain is designed to be calm, personal, and intentional, not another noisy chat 
 <!-- Example:
 ![Home Screen](screenshots/home.png)
 
-<img
-  src="https://github.com/user-attachments/assets/d64ed860-2c37-4e37-be0e-8381254acc3d"
-  alt="Home screen"
-  width="360"
-/>
+<img src="https://github.com/user-attachments/assets/d64ed860-2c37-4e37-be0e-8381254acc3d" alt="Home screen" width="360" />
 
+![Home screen](https://github.com/user-attachments/assets/d64ed860-2c37-4e37-be0e-8381254acc3d)
 
 ![Wallpaper Sync](screenshots/wallpaper.png)
 -->
@@ -105,3 +102,5 @@ Email: judahben149@gmail.com
 Twain exists to support the small, everyday moments that help relationships feel closer — without trying to replace real conversations.
 
 Sometimes, a shared wallpaper or a simple note is enough.
+
+
