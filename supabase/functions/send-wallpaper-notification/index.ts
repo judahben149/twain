@@ -102,7 +102,7 @@ serve(async (req) => {
                       : `New wallpaper from ${senderFirstName}`,
                     body: isSender
                       ? "Your wallpaper was just applied."
-                      : `${senderFirstName} has set a new wallpaper for you.`,
+                      : `${senderFirstName} has sent you a new wallpaper! It will be applied when your next Shortcut automation runs.`,
                   },
                 },
               },

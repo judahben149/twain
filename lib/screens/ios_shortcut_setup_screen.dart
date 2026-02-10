@@ -710,6 +710,34 @@ class _IosShortcutSetupScreenState
               ],
             ),
           ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: twainTheme.iconColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.auto_awesome,
+                  color: twainTheme.iconColor,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Pro tip: Create multiple automations with different triggers (e.g. every morning, when opening Twain, when connecting to Wi-Fi) for more frequent wallpaper updates.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: theme.colorScheme.onSurface.withOpacity(0.7),
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

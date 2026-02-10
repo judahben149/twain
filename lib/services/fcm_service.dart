@@ -229,13 +229,15 @@ Future<void> _processWallpaperSync(
     final notificationTitle =
         isSender ? 'Wallpaper updated' : 'New wallpaper from $partnerFirstName';
 
-    try {
-      await WallpaperSyncPlugin.showNotification(
-        title: notificationTitle,
-        body: notificationBody,
-      );
-    } catch (error) {
-      print('Wallpaper Sync: Failed to show notification: $error');
+    if (Platform.isAndroid) {
+      try {
+        await WallpaperSyncPlugin.showNotification(
+          title: notificationTitle,
+          body: notificationBody,
+        );
+      } catch (error) {
+        print('Wallpaper Sync: Failed to show notification: $error');
+      }
     }
   } else {
     print('Wallpaper Sync: Notifications disabled by user preference');

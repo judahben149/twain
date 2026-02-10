@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:twain/providers/auth_providers.dart';
 import 'package:twain/providers/wallpaper_providers.dart';
 import 'package:twain/navigation/app_navigator.dart';
+import 'package:twain/services/device_info_service.dart';
 import 'package:twain/services/notification_router.dart';
 import 'package:twain/widgets/auth_gate.dart';
 import 'package:twain/widgets/connectivity_banner.dart';
@@ -28,9 +29,28 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
       final fcmService = ref.read(fcmServiceProvider);
       await fcmService.initialize();
       await ref.read(authServiceProvider).setPresenceOnline();
+      await _updateDeviceInfo();
       await NotificationRouter.initialize(ref);
     } catch (e) {
       debugPrint('MyApp: Error during initialization: $e');
+    }
+  }
+
+  Future<void> _updateDeviceInfo() async {
+    try {
+      final authService = ref.read(authServiceProvider);
+      if (authService.currentUser == null) return;
+
+      final deviceMetadata = await DeviceInfoService.getDeviceMetadata();
+
+      // Fetch current user to get existing metadata
+      final currentUser = ref.read(twainUserProvider).value;
+      final existingMetadata = Map<String, dynamic>.from(currentUser?.metaData ?? {});
+      existingMetadata.addAll(deviceMetadata);
+
+      await authService.updateUserProfile(metadata: existingMetadata);
+    } catch (e) {
+      debugPrint('MyApp: Error updating device info: $e');
     }
   }
 

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:twain/constants/app_themes.dart';
 import 'package:twain/models/unsplash_wallpaper.dart';
+import 'package:twain/providers/auth_providers.dart';
 import 'package:twain/providers/wallpaper_providers.dart';
 import 'package:twain/providers/unsplash_providers.dart';
 import 'package:twain/services/wallpaper_manager_service.dart';
@@ -458,8 +459,127 @@ class _WallpaperPreviewScreenState
     );
   }
 
+  bool _shouldShowIosPartnerDialog() {
+    final partner = ref.read(pairedUserProvider).value;
+    final currentUser = ref.read(twainUserProvider).value;
+    if (partner == null || currentUser == null) return false;
+    if (partner.metaData?['device_platform'] != 'ios') return false;
+    if (_applyTo == 'both' && Platform.isIOS) return false; // Both on iOS already see the hint
+    if (currentUser.preferences?['hide_ios_delay_dialog'] == true) return false;
+    return true;
+  }
+
+  Future<bool> _showIosPartnerDelayDialog() async {
+    final theme = Theme.of(context);
+    final twainTheme = context.twainTheme;
+    bool dontShowAgain = false;
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: Row(
+                children: [
+                  Icon(Icons.info_outline, color: twainTheme.iconColor),
+                  const SizedBox(width: 8),
+                  const Expanded(child: Text('Heads up')),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Your partner is on iPhone, where wallpapers can\'t be applied instantly by apps. '
+                    'The wallpaper will be applied the next time their Shortcut automation runs.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: theme.colorScheme.onSurface.withOpacity(0.8),
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  GestureDetector(
+                    onTap: () => setDialogState(() => dontShowAgain = !dontShowAgain),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: Checkbox(
+                            value: dontShowAgain,
+                            onChanged: (v) => setDialogState(() => dontShowAgain = v ?? false),
+                            activeColor: twainTheme.iconColor,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          "Don't show again",
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: theme.colorScheme.onSurface.withOpacity(0.7),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: twainTheme.iconColor,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text('OK, Got it'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (dontShowAgain && result == true) {
+      await _saveHideIosDialogPreference();
+    }
+
+    return result ?? false;
+  }
+
+  Future<void> _saveHideIosDialogPreference() async {
+    try {
+      final authService = ref.read(authServiceProvider);
+      final currentUser = ref.read(twainUserProvider).value;
+      final prefs = Map<String, dynamic>.from(currentUser?.preferences ?? {});
+      prefs['hide_ios_delay_dialog'] = true;
+      await authService.updateUserPreferences(prefs);
+    } catch (e) {
+      print('WallpaperPreview: Failed to save iOS dialog preference: $e');
+    }
+  }
+
   Future<void> _confirmSetWallpaper() async {
     if (_isProcessing) return;
+
+    if (_shouldShowIosPartnerDialog()) {
+      final proceed = await _showIosPartnerDelayDialog();
+      if (!proceed || !mounted) return;
+    }
+
     print('WallpaperPreview: ========== CONFIRM SET START ==========');
     print('WallpaperPreview: applyTo=$_applyTo, sourceType=${widget.sourceType}');
     print('WallpaperPreview: hasUnsplash=${widget.unsplashWallpaper != null}, hasFile=${widget.imageFile != null}, hasUrl=${widget.imageUrl != null}');
