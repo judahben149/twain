@@ -34,16 +34,58 @@ Twain is designed to be calm, personal, and intentional, not another noisy chat 
 
 ## Screenshots
 
-<!-- Add screenshots here -->
-<!-- Example:
-![Home Screen](screenshots/home.png)
+### Home screen
+<p align="center">
+  <img src="screenshots/homescreen_dark.png" alt="Home screen – dark mode" width="320" />
+  <img src="screenshots/homescreen_light.png" alt="Home screen – light mode" width="320" />
+</p>
 
-<img src="https://github.com/user-attachments/assets/d64ed860-2c37-4e37-be0e-8381254acc3d" alt="Home screen" width="360" />
+### Wallpaper sync
+<p align="center">
+  <img src="screenshots/wallpaper_sync_screen_dark.png" alt="Wallpaper sync – dark mode" width="320" />
+  <img src="screenshots/wallpaper_sync_screen_light.png" alt="Wallpaper sync – light mode" width="320" />
+</p>
 
-![Home screen](https://github.com/user-attachments/assets/d64ed860-2c37-4e37-be0e-8381254acc3d)
+### Browse wallpapers
+<p align="center">
+  <img src="screenshots/browse_wallpapers_screen_dark.png" alt="Browse wallpapers – dark mode" width="320" />
+  <img src="screenshots/browse_wallpapers_screen_light.png" alt="Browse wallpapers – light mode" width="320" />
+</p>
 
-![Wallpaper Sync](screenshots/wallpaper.png)
--->
+### Wallpaper preview
+<p align="center">
+  <img src="screenshots/wallpaper_full_preview_light.png" alt="Wallpaper preview" width="360" />
+</p>
+
+### Shared board
+<p align="center">
+  <img src="screenshots/shared_board_screen_dark.png" alt="Shared board – dark mode" width="320" />
+  <img src="screenshots/shared_board_screen_light.png" alt="Shared board – light mode" width="320" />
+</p>
+
+### Sticky notes
+<p align="center">
+  <img src="screenshots/notes_screen_dark.png" alt="Sticky notes – dark mode" width="320" />
+  <img src="screenshots/notes_screen_light.png" alt="Sticky notes – light mode" width="320" />
+</p>
+
+### User profile
+<p align="center">
+  <img src="screenshots/user_profile_screen_dark.png" alt="User profile – dark mode" width="320" />
+  <img src="screenshots/user_profile_screen_light.png" alt="User profile – light mode" width="320" />
+</p>
+
+### Settings
+<p align="center">
+  <img src="screenshots/settings_screen1_dark.png" alt="Settings – dark mode" width="320" />
+  <img src="screenshots/settings_screen1_light.png" alt="Settings – light mode" width="320" />
+</p>
+
+<p align="center">
+  <img src="screenshots/settings_screen2_dark.png" alt="Settings (additional) – dark mode" width="320" />
+  <img src="screenshots/settings_screen2_light.png" alt="Settings (additional) – light mode" width="320" />
+</p>
+
 
 ---
 
