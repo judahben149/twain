@@ -21,6 +21,7 @@ import 'package:twain/services/cache/twain_cache_managers.dart';
 import 'package:twain/utils/image_url_utils.dart';
 import 'package:twain/utils/connectivity_utils.dart';
 import 'package:twain/screens/wallpaper_detail_screen.dart';
+import 'package:wallpaper_sync_plugin/wallpaper_sync_plugin.dart';
 
 enum _WallpaperSource { sharedBoard, device, unsplash }
 
@@ -33,6 +34,48 @@ class WallpaperScreen extends ConsumerStatefulWidget {
 
 class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
   final Set<String> _applyingWallpapers = {};
+  bool _didSyncToAppGroup = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (Platform.isIOS) {
+      // On iOS, ensure the latest received wallpaper is saved to the App Group
+      // so the Shortcut can access it. FCM background delivery is unreliable on
+      // iOS, so we sync whenever the wallpaper screen is opened as a fallback.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _syncLatestWallpaperToAppGroup();
+      });
+    }
+  }
+
+  Future<void> _syncLatestWallpaperToAppGroup() async {
+    if (_didSyncToAppGroup) return;
+    _didSyncToAppGroup = true;
+
+    try {
+      final currentUser = ref.read(twainUserProvider).value;
+      if (currentUser == null) return;
+
+      final wallpapers = ref.read(wallpapersStreamProvider).valueOrNull;
+      if (wallpapers == null || wallpapers.isEmpty) return;
+
+      // Find the latest wallpaper that was sent TO this user (not by this user)
+      final latestReceived = wallpapers.where((w) =>
+          w.senderId != currentUser.id &&
+          w.status == 'applied').toList();
+
+      if (latestReceived.isEmpty) return;
+
+      // The list is ordered by date, take the first (most recent)
+      final latest = latestReceived.first;
+
+      await WallpaperManagerService.setWallpaper(latest.imageUrl);
+      print('iOS App Group sync: Saved latest wallpaper ${latest.id} to App Group on screen open');
+    } catch (e) {
+      print('iOS App Group sync: Failed to sync wallpaper: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -53,6 +53,13 @@ class FCMService {
     );
     print('FCMService: Permission status: ${settings.authorizationStatus}');
 
+    // Show notification banners even when app is in foreground on iOS
+    await _messaging.setForegroundNotificationPresentationOptions(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
     final token = await _messaging.getToken();
     if (token != null) {
       print('FCMService: Got FCM token: ${token.substring(0, 20)}...');
