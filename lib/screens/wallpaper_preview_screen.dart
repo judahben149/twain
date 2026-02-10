@@ -470,6 +470,8 @@ class _WallpaperPreviewScreenState
 
     final theme = Theme.of(context);
     final twainTheme = context.twainTheme;
+    final isDarkMode = context.isDarkMode;
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
     ref.read(wallpaperApplyToSelectionProvider.notifier).state = _applyTo;
 
     try {
@@ -482,7 +484,7 @@ class _WallpaperPreviewScreenState
       if (widget.unsplashWallpaper != null) {
         // Show downloading message
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
+        scaffoldMessenger.showSnackBar(
           SnackBar(
             content: Row(
               children: [
@@ -506,7 +508,7 @@ class _WallpaperPreviewScreenState
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
-              side: context.isDarkMode
+              side: isDarkMode
                   ? BorderSide(color: theme.dividerColor, width: 0.5)
                   : BorderSide.none,
             ),
@@ -522,11 +524,11 @@ class _WallpaperPreviewScreenState
         print('WallpaperPreview: [Unsplash] Downloaded to: $localPath');
 
         if (!mounted) { print('WallpaperPreview: [Unsplash] Not mounted after download'); return; }
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        scaffoldMessenger.hideCurrentSnackBar();
 
         // Upload to shared board (this makes it accessible to both users)
         if (!mounted) { print('WallpaperPreview: [Unsplash] Not mounted before upload'); return; }
-        ScaffoldMessenger.of(context).showSnackBar(
+        scaffoldMessenger.showSnackBar(
           SnackBar(
             content: Row(
               children: [
@@ -550,7 +552,7 @@ class _WallpaperPreviewScreenState
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
-              side: context.isDarkMode
+              side: isDarkMode
                   ? BorderSide(color: theme.dividerColor, width: 0.5)
                   : BorderSide.none,
             ),
@@ -563,7 +565,7 @@ class _WallpaperPreviewScreenState
         print('WallpaperPreview: [Unsplash] Uploaded, imageUrl=$imageUrl');
 
         if (!mounted) { print('WallpaperPreview: [Unsplash] Not mounted after upload'); return; }
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        scaffoldMessenger.hideCurrentSnackBar();
 
         // Trigger Unsplash download tracking (API requirement)
         ref.read(unsplashProvider.notifier).trackDownload(widget.unsplashWallpaper!);
@@ -572,7 +574,7 @@ class _WallpaperPreviewScreenState
       else if (widget.imageFile != null) {
         // Show uploading message
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
+        scaffoldMessenger.showSnackBar(
           SnackBar(
             content: Row(
               children: [
@@ -596,7 +598,7 @@ class _WallpaperPreviewScreenState
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
-              side: context.isDarkMode
+              side: isDarkMode
                   ? BorderSide(color: theme.dividerColor, width: 0.5)
                   : BorderSide.none,
             ),
@@ -609,7 +611,7 @@ class _WallpaperPreviewScreenState
         print('WallpaperPreview: [Device] Uploaded, imageUrl=$imageUrl');
 
         if (!mounted) { print('WallpaperPreview: [Device] Not mounted after upload'); return; }
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        scaffoldMessenger.hideCurrentSnackBar();
       } else {
         imageUrl = widget.imageUrl!;
         print('WallpaperPreview: [SharedBoard] Using existing URL: $imageUrl');
@@ -618,7 +620,7 @@ class _WallpaperPreviewScreenState
       // Set wallpaper (creates record, triggers FCM)
       if (!mounted) { print('WallpaperPreview: Not mounted before setWallpaper'); return; }
       print('WallpaperPreview: Calling service.setWallpaper...');
-      ScaffoldMessenger.of(context).showSnackBar(
+      scaffoldMessenger.showSnackBar(
         SnackBar(
           content: Row(
             children: [
@@ -642,7 +644,7 @@ class _WallpaperPreviewScreenState
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
-            side: context.isDarkMode
+            side: isDarkMode
                 ? BorderSide(color: theme.dividerColor, width: 0.5)
                 : BorderSide.none,
           ),
@@ -665,8 +667,8 @@ class _WallpaperPreviewScreenState
 
         // Dismiss loading snackbar and show success
         print('WallpaperPreview: Showing success snackbar...');
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
+        scaffoldMessenger.hideCurrentSnackBar();
+        scaffoldMessenger.showSnackBar(
           SnackBar(
             content: Row(
               children: [
@@ -720,31 +722,35 @@ class _WallpaperPreviewScreenState
       print('WallpaperPreview: Error: $e');
       if (!mounted) { print('WallpaperPreview: Not mounted in outer catch'); return; }
 
-      setState(() {
-        _isProcessing = false;
-      });
+      try {
+        setState(() {
+          _isProcessing = false;
+        });
 
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(Icons.error, color: theme.colorScheme.onPrimary),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Text('Failed to set wallpaper: ${e.toString()}'),
-              ),
-            ],
+        scaffoldMessenger.hideCurrentSnackBar();
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.error, color: theme.colorScheme.onPrimary),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Text('Failed to set wallpaper: ${e.toString()}'),
+                ),
+              ],
+            ),
+            backgroundColor: twainTheme.destructiveColor,
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: theme.colorScheme.onPrimary,
+              onPressed: _confirmSetWallpaper,
+            ),
           ),
-          backgroundColor: twainTheme.destructiveColor,
-          duration: const Duration(seconds: 5),
-          action: SnackBarAction(
-            label: 'Retry',
-            textColor: theme.colorScheme.onPrimary,
-            onPressed: _confirmSetWallpaper,
-          ),
-        ),
-      );
+        );
+      } catch (uiError) {
+        print('WallpaperPreview: Could not show error UI: $uiError');
+      }
     }
   }
 }
