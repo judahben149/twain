@@ -131,6 +131,16 @@ Features may change, improve, or expand over time as feedback is collected and n
 
 ---
 
+## License
+
+This project is source-available under a **non-commercial license**.
+
+You are free to view, learn from, and modify the code for personal or educational use.
+Commercial use is **not permitted** without explicit permission.
+
+For details, see the [LICENSE](./LICENSE) file.
+
+
 ## Contact
 
 For questions, feedback, or issues:
