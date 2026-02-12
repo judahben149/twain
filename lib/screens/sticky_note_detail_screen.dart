@@ -542,24 +542,53 @@ class _StickyNoteDetailScreenState
             ),
           ),
           const SizedBox(width: 12),
-          Container(
-            decoration: BoxDecoration(
-              color: twainTheme.iconColor,
-              shape: BoxShape.circle,
-            ),
-            child: IconButton(
-              icon: _isSending
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  color: twainTheme.iconColor,
+                  shape: BoxShape.circle,
+                ),
+                child: IconButton(
+                  icon: _isSending
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Icon(Icons.send, color: Colors.white),
+                  onPressed: _isSending ? null : _sendReply,
+                ),
+              ),
+              if (!ref.watch(isTwainPlusProvider))
+                Positioned(
+                  top: -4,
+                  right: -4,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: twainTheme.iconColor,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: twainTheme.cardBackgroundColor,
+                        width: 1.5,
                       ),
-                    )
-                  : const Icon(Icons.send, color: Colors.white),
-              onPressed: _isSending ? null : _sendReply,
-            ),
+                    ),
+                    child: const Text(
+                      'PLUS',
+                      style: TextStyle(
+                        fontSize: 8,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ],
       ),

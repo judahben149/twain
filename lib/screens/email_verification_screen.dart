@@ -21,8 +21,8 @@ class EmailVerificationScreen extends ConsumerStatefulWidget {
 class _EmailVerificationScreenState
     extends ConsumerState<EmailVerificationScreen> {
   final List<TextEditingController> _controllers =
-      List.generate(8, (_) => TextEditingController());
-  final List<FocusNode> _focusNodes = List.generate(8, (_) => FocusNode());
+      List.generate(6, (_) => TextEditingController());
+  final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -42,9 +42,9 @@ class _EmailVerificationScreenState
   }
 
   Future<void> _verifyCode() async {
-    if (_code.length != 8) {
+    if (_code.length != 6) {
       setState(() {
-        _errorMessage = 'Please enter the 8-digit code';
+        _errorMessage = 'Please enter the 6-digit code';
       });
       return;
     }
@@ -150,7 +150,7 @@ class _EmailVerificationScreenState
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Enter the 8-digit code sent to\n${widget.email}',
+                  'Enter the 6-digit code sent to\n${widget.email}',
                   style: TextStyle(
                     fontSize: 16,
                     color: theme.colorScheme.onSurface.withOpacity(0.6),
@@ -233,9 +233,9 @@ class _EmailVerificationScreenState
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: List.generate(8, (index) {
+      children: List.generate(6, (index) {
         return SizedBox(
-          width: 50,
+          width: 52,
           child: TextField(
             controller: _controllers[index],
             focusNode: _focusNodes[index],
@@ -273,7 +273,7 @@ class _EmailVerificationScreenState
             onChanged: (value) {
               if (value.isNotEmpty) {
                 // Move to next field
-                if (index < 7) {
+                if (index < 5) {
                   _focusNodes[index + 1].requestFocus();
                 } else {
                   // Last field - auto verify

@@ -13,7 +13,13 @@ import 'package:twain/supabase_config.dart';
 import 'package:wallpaper_sync_plugin/wallpaper_sync_plugin.dart';
 
 const _wallpaperSyncType = 'wallpaper_sync';
+const _stickyNoteType = 'sticky_note';
+const _stickyNoteReplyType = 'sticky_note_reply';
 const _notificationsEnabledKey = 'notifications_enabled';
+const _stickyNotesChannelId = 'twain_sticky_notes';
+const _stickyNotesChannelName = 'Sticky Note Updates';
+const _stickyNotesChannelDescription =
+    'Notifications for new sticky notes and replies.';
 
 // Top-level function for background message handling
 @pragma('vm:entry-point')
@@ -22,7 +28,14 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   DartPluginRegistrant.ensureInitialized();
 
   print('FCM Background: Handling message: ${message.messageId}');
-  if (message.data['type'] != _wallpaperSyncType) {
+  final type = message.data['type'];
+
+  if (type == _stickyNoteType || type == _stickyNoteReplyType) {
+    await _processStickyNoteNotification(message.data);
+    return;
+  }
+
+  if (type != _wallpaperSyncType) {
     return;
   }
 
@@ -111,7 +124,16 @@ class FCMService {
     print('FCMService: Received message: ${message.messageId}');
     print('FCMService: Data: ${message.data}');
 
-    if (message.data['type'] != _wallpaperSyncType) {
+    final type = message.data['type'];
+
+    // Sticky note notifications in foreground are handled by Supabase Realtime,
+    // so skip them here to avoid duplicate notifications.
+    if (type == _stickyNoteType || type == _stickyNoteReplyType) {
+      print('FCMService: Sticky note notification received in foreground, skipping (handled by Realtime)');
+      return;
+    }
+
+    if (type != _wallpaperSyncType) {
       return;
     }
 
@@ -398,5 +420,46 @@ Future<bool> _areNotificationsEnabled() async {
   } catch (error) {
     print('Wallpaper Sync: Failed to check notification preference: $error');
     return true; // Default to showing notifications if preference check fails
+  }
+}
+
+Future<void> _processStickyNoteNotification(Map<String, dynamic> data) async {
+  final notificationsEnabled = await _areNotificationsEnabled();
+  if (!notificationsEnabled) {
+    print('FCM Sticky Note: Notifications disabled by user preference');
+    return;
+  }
+
+  if (!Platform.isAndroid) {
+    // iOS shows the notification automatically via the APNs alert payload
+    return;
+  }
+
+  final type = data['type'] as String?;
+  final senderName = data['sender_name'] as String? ?? '';
+  final message = data['message'] as String? ?? '';
+  final noteId = data['note_id'] as String? ?? '';
+
+  final senderFirstName = senderName.isNotEmpty
+      ? _firstName(senderName)
+      : 'Your partner';
+
+  final isReply = type == _stickyNoteReplyType;
+  final title = isReply
+      ? '$senderFirstName replied to your sticky note'
+      : '$senderFirstName left you a sticky note';
+  final body = message.length > 100 ? '${message.substring(0, 97)}...' : message;
+
+  try {
+    await WallpaperSyncPlugin.showNotification(
+      title: title,
+      body: body,
+      channelId: _stickyNotesChannelId,
+      channelName: _stickyNotesChannelName,
+      channelDescription: _stickyNotesChannelDescription,
+      payload: jsonEncode({'type': type, 'noteId': noteId}),
+    );
+  } catch (error) {
+    print('FCM Sticky Note: Failed to show notification: $error');
   }
 }

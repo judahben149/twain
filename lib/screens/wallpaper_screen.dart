@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:twain/constants/app_colours.dart';
 import 'package:twain/constants/app_themes.dart';
 import 'package:twain/models/wallpaper.dart';
@@ -16,6 +17,7 @@ import 'package:twain/screens/wallpaper_preview_screen.dart';
 import 'package:twain/screens/unsplash_browser_screen.dart';
 import 'package:twain/screens/folders_list_screen.dart';
 import 'package:twain/screens/paywall_screen.dart';
+import 'package:twain/screens/ios_shortcut_setup_screen.dart';
 import 'package:twain/services/wallpaper_manager_service.dart';
 import 'package:twain/services/cache/twain_cache_managers.dart';
 import 'package:twain/utils/image_url_utils.dart';
@@ -24,6 +26,8 @@ import 'package:twain/screens/wallpaper_detail_screen.dart';
 import 'package:wallpaper_sync_plugin/wallpaper_sync_plugin.dart';
 
 enum _WallpaperSource { sharedBoard, device, unsplash }
+
+const _iosShortcutPromptShownKey = 'ios_shortcut_prompt_shown';
 
 class WallpaperScreen extends ConsumerStatefulWidget {
   const WallpaperScreen({super.key});
@@ -40,13 +44,92 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
   void initState() {
     super.initState();
     if (Platform.isIOS) {
-      // On iOS, ensure the latest received wallpaper is saved to the App Group
-      // so the Shortcut can access it. FCM background delivery is unreliable on
-      // iOS, so we sync whenever the wallpaper screen is opened as a fallback.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _syncLatestWallpaperToAppGroup();
+        _showIosShortcutPromptIfNeeded();
       });
     }
+  }
+
+  Future<void> _showIosShortcutPromptIfNeeded() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(_iosShortcutPromptShownKey) == true) return;
+    if (!mounted) return;
+
+    await prefs.setBool(_iosShortcutPromptShownKey, true);
+
+    final theme = Theme.of(context);
+    final twainTheme = context.twainTheme;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Row(
+          children: [
+            Icon(Icons.auto_awesome, color: twainTheme.iconColor, size: 24),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Automatic Wallpaper Sync',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Set up an iOS Shortcut to automatically apply wallpapers sent by your partner — even when the app is closed.\n\nThis only takes a minute!',
+          style: TextStyle(
+            fontSize: 15,
+            height: 1.5,
+            color: theme.colorScheme.onSurface.withOpacity(0.8),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Later',
+              style: TextStyle(
+                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const IosShortcutSetupScreen(),
+                ),
+              );
+            },
+            style: TextButton.styleFrom(
+              backgroundColor: twainTheme.iconColor,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text(
+              'Set Up Now',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _syncLatestWallpaperToAppGroup() async {

@@ -222,6 +222,16 @@ class UserProfileScreen extends ConsumerWidget {
             theme: theme,
             twainTheme: twainTheme,
           ),
+          if (user.metaData?['timezone_utc_offset'] != null) ...[
+            const SizedBox(height: 20),
+            _buildInfoRow(
+              icon: Icons.access_time,
+              label: 'Time Zone',
+              value: '${user.metaData!['timezone_name'] ?? ''} (${user.metaData!['timezone_utc_offset']})',
+              theme: theme,
+              twainTheme: twainTheme,
+            ),
+          ],
           if (user.status != null) ...[
             const SizedBox(height: 20),
             _buildInfoRow(

@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -122,6 +124,14 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
     }
     // Fall back to server state
     return note.isLikedBy(currentUserId);
+  }
+
+  /// Returns a small rotation angle (-0.02 to 0.02 radians, ~1.1 degrees)
+  /// deterministically based on the note ID so it stays consistent.
+  double _getTiltAngle(String noteId) {
+    final hash = noteId.hashCode;
+    // Range: -0.02 to 0.02 radians (~-1.1 to 1.1 degrees)
+    return (hash % 41 - 20) / 1000.0;
   }
 
   Color _parseColor(String hexColor) {
@@ -250,12 +260,15 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
                                     horizontal: 20.0,
                                     vertical: 8.0,
                                   ),
-                                  child: _buildNoteCard(
-                                    note,
-                                    isCurrentUser,
-                                    _parseColor(note.color),
-                                    theme,
-                                    twainTheme,
+                                  child: Transform.rotate(
+                                    angle: _getTiltAngle(note.id),
+                                    child: _buildNoteCard(
+                                      note,
+                                      isCurrentUser,
+                                      _parseColor(note.color),
+                                      theme,
+                                      twainTheme,
+                                    ),
                                   ),
                                 );
                               },
@@ -323,12 +336,15 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
                                       horizontal: 20.0,
                                       vertical: 8.0,
                                     ),
-                                    child: _buildNoteCard(
-                                      note,
-                                      isCurrentUser,
-                                      _parseColor(note.color),
-                                      theme,
-                                      twainTheme,
+                                    child: Transform.rotate(
+                                      angle: _getTiltAngle(note.id),
+                                      child: _buildNoteCard(
+                                        note,
+                                        isCurrentUser,
+                                        _parseColor(note.color),
+                                        theme,
+                                        twainTheme,
+                                      ),
                                     ),
                                   );
                                 },

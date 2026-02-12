@@ -1,8 +1,19 @@
+import 'dart:io';
+
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:twain/models/app_theme_mode.dart';
 import 'package:twain/providers/theme_providers.dart';
 import 'package:twain/constants/app_themes.dart';
+
+/// Provider that checks if the device supports dynamic/system colors.
+/// Only Android 12+ (API 31+) supports Material You dynamic colors.
+final supportsSystemColorsProvider = FutureProvider<bool>((ref) async {
+  if (!Platform.isAndroid) return false;
+  final info = await DeviceInfoPlugin().androidInfo;
+  return info.version.sdkInt >= 31;
+});
 
 class ThemeSelector extends ConsumerWidget {
   const ThemeSelector({super.key});
@@ -11,6 +22,7 @@ class ThemeSelector extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final currentTheme = ref.watch(themeModeProvider);
     final useSystemColors = ref.watch(useSystemColorsProvider);
+    final supportsSystemColors = ref.watch(supportsSystemColorsProvider).valueOrNull ?? false;
     final theme = Theme.of(context);
     final twainTheme = context.twainTheme;
 
@@ -28,23 +40,26 @@ class ThemeSelector extends ConsumerWidget {
             twainTheme: twainTheme,
           ),
 
-        // Divider
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Divider(
-            height: 1,
-            color: theme.dividerColor,
+        // Only show system colors option on supported devices (Android 12+)
+        if (supportsSystemColors) ...[
+          // Divider
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Divider(
+              height: 1,
+              color: theme.dividerColor,
+            ),
           ),
-        ),
 
-        // System colors checkbox
-        _buildSystemColorsOption(
-          context: context,
-          ref: ref,
-          isEnabled: useSystemColors,
-          theme: theme,
-          twainTheme: twainTheme,
-        ),
+          // System colors checkbox
+          _buildSystemColorsOption(
+            context: context,
+            ref: ref,
+            isEnabled: useSystemColors,
+            theme: theme,
+            twainTheme: twainTheme,
+          ),
+        ],
       ],
     );
   }

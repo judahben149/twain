@@ -396,6 +396,16 @@ class _PartnerProfileScreenState extends ConsumerState<PartnerProfileScreen> {
             theme: theme,
             twainTheme: twainTheme,
           ),
+          if (partner.metaData?['timezone_utc_offset'] != null) ...[
+            const SizedBox(height: 20),
+            _buildInfoRow(
+              icon: Icons.access_time,
+              label: 'Time Zone',
+              value: '${partner.metaData!['timezone_name'] ?? ''} (${partner.metaData!['timezone_utc_offset']})',
+              theme: theme,
+              twainTheme: twainTheme,
+            ),
+          ],
           if (partner.status != null) ...[
             const SizedBox(height: 20),
             _buildInfoRow(

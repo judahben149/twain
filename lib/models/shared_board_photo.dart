@@ -8,6 +8,9 @@ class SharedBoardPhoto {
   final String mimeType;
   final int? width;
   final int? height;
+  /// 'direct' for photos uploaded directly to shared board,
+  /// 'wallpaper' for photos that originated from wallpaper sync.
+  final String sourceType;
   final DateTime createdAt;
 
   SharedBoardPhoto({
@@ -20,8 +23,11 @@ class SharedBoardPhoto {
     required this.mimeType,
     this.width,
     this.height,
+    this.sourceType = 'direct',
     required this.createdAt,
   });
+
+  bool get isWallpaper => sourceType == 'wallpaper';
 
   factory SharedBoardPhoto.fromJson(Map<String, dynamic> json) {
     return SharedBoardPhoto(
@@ -34,6 +40,7 @@ class SharedBoardPhoto {
       mimeType: json['mime_type'] as String,
       width: json['width'] as int?,
       height: json['height'] as int?,
+      sourceType: json['source_type'] as String? ?? 'direct',
       createdAt: DateTime.parse(json['created_at'] as String),
     );
   }
@@ -49,6 +56,7 @@ class SharedBoardPhoto {
       'mime_type': mimeType,
       'width': width,
       'height': height,
+      'source_type': sourceType,
       'created_at': createdAt.toIso8601String(),
     };
   }
@@ -65,6 +73,7 @@ class SharedBoardPhoto {
       'mime_type': mimeType,
       'width': width,
       'height': height,
+      'source_type': sourceType,
       'created_at': createdAt.toIso8601String(),
     };
   }
@@ -80,6 +89,7 @@ class SharedBoardPhoto {
       mimeType: map['mime_type'] as String,
       width: map['width'] as int?,
       height: map['height'] as int?,
+      sourceType: map['source_type'] as String? ?? 'direct',
       createdAt: DateTime.parse(map['created_at'] as String),
     );
   }

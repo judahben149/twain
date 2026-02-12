@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -9,6 +10,7 @@ import 'package:twain/providers/wallpaper_providers.dart';
 import 'package:twain/providers/auth_providers.dart';
 import 'package:twain/screens/paywall_screen.dart';
 import 'package:twain/screens/wallpaper_preview_screen.dart';
+import 'package:twain/services/cache/twain_cache_managers.dart';
 import 'package:twain/utils/connectivity_utils.dart';
 
 const int _maxDailyUploads = 1;
@@ -87,7 +89,13 @@ class _SharedBoardScreenState extends ConsumerState<SharedBoardScreen> {
         iconTheme: IconThemeData(color: theme.colorScheme.onSurface),
       ),
       body: photosAsync.when(
-        data: (photos) {
+        data: (allPhotos) {
+          // Filter out wallpaper-sourced photos if preference is off
+          final showWallpapers = currentUser?.preferences?['show_wallpapers_in_shared_board'] ?? true;
+          final photos = showWallpapers
+              ? allPhotos
+              : allPhotos.where((p) => p.sourceType != 'wallpaper').toList();
+
           if (photos.isEmpty) {
             return Center(
               child: Column(
@@ -158,26 +166,29 @@ class _SharedBoardScreenState extends ConsumerState<SharedBoardScreen> {
                       child: Stack(
                         fit: StackFit.expand,
                         children: [
-                          Image.network(
-                            photo.thumbnailUrl ?? photo.imageUrl,
+                          CachedNetworkImage(
+                            imageUrl: photo.thumbnailUrl ?? photo.imageUrl,
+                            cacheManager: TwainCacheManagers.getManager(
+                              TwainCacheBucket.sharedBoardThumbnails,
+                            ),
                             fit: BoxFit.cover,
-                            loadingBuilder: (context, child, loadingProgress) {
-                              if (loadingProgress == null) return child;
+                            fadeInDuration: const Duration(milliseconds: 80),
+                            fadeOutDuration: const Duration(milliseconds: 80),
+                            placeholderFadeInDuration: const Duration(milliseconds: 80),
+                            useOldImageOnUrlChange: true,
+                            progressIndicatorBuilder: (context, url, progress) {
                               return Container(
                                 color: theme.colorScheme.surface,
                                 child: Center(
                                   child: CircularProgressIndicator(
-                                    value: loadingProgress.expectedTotalBytes != null
-                                        ? loadingProgress.cumulativeBytesLoaded /
-                                            loadingProgress.expectedTotalBytes!
-                                        : null,
+                                    value: progress.progress,
                                     color: twainTheme.iconColor,
                                     strokeWidth: 2,
                                   ),
                                 ),
                               );
                             },
-                            errorBuilder: (context, error, stackTrace) {
+                            errorWidget: (context, url, error) {
                               return Container(
                                 color: theme.colorScheme.surface,
                                 child: Icon(

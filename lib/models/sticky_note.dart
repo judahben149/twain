@@ -40,8 +40,8 @@ class StickyNote {
       color: json['color'] as String? ?? 'FFF9C4', // Default yellow
       likedByUserIds: likedByUserIds,
       replyCount: json['reply_count'] as int? ?? 0,
-      createdAt: DateTime.parse(json['created_at'] as String),
-      updatedAt: DateTime.parse(json['updated_at'] as String),
+      createdAt: DateTime.parse(json['created_at'] as String).toLocal(),
+      updatedAt: DateTime.parse(json['updated_at'] as String).toLocal(),
     );
   }
 

@@ -90,102 +90,12 @@ class _WallpaperPreviewScreenState
       ),
       body: Column(
         children: [
-          // Full-screen image preview
+          // Device frame preview
           Expanded(
             child: Center(
-              child: widget.imageUrl != null
-                  ? CachedNetworkImage(
-                      imageUrl: optimizedPreviewUrl!,
-                      cacheManager: TwainCacheManagers
-                          .getManager(TwainCacheBucket.wallpaperImages),
-                      fit: BoxFit.contain,
-                      fadeInDuration: const Duration(milliseconds: 80),
-                      fadeOutDuration: const Duration(milliseconds: 80),
-                      placeholderFadeInDuration: const Duration(milliseconds: 80),
-                      useOldImageOnUrlChange: true,
-                      progressIndicatorBuilder: (context, url, progress) {
-                        final value = progress.progress;
-                        if (value != null && value >= 1.0) {
-                          return const SizedBox.shrink();
-                        }
-                        return Center(
-                          child: SizedBox(
-                            width: 48,
-                            height: 48,
-                            child: Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                CircularProgressIndicator(
-                                  value: value,
-                                  color: twainTheme.iconColor,
-                                ),
-                                if (value != null)
-                                  Text(
-                                    '${(value * 100).clamp(0, 100).toStringAsFixed(0)}%',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      color: twainTheme.iconColor,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                      errorWidget: (context, url, error) => Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.broken_image,
-                            color: (isDarkMode
-                                    ? Colors.white54
-                                    : theme.colorScheme.onSurface)
-                                .withOpacity(0.6),
-                            size: 64,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Failed to load image',
-                            style: TextStyle(
-                              color: isDarkMode
-                                  ? Colors.white.withOpacity(0.7)
-                                  : theme.colorScheme.onSurface.withOpacity(0.7),
-                              fontSize: 16,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : Image.file(
-                      widget.imageFile!,
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.broken_image,
-                              color: (isDarkMode
-                                      ? Colors.white54
-                                      : theme.colorScheme.onSurface)
-                                  .withOpacity(0.6),
-                              size: 64,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Failed to load image',
-                              style: TextStyle(
-                                color: isDarkMode
-                                    ? Colors.white.withOpacity(0.7)
-                                    : theme.colorScheme.onSurface.withOpacity(0.7),
-                                fontSize: 16,
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
+              child: _buildDevicePreviewFrame(
+                context, theme, twainTheme, isDarkMode, optimizedPreviewUrl,
+              ),
             ),
           ),
 
@@ -331,6 +241,139 @@ class _WallpaperPreviewScreenState
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildDevicePreviewFrame(
+    BuildContext context,
+    ThemeData theme,
+    TwainThemeExtension twainTheme,
+    bool isDarkMode,
+    String? optimizedPreviewUrl,
+  ) {
+    Widget imageChild;
+    if (widget.imageUrl != null && optimizedPreviewUrl != null) {
+      imageChild = CachedNetworkImage(
+        imageUrl: optimizedPreviewUrl,
+        cacheManager:
+            TwainCacheManagers.getManager(TwainCacheBucket.wallpaperImages),
+        fit: BoxFit.cover,
+        fadeInDuration: const Duration(milliseconds: 80),
+        fadeOutDuration: const Duration(milliseconds: 80),
+        placeholderFadeInDuration: const Duration(milliseconds: 80),
+        useOldImageOnUrlChange: true,
+        progressIndicatorBuilder: (context, url, progress) {
+          final value = progress.progress;
+          return Center(
+            child: SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(
+                value: value,
+                strokeWidth: 2,
+                color: twainTheme.iconColor,
+              ),
+            ),
+          );
+        },
+        errorWidget: (context, url, error) => Container(
+          color: theme.colorScheme.surface,
+          child: Icon(
+            Icons.broken_image,
+            color: (isDarkMode ? Colors.white54 : theme.colorScheme.onSurface)
+                .withOpacity(0.6),
+            size: 48,
+          ),
+        ),
+      );
+    } else if (widget.imageFile != null) {
+      imageChild = Image.file(
+        widget.imageFile!,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => Container(
+          color: theme.colorScheme.surface,
+          child: Icon(
+            Icons.broken_image,
+            color: (isDarkMode ? Colors.white54 : theme.colorScheme.onSurface)
+                .withOpacity(0.6),
+            size: 48,
+          ),
+        ),
+      );
+    } else {
+      imageChild = Container(
+        color: Colors.black,
+        child: Icon(
+          Icons.wallpaper,
+          color: theme.colorScheme.onSurface.withOpacity(0.2),
+          size: 48,
+        ),
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxWidth = constraints.maxWidth * 0.65;
+        final frameWidth = maxWidth.clamp(0, 260).toDouble();
+        final frameHeight = frameWidth / 9 * 19.5;
+
+        return ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: frameWidth,
+            maxHeight: frameHeight + 32,
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.black,
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.08),
+                width: 1,
+              ),
+              boxShadow: isDarkMode
+                  ? null
+                  : [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.08),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+            ),
+            child: AspectRatio(
+              aspectRatio: 9 / 19.5,
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(24),
+                      child: imageChild,
+                    ),
+                  ),
+                  // Home indicator
+                  Positioned(
+                    bottom: 12,
+                    left: 0,
+                    right: 0,
+                    child: Align(
+                      alignment: Alignment.bottomCenter,
+                      child: Container(
+                        width: 70,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -680,7 +723,7 @@ class _WallpaperPreviewScreenState
         );
 
         print('WallpaperPreview: [Unsplash] Uploading to shared board...');
-        final photo = await service.uploadToSharedBoard(File(localPath));
+        final photo = await service.uploadToSharedBoard(File(localPath), photoSourceType: 'wallpaper');
         imageUrl = photo.imageUrl;
         print('WallpaperPreview: [Unsplash] Uploaded, imageUrl=$imageUrl');
 
@@ -726,7 +769,7 @@ class _WallpaperPreviewScreenState
         );
 
         print('WallpaperPreview: [Device] Uploading file to shared board...');
-        final photo = await service.uploadToSharedBoard(widget.imageFile!);
+        final photo = await service.uploadToSharedBoard(widget.imageFile!, photoSourceType: 'wallpaper');
         imageUrl = photo.imageUrl;
         print('WallpaperPreview: [Device] Uploaded, imageUrl=$imageUrl');
 

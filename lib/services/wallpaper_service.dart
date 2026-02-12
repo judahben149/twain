@@ -35,7 +35,8 @@ class WallpaperService {
   }
 
   // Upload photo to shared board
-  Future<SharedBoardPhoto> uploadToSharedBoard(File imageFile) async {
+  // [photoSourceType] is 'direct' for user uploads, 'wallpaper' for wallpaper sync uploads
+  Future<SharedBoardPhoto> uploadToSharedBoard(File imageFile, {String photoSourceType = 'direct'}) async {
     final user = currentUser;
     if (user == null) throw Exception('No user logged in');
 
@@ -81,6 +82,7 @@ class WallpaperService {
       'image_url': imageUrl,
       'file_size': compressed.length,
       'mime_type': 'image/jpeg',
+      'source_type': photoSourceType,
     }).select().single();
 
     print('Shared board photo record created');
