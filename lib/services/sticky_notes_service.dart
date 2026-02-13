@@ -1,18 +1,11 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:twain/models/sticky_note.dart';
 import 'package:twain/models/sticky_note_reply.dart';
 import 'package:twain/repositories/sticky_notes_repository.dart';
-import 'package:wallpaper_sync_plugin/wallpaper_sync_plugin.dart';
 
 class StickyNotesService {
-  static const _notesChannelId = 'twain_sticky_notes';
-  static const _notesChannelName = 'Sticky Note Updates';
-  static const _notesChannelDescription =
-      'Notifications for new sticky notes and replies.';
-
   final _supabase = Supabase.instance.client;
   final StickyNotesRepository? _repository;
 
@@ -36,16 +29,14 @@ class StickyNotesService {
 
   Stream<List<StickyNote>> streamNotes() async* {
     final pairId = await _getPairId();
-    final currentUserId = currentUser?.id;
 
-    if (pairId == null || currentUserId == null) {
+    if (pairId == null) {
       yield [];
       return;
     }
 
     if (_repository != null) {
-      final source = _repository.watchNotes(pairId);
-      yield* _decorateNotesStream(source, currentUserId);
+      yield* _repository.watchNotes(pairId);
       return;
     }
 
@@ -116,7 +107,7 @@ class StickyNotesService {
 
     controller.add(await fetchNotes());
 
-    yield* _decorateNotesStream(controller.stream, currentUserId);
+    yield* controller.stream;
   }
 
   Future<void> createNote(String message, {String color = 'FFF9C4'}) async {
@@ -170,15 +161,8 @@ class StickyNotesService {
   }
 
   Stream<List<StickyNoteReply>> streamReplies(String noteId) async* {
-    final currentUserId = currentUser?.id;
-    if (currentUserId == null) {
-      yield [];
-      return;
-    }
-
     if (_repository != null) {
-      final source = _repository.watchReplies(noteId);
-      yield* _decorateRepliesStream(source, currentUserId, noteId);
+      yield* _repository.watchReplies(noteId);
       return;
     }
 
@@ -188,12 +172,12 @@ class StickyNotesService {
         .eq('note_id', noteId)
         .order('created_at', ascending: true);
 
-    yield* _decorateRepliesStream(stream.map((data) {
+    yield* stream.map((data) {
       return data.map((reply) => StickyNoteReply.fromJson({
             ...reply,
             'sender_name': null,
           })).toList();
-    }), currentUserId, noteId);
+    });
   }
 
   Future<void> createReply(String noteId, String message) async {
@@ -248,114 +232,4 @@ class StickyNotesService {
     );
   }
 
-  Stream<List<StickyNote>> _decorateNotesStream(
-    Stream<List<StickyNote>> source,
-    String currentUserId,
-  ) async* {
-    var knownNoteIds = <String>{};
-    var firstEmission = true;
-
-    await for (final notes in source) {
-      final ids = notes.map((n) => n.id).toSet();
-      if (!firstEmission) {
-        for (final note in notes) {
-          if (knownNoteIds.contains(note.id)) continue;
-          knownNoteIds.add(note.id);
-          if (note.senderId == currentUserId) continue;
-          unawaited(_showNoteNotification(note));
-        }
-      } else {
-        knownNoteIds = ids;
-        firstEmission = false;
-      }
-      knownNoteIds = ids;
-      yield notes;
-    }
-  }
-
-  Stream<List<StickyNoteReply>> _decorateRepliesStream(
-    Stream<List<StickyNoteReply>> source,
-    String currentUserId,
-    String noteId,
-  ) async* {
-    var knownReplyIds = <String>{};
-    var firstEmission = true;
-
-    await for (final replies in source) {
-      final ids = replies.map((r) => r.id).toSet();
-      if (!firstEmission) {
-        for (final reply in replies) {
-          if (knownReplyIds.contains(reply.id)) continue;
-          knownReplyIds.add(reply.id);
-          if (reply.senderId == currentUserId) continue;
-          unawaited(_showReplyNotification(noteId, reply));
-        }
-      } else {
-        knownReplyIds = ids;
-        firstEmission = false;
-      }
-      knownReplyIds = ids;
-      yield replies;
-    }
-  }
-
-  Future<void> _showNoteNotification(StickyNote note) async {
-    final senderName =
-        await _resolveUserName(note.senderId, fallback: note.senderName);
-    final displayName = _firstName(senderName ?? 'Your partner');
-
-    await WallpaperSyncPlugin.showNotification(
-      title: '$displayName left you a sticky note',
-      body: note.message,
-      channelId: _notesChannelId,
-      channelName: _notesChannelName,
-      channelDescription: _notesChannelDescription,
-      payload: jsonEncode({'type': 'sticky_note', 'noteId': note.id}),
-      color: note.color,
-    );
-  }
-
-  Future<void> _showReplyNotification(
-    String noteId,
-    StickyNoteReply reply,
-  ) async {
-    final note = await fetchNoteById(noteId);
-    if (note == null) return;
-
-    final senderName =
-        await _resolveUserName(reply.senderId, fallback: reply.senderName);
-    final displayName = _firstName(senderName ?? 'Your partner');
-
-    await WallpaperSyncPlugin.showNotification(
-      title: '$displayName replied to your sticky note',
-      body: reply.message,
-      channelId: _notesChannelId,
-      channelName: _notesChannelName,
-      channelDescription: _notesChannelDescription,
-      payload: jsonEncode({'type': 'sticky_note_reply', 'noteId': noteId}),
-      color: note.color,
-    );
-  }
-
-  Future<String?> _resolveUserName(String userId, {String? fallback}) async {
-    if (fallback != null && fallback.trim().isNotEmpty) return fallback.trim();
-    try {
-      final response = await _supabase
-          .from('users')
-          .select('display_name')
-          .eq('id', userId)
-          .maybeSingle();
-      if (response == null) return null;
-      final name = response['display_name'] as String?;
-      return name?.trim().isEmpty == true ? null : name?.trim();
-    } catch (_) {
-      return null;
-    }
-  }
-
-  String _firstName(String name) {
-    final parts =
-        name.split(' ').where((part) => part.trim().isNotEmpty).toList();
-    return parts.isEmpty ? name : parts.first;
-  }
 }

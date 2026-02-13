@@ -26,6 +26,14 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
   String _selectedColor = 'FFF9C4'; // Default yellow
   final Map<String, bool> _optimisticLikes = {}; // noteId -> isLiked by current user
 
+  @override
+  void initState() {
+    super.initState();
+    // Refresh the stream to ensure fresh Realtime subscriptions.
+    // Cached data is emitted instantly so there's no visible flash.
+    Future.microtask(() => ref.invalidate(stickyNotesStreamProvider));
+  }
+
   final List<Map<String, dynamic>> _availableColors = [
     {'hex': 'FFF9C4', 'name': 'Yellow'},
     {'hex': 'FFE6F0', 'name': 'Pink'},
