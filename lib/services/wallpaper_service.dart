@@ -76,14 +76,21 @@ class WallpaperService {
     print('Image uploaded to: $imageUrl');
 
     // Create database record
-    final photoData = await _supabase.from('shared_board_photos').insert({
+    final insertData = <String, dynamic>{
       'pair_id': pairId,
       'uploader_id': user.id,
       'image_url': imageUrl,
       'file_size': compressed.length,
       'mime_type': 'image/jpeg',
-      'source_type': photoSourceType,
-    }).select().single();
+    };
+    if (photoSourceType != 'direct') {
+      insertData['source_type'] = photoSourceType;
+    }
+    final photoData = await _supabase
+        .from('shared_board_photos')
+        .insert(insertData)
+        .select()
+        .single();
 
     print('Shared board photo record created');
 

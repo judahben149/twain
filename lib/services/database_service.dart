@@ -29,18 +29,9 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 2,
+      version: 1,
       onCreate: _onCreate,
-      onUpgrade: _onUpgrade,
     );
-  }
-
-  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 2) {
-      // Add nickname column that was missing in v1
-      await db.execute('ALTER TABLE users ADD COLUMN nickname TEXT');
-      print('Database migrated from v$oldVersion to v$newVersion: added nickname column');
-    }
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -124,6 +115,7 @@ class DatabaseService {
         mime_type TEXT NOT NULL,
         width INTEGER,
         height INTEGER,
+        source_type TEXT NOT NULL DEFAULT 'direct',
         created_at TEXT NOT NULL
       )
     ''');

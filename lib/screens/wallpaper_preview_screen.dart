@@ -92,9 +92,14 @@ class _WallpaperPreviewScreenState
         children: [
           // Device frame preview
           Expanded(
-            child: Center(
-              child: _buildDevicePreviewFrame(
-                context, theme, twainTheme, isDarkMode, optimizedPreviewUrl,
+            child: Padding(
+              padding: EdgeInsets.only(
+                top: MediaQuery.of(context).padding.top + kToolbarHeight + 8,
+              ),
+              child: Center(
+                child: _buildDevicePreviewFrame(
+                  context, theme, twainTheme, isDarkMode, optimizedPreviewUrl,
+                ),
               ),
             ),
           ),

@@ -70,10 +70,12 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
           );
         }
       });
-    } catch (e) {
+    } catch (e, stack) {
+      print('StickyNotes: Failed to send message: $e');
+      print('StickyNotes: Stack trace: $stack');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to send message. Please try again.')),
+          SnackBar(content: Text('Failed to send message: $e')),
         );
       }
     } finally {
@@ -126,12 +128,12 @@ class _StickyNotesScreenState extends ConsumerState<StickyNotesScreen> {
     return note.isLikedBy(currentUserId);
   }
 
-  /// Returns a small rotation angle (-0.02 to 0.02 radians, ~1.1 degrees)
+  /// Returns a small rotation angle (~-2.6 to 2.6 degrees)
   /// deterministically based on the note ID so it stays consistent.
   double _getTiltAngle(String noteId) {
     final hash = noteId.hashCode;
-    // Range: -0.02 to 0.02 radians (~-1.1 to 1.1 degrees)
-    return (hash % 41 - 20) / 1000.0;
+    // Range: -0.045 to 0.045 radians (~-2.6 to 2.6 degrees)
+    return (hash % 91 - 45) / 1000.0;
   }
 
   Color _parseColor(String hexColor) {
