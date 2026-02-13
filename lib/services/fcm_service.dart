@@ -126,10 +126,9 @@ class FCMService {
 
     final type = message.data['type'];
 
-    // Sticky note notifications in foreground are handled by Supabase Realtime,
-    // so skip them here to avoid duplicate notifications.
     if (type == _stickyNoteType || type == _stickyNoteReplyType) {
-      print('FCMService: Sticky note notification received in foreground, skipping (handled by Realtime)');
+      print('FCMService: Sticky note notification received in foreground');
+      await _processStickyNoteNotification(message.data);
       return;
     }
 
