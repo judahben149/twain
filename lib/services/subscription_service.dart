@@ -10,7 +10,7 @@ import 'package:twain/models/subscription_status.dart';
 class RevenueCatConfig {
   // API Keys
   static const String androidApiKey = 'goog_KRbvdZPJdZKoBDdcFUMnpomIpij';
-  static const String iosApiKey = ''; // TODO: Add iOS key when available
+  static const String iosApiKey = 'appl_WlQoetzuDKTOwzziAxooJGTiNFU';
 
   // Entitlement ID (must match exactly what's configured in RevenueCat dashboard)
   static const String premiumEntitlement = 'Twain Plus';

@@ -31,15 +31,23 @@ flutter_ios_podfile_setup
 $FirebaseSDKVersion = '11.2.0'
 
 target 'Runner' do
-  use_frameworks!
+  use_frameworks! :linkage => :static
   use_modular_headers!
-
-  pod 'Firebase'
-  pod 'FirebaseMessaging'
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
   target 'RunnerTests' do
     inherit! :search_paths
+  end
+end
+
+# Disable modular headers for pods that include non-modular Firebase headers
+pre_install do |installer|
+  installer.pod_targets.each do |pod|
+    if ['firebase_crashlytics', 'Firebase', 'FirebaseCrashlytics', 'FirebaseCore', 'FirebaseSessions', 'FirebaseCoreInternal'].include?(pod.name)
+      def pod.build_type
+        Pod::BuildType.static_library
+      end
+    end
   end
 end
 

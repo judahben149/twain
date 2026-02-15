@@ -122,16 +122,6 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		NSE0000070000000000000007 /* TwainNotificationService */ = {
-			isa = PBXGroup;
-			children = (
-				NSE0000010000000000000001 /* NotificationService.swift */,
-				NSE0000020000000000000002 /* Info.plist */,
-				NSE0000030000000000000003 /* TwainNotificationService.entitlements */,
-			);
-			path = TwainNotificationService;
-			sourceTree = "<group>";
-		};
 		331C8082294A63A400263BE5 /* RunnerTests */ = {
 			isa = PBXGroup;
 			children = (
@@ -213,6 +203,16 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
+		NSE0000070000000000000007 /* TwainNotificationService */ = {
+			isa = PBXGroup;
+			children = (
+				NSE0000010000000000000001 /* NotificationService.swift */,
+				NSE0000020000000000000002 /* Info.plist */,
+				NSE0000030000000000000003 /* TwainNotificationService.entitlements */,
+			);
+			path = TwainNotificationService;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -247,7 +247,6 @@
 				9705A1C41CF9048500538489 /* Embed Frameworks */,
 				NSE00000E0000000000000014 /* Embed App Extensions */,
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
-				52E179C5E14A8452795C8765 /* [CP] Embed Pods Frameworks */,
 				9A5ABD0827147231769804B6 /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
@@ -409,23 +408,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "/bin/sh \"$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh\" embed_and_thin";
-		};
-		52E179C5E14A8452795C8765 /* [CP] Embed Pods Frameworks */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks-${CONFIGURATION}-input-files.xcfilelist",
-			);
-			name = "[CP] Embed Pods Frameworks";
-			outputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks.sh\"\n";
-			showEnvVarsInLog = 0;
 		};
 		9740EEB61CF901F6004384FC /* Run Script */ = {
 			isa = PBXShellScriptBuildPhase;

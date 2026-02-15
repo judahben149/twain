@@ -8,6 +8,7 @@ import 'package:twain/services/notification_router.dart';
 import 'package:twain/widgets/auth_gate.dart';
 import 'package:twain/widgets/connectivity_banner.dart';
 import 'package:twain/widgets/dynamic_theme_builder.dart';
+import 'package:twain/services/analytics_service.dart';
 
 class MyApp extends ConsumerStatefulWidget {
   const MyApp({super.key});
@@ -31,6 +32,7 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
       await ref.read(authServiceProvider).setPresenceOnline();
       await _updateDeviceInfo();
       await NotificationRouter.initialize(ref);
+      await ref.read(analyticsServiceProvider).logAppOpen();
     } catch (e) {
       debugPrint('MyApp: Error during initialization: $e');
     }
@@ -74,6 +76,8 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    final analyticsService = ref.watch(analyticsServiceProvider);
+
     return DynamicThemeBuilder(
       builder: (lightTheme, darkTheme, themeMode) {
         return MaterialApp(
@@ -82,6 +86,7 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
           theme: lightTheme,
           darkTheme: darkTheme,
           themeMode: themeMode,
+          navigatorObservers: [analyticsService.observer],
           builder: (context, child) {
             return ConnectivityBanner(child: child ?? const SizedBox.shrink());
           },

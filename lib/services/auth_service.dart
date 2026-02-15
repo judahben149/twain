@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'package:crypto/crypto.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:google_sign_in/google_sign_in.dart' as google_sign_in;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:twain/models/twain_user.dart';
@@ -171,6 +173,7 @@ class AuthService {
 
       // Set user ID in RevenueCat for subscription tracking
       await SubscriptionService.instance.setUserId(user.id);
+      await _setTrackingUser(user.id);
 
       return await _getUserFromSupabase(user.id);
     } catch (e) {
@@ -195,6 +198,7 @@ class AuthService {
 
       // Set user ID in RevenueCat for subscription tracking
       await SubscriptionService.instance.setUserId(user.id);
+      await _setTrackingUser(user.id);
 
       return await _getUserFromSupabase(user.id);
     } catch (e) {
@@ -263,6 +267,7 @@ class AuthService {
 
       // Set user ID in RevenueCat for subscription tracking
       await SubscriptionService.instance.setUserId(user.id);
+      await _setTrackingUser(user.id);
     } catch (e) {
       print('Error verifying OTP: $e');
       rethrow;
@@ -293,6 +298,7 @@ class AuthService {
 
       // Clear RevenueCat user ID
       await SubscriptionService.instance.clearUserId();
+      await _clearTrackingUser();
 
       await google_sign_in.GoogleSignIn.instance.signOut();
       await _supabase.auth.signOut();
@@ -376,6 +382,24 @@ class AuthService {
     } catch (e) {
       print('Error getting user from Supabase: $e');
       return null;
+    }
+  }
+
+  Future<void> _setTrackingUser(String userId) async {
+    try {
+      await FirebaseCrashlytics.instance.setUserIdentifier(userId);
+      await FirebaseAnalytics.instance.setUserId(id: userId);
+    } catch (e) {
+      print('AuthService: Failed to set tracking user: $e');
+    }
+  }
+
+  Future<void> _clearTrackingUser() async {
+    try {
+      await FirebaseCrashlytics.instance.setUserIdentifier('');
+      await FirebaseAnalytics.instance.setUserId(id: null);
+    } catch (e) {
+      print('AuthService: Failed to clear tracking user: $e');
     }
   }
 

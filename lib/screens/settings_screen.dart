@@ -481,7 +481,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Widget _buildWallpaperVisibilityToggle(BuildContext context) {
     final currentUser = ref.watch(twainUserProvider).value;
-    final showWallpapers = currentUser?.preferences?['show_wallpapers_in_shared_board'] ?? true;
+    final showWallpapers = currentUser?.preferences?['show_wallpapers_in_shared_board'] ?? false;
 
     return _buildSettingsTile(
       icon: Icons.wallpaper,
