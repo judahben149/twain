@@ -9,9 +9,11 @@ import 'package:twain/models/shared_board_photo.dart';
 import 'package:twain/providers/wallpaper_providers.dart';
 import 'package:twain/providers/auth_providers.dart';
 import 'package:twain/screens/paywall_screen.dart';
+import 'package:twain/screens/shared_board_photo_detail_screen.dart';
 import 'package:twain/screens/wallpaper_preview_screen.dart';
 import 'package:twain/services/cache/twain_cache_managers.dart';
 import 'package:twain/utils/connectivity_utils.dart';
+import 'package:twain/widgets/stable_avatar.dart';
 
 const int _maxDailyUploads = 1;
 const String _dailyUploadsKey = 'shared_board_daily_uploads';
@@ -200,20 +202,38 @@ class _SharedBoardScreenState extends ConsumerState<SharedBoardScreen> {
                             },
                           ),
                           // Indicator for current user's photos
-                          if (isCurrentUserPhoto)
+                          if (isCurrentUserPhoto && currentUser != null)
                             Positioned(
-                              top: 8,
-                              right: 8,
+                              top: 6,
+                              right: 6,
                               child: Container(
-                                padding: const EdgeInsets.all(4),
+                                padding: const EdgeInsets.all(2),
                                 decoration: BoxDecoration(
                                   color: Colors.black.withOpacity(0.6),
                                   shape: BoxShape.circle,
                                 ),
+                                child: StableTwainAvatar(
+                                  user: currentUser,
+                                  size: 20,
+                                  showBorder: false,
+                                ),
+                              ),
+                            ),
+                          // Wallpaper source badge
+                          if (photo.isWallpaper)
+                            Positioned(
+                              bottom: 6,
+                              left: 6,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.6),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
                                 child: const Icon(
-                                  Icons.person,
+                                  Icons.wallpaper_rounded,
                                   color: Colors.white,
-                                  size: 16,
+                                  size: 14,
                                 ),
                               ),
                             ),
@@ -418,15 +438,24 @@ class _SharedBoardScreenState extends ConsumerState<SharedBoardScreen> {
   }
 
   void _openPreview(SharedBoardPhoto photo) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => WallpaperPreviewScreen(
-          imageUrl: photo.imageUrl,
-          sourceType: 'shared_board',
+    if (photo.isWallpaper) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => WallpaperPreviewScreen(
+            imageUrl: photo.imageUrl,
+            sourceType: 'shared_board',
+          ),
         ),
-      ),
-    );
+      );
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => SharedBoardPhotoDetailScreen(photo: photo),
+        ),
+      );
+    }
   }
 
   Future<void> _uploadPhoto() async {
