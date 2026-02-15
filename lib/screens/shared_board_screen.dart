@@ -150,25 +150,25 @@ class _SharedBoardScreenState extends ConsumerState<SharedBoardScreen> {
                 onLongPress: isCurrentUserPhoto
                     ? () => _showDeleteDialog(photo, theme, twainTheme)
                     : null,
-                child: Hero(
-                  tag: 'photo_${photo.id}',
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          CachedNetworkImage(
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Hero(
+                          tag: 'photo_${photo.id}',
+                          child: CachedNetworkImage(
                             imageUrl: photo.thumbnailUrl ?? photo.imageUrl,
                             cacheManager: TwainCacheManagers.getManager(
                               TwainCacheBucket.sharedBoardThumbnails,
@@ -201,44 +201,44 @@ class _SharedBoardScreenState extends ConsumerState<SharedBoardScreen> {
                               );
                             },
                           ),
-                          // Indicator for current user's photos
-                          if (isCurrentUserPhoto && currentUser != null)
-                            Positioned(
-                              top: 6,
-                              right: 6,
-                              child: Container(
-                                padding: const EdgeInsets.all(2),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.6),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: StableTwainAvatar(
-                                  user: currentUser,
-                                  size: 20,
-                                  showBorder: false,
-                                ),
+                        ),
+                        // Indicator for current user's photos
+                        if (isCurrentUserPhoto && currentUser != null)
+                          Positioned(
+                            top: 6,
+                            right: 6,
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.6),
+                                shape: BoxShape.circle,
+                              ),
+                              child: StableTwainAvatar(
+                                user: currentUser,
+                                size: 20,
+                                showBorder: false,
                               ),
                             ),
-                          // Wallpaper source badge
-                          if (photo.isWallpaper)
-                            Positioned(
-                              bottom: 6,
-                              left: 6,
-                              child: Container(
-                                padding: const EdgeInsets.all(4),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.6),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: const Icon(
-                                  Icons.wallpaper_rounded,
-                                  color: Colors.white,
-                                  size: 14,
-                                ),
+                          ),
+                        // Wallpaper source badge
+                        if (photo.isWallpaper)
+                          Positioned(
+                            bottom: 6,
+                            left: 6,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.6),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Icon(
+                                Icons.wallpaper_rounded,
+                                color: Colors.white,
+                                size: 14,
                               ),
                             ),
-                        ],
-                      ),
+                          ),
+                      ],
                     ),
                   ),
                 ),

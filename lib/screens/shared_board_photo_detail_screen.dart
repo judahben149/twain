@@ -25,20 +25,42 @@ class SharedBoardPhotoDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _SharedBoardPhotoDetailScreenState
-    extends ConsumerState<SharedBoardPhotoDetailScreen> {
+    extends ConsumerState<SharedBoardPhotoDetailScreen>
+    with SingleTickerProviderStateMixin {
   bool _isDownloading = false;
+  bool _showFullRes = false;
   Color? _dominantColor;
 
   @override
   void initState() {
     super.initState();
-    _extractPalette();
+    // Defer heavy work until after the Hero animation completes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final route = ModalRoute.of(context);
+      if (route != null && route.animation != null) {
+        route.animation!.addStatusListener((status) {
+          if (status == AnimationStatus.completed && mounted) {
+            setState(() => _showFullRes = true);
+            _extractPalette();
+          }
+        });
+        // If the animation already completed (e.g. no transition)
+        if (route.animation!.isCompleted) {
+          setState(() => _showFullRes = true);
+          _extractPalette();
+        }
+      } else {
+        setState(() => _showFullRes = true);
+        _extractPalette();
+      }
+    });
   }
 
   Future<void> _extractPalette() async {
     try {
+      // Use thumbnail for palette — it's already cached and sufficient
       final imageProvider = CachedNetworkImageProvider(
-        widget.photo.imageUrl,
+        widget.photo.thumbnailUrl ?? widget.photo.imageUrl,
         cacheManager:
             TwainCacheManagers.getManager(TwainCacheBucket.sharedBoardThumbnails),
       );
@@ -146,40 +168,38 @@ class _SharedBoardPhotoDetailScreenState
             minScale: 0.5,
             maxScale: 4.0,
             child: Center(
-              child: Hero(
-                tag: 'photo_${widget.photo.id}',
-                child: CachedNetworkImage(
-                  imageUrl: widget.photo.imageUrl,
-                  cacheManager: TwainCacheManagers.getManager(
-                      TwainCacheBucket.sharedBoardThumbnails),
-                  fit: BoxFit.contain,
-                  fadeInDuration: const Duration(milliseconds: 200),
-                  progressIndicatorBuilder: (context, url, progress) {
-                    return Center(
-                      child: CircularProgressIndicator(
-                        value: progress.progress,
-                        color: twainTheme.iconColor,
-                      ),
-                    );
-                  },
-                  errorWidget: (context, url, error) => Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.error_outline,
-                        color: Colors.white.withOpacity(0.5),
-                        size: 48,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Failed to load image',
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.7),
-                        ),
-                      ),
-                    ],
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Hero uses the same thumbnail URL as the grid for smooth animation
+                  Hero(
+                    tag: 'photo_${widget.photo.id}',
+                    child: CachedNetworkImage(
+                      imageUrl: widget.photo.thumbnailUrl ?? widget.photo.imageUrl,
+                      cacheManager: TwainCacheManagers.getManager(
+                          TwainCacheBucket.sharedBoardThumbnails),
+                      fit: BoxFit.contain,
+                      fadeInDuration: const Duration(milliseconds: 80),
+                    ),
                   ),
-                ),
+                  // Full-res image loads after Hero animation completes
+                  if (_showFullRes && widget.photo.thumbnailUrl != null)
+                    CachedNetworkImage(
+                      imageUrl: widget.photo.imageUrl,
+                      cacheManager: TwainCacheManagers.getManager(
+                          TwainCacheBucket.sharedBoardThumbnails),
+                      fit: BoxFit.contain,
+                      fadeInDuration: const Duration(milliseconds: 300),
+                      progressIndicatorBuilder: (context, url, progress) {
+                        // Show nothing — thumbnail is visible underneath
+                        return const SizedBox.shrink();
+                      },
+                      errorWidget: (context, url, error) {
+                        // Thumbnail is still visible, so no error state needed
+                        return const SizedBox.shrink();
+                      },
+                    ),
+                ],
               ),
             ),
           ),
