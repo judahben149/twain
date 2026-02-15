@@ -85,6 +85,19 @@ class FolderService {
 
     print('Updating folder $folderId: $updates');
 
+    // If activating this folder, deactivate all other folders for the same pair
+    if (isActive == true) {
+      final pairId = await _getPairId();
+      if (pairId != null) {
+        await _supabase
+            .from('wallpaper_folders')
+            .update({'is_active': false})
+            .eq('pair_id', pairId)
+            .neq('id', folderId);
+        print('Deactivated all other folders for pair $pairId');
+      }
+    }
+
     final response = await _supabase
         .from('wallpaper_folders')
         .update(updates)

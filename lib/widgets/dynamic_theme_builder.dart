@@ -158,6 +158,12 @@ class DynamicThemeBuilder extends ConsumerWidget {
           activeStatusTextColor: isLight
               ? const Color(0xFF4CAF50)
               : const Color(0xFF81C784),
+          inactiveStatusColor: isLight
+              ? const Color(0xFFF5F5F5)
+              : (isAmoled ? const Color(0xFF1A1A1A) : const Color(0xFF2C2C2C)),
+          inactiveStatusTextColor: isLight
+              ? const Color(0xFF9E9E9E)
+              : (isAmoled ? const Color(0xFF757575) : const Color(0xFF9E9E9E)),
         ),
       ],
     );

@@ -94,6 +94,8 @@ class AppThemes {
           destructiveBackgroundColor: const Color(0xFFFFEBEE),
           activeStatusColor: const Color(0xFFE8F5E9),
           activeStatusTextColor: const Color(0xFF4CAF50),
+          inactiveStatusColor: const Color(0xFFF5F5F5),
+          inactiveStatusTextColor: const Color(0xFF9E9E9E),
         ),
       ],
     );
@@ -184,6 +186,8 @@ class AppThemes {
           destructiveBackgroundColor: const Color(0xFF3D1B1B),
           activeStatusColor: const Color(0xFF1B3D1B),
           activeStatusTextColor: const Color(0xFF81C784),
+          inactiveStatusColor: const Color(0xFF2C2C2C),
+          inactiveStatusTextColor: const Color(0xFF9E9E9E),
         ),
       ],
     );
@@ -277,6 +281,8 @@ class AppThemes {
           destructiveBackgroundColor: const Color(0xFF2D1010),
           activeStatusColor: const Color(0xFF0F2D0F),
           activeStatusTextColor: const Color(0xFF81C784),
+          inactiveStatusColor: const Color(0xFF1A1A1A),
+          inactiveStatusTextColor: const Color(0xFF757575),
         ),
       ],
     );
@@ -293,6 +299,8 @@ class TwainThemeExtension extends ThemeExtension<TwainThemeExtension> {
   final Color destructiveBackgroundColor;
   final Color activeStatusColor;
   final Color activeStatusTextColor;
+  final Color inactiveStatusColor;
+  final Color inactiveStatusTextColor;
 
   TwainThemeExtension({
     required this.gradientColors,
@@ -303,6 +311,8 @@ class TwainThemeExtension extends ThemeExtension<TwainThemeExtension> {
     required this.destructiveBackgroundColor,
     required this.activeStatusColor,
     required this.activeStatusTextColor,
+    required this.inactiveStatusColor,
+    required this.inactiveStatusTextColor,
   });
 
   @override
@@ -315,6 +325,8 @@ class TwainThemeExtension extends ThemeExtension<TwainThemeExtension> {
     Color? destructiveBackgroundColor,
     Color? activeStatusColor,
     Color? activeStatusTextColor,
+    Color? inactiveStatusColor,
+    Color? inactiveStatusTextColor,
   }) {
     return TwainThemeExtension(
       gradientColors: gradientColors ?? this.gradientColors,
@@ -327,6 +339,9 @@ class TwainThemeExtension extends ThemeExtension<TwainThemeExtension> {
       activeStatusColor: activeStatusColor ?? this.activeStatusColor,
       activeStatusTextColor:
           activeStatusTextColor ?? this.activeStatusTextColor,
+      inactiveStatusColor: inactiveStatusColor ?? this.inactiveStatusColor,
+      inactiveStatusTextColor:
+          inactiveStatusTextColor ?? this.inactiveStatusTextColor,
     );
   }
 
@@ -352,6 +367,10 @@ class TwainThemeExtension extends ThemeExtension<TwainThemeExtension> {
           Color.lerp(activeStatusColor, other.activeStatusColor, t)!,
       activeStatusTextColor:
           Color.lerp(activeStatusTextColor, other.activeStatusTextColor, t)!,
+      inactiveStatusColor:
+          Color.lerp(inactiveStatusColor, other.inactiveStatusColor, t)!,
+      inactiveStatusTextColor:
+          Color.lerp(inactiveStatusTextColor, other.inactiveStatusTextColor, t)!,
     );
   }
 }

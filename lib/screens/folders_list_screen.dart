@@ -211,8 +211,8 @@ class FoldersListScreen extends ConsumerWidget {
 
   Widget _buildStatusBadge(WallpaperFolder folder, TwainThemeExtension twainTheme) {
     final isActive = folder.isActive && folder.imageCount > 0;
-    final color = isActive ? twainTheme.activeStatusColor : Colors.grey;
-    final textColor = isActive ? twainTheme.activeStatusTextColor : Colors.grey;
+    final color = isActive ? twainTheme.activeStatusColor : twainTheme.inactiveStatusColor;
+    final textColor = isActive ? twainTheme.activeStatusTextColor : twainTheme.inactiveStatusTextColor;
     final text = isActive ? 'Active' : 'Inactive';
 
     return Container(
