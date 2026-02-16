@@ -129,16 +129,14 @@ class AuthService {
   // Sign in with Google (Native)
   Future<TwainUser?> signInWithGoogle() async {
     try {
+      String? idToken;
       String? rawNonce;
 
       if (Platform.isIOS) {
-        // On iOS, Google Sign-In embeds a nonce in the ID token.
-        // We must generate one and pass the raw nonce to Supabase so it can
-        // verify it against the hashed nonce in the token.
+        // iOS: Re-initialize with nonce for security (nonce is embedded in ID token)
         rawNonce = _generateRawNonce();
         final hashedNonce = _sha256ofString(rawNonce);
 
-        // Re-initialize with the hashed nonce so it gets embedded in the ID token
         await google_sign_in.GoogleSignIn.instance.initialize(
           clientId: SupabaseConfig.googleClientIdIOS,
           serverClientId: SupabaseConfig.googleWebClientId,
@@ -146,14 +144,11 @@ class AuthService {
         );
       }
 
-      // Get the already-initialized GoogleSignIn instance
-      final googleSignIn = google_sign_in.GoogleSignIn.instance;
-
-      // Authenticate the user
-      final googleUser = await googleSignIn.authenticate();
-
-      // Get the authentication tokens
-      final idToken = googleUser.authentication.idToken;
+      // Both platforms: Use authenticate() which shows native UI
+      // Android: Credential Manager bottom sheet
+      // iOS: Native Google Sign-In
+      final googleUser = await google_sign_in.GoogleSignIn.instance.authenticate();
+      idToken = googleUser.authentication.idToken;
 
       if (idToken == null) {
         throw Exception('Failed to get ID token from Google');

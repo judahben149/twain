@@ -41,9 +41,11 @@ void main() async {
     );
 
     // Initialize Google Sign-In
+    // Android: serverClientId is required for Credential Manager native UI
+    // iOS: clientId is required for native sign-in
     await GoogleSignIn.instance.initialize(
       clientId: Platform.isIOS ? SupabaseConfig.googleClientIdIOS : null,
-      serverClientId: SupabaseConfig.googleWebClientId, // Use Web Client ID for both platforms
+      serverClientId: SupabaseConfig.googleWebClientId,
     );
 
     // Initialize RevenueCat subscription service
