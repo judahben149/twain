@@ -89,11 +89,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           });
         }
       }
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Failed to sign in with Google';
-        _isLoading = false;
-      });
+    } catch (e, stackTrace) {
+      debugPrint('Google Sign-In Error: $e');
+      debugPrint('Stack trace: $stackTrace');
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to sign in with Google: ${e.toString()}';
+          _isLoading = false;
+        });
+      }
     }
   }
 
