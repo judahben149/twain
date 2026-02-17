@@ -101,6 +101,43 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  Future<void> _signInWithApple() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final authService = ref.read(authServiceProvider);
+      final user = await authService.signInWithApple();
+
+      if (user == null) {
+        if (mounted) {
+          setState(() {
+            _errorMessage = 'Apple sign-in was cancelled';
+            _isLoading = false;
+          });
+        }
+      } else {
+        if (mounted) {
+          ref.invalidate(twainUserProvider);
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e, stackTrace) {
+      debugPrint('Apple Sign-In Error: $e');
+      debugPrint('Stack trace: $stackTrace');
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to sign in with Apple: ${e.toString()}';
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
@@ -270,14 +307,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         if (Platform.isIOS) ...[
           const SizedBox(height: 16),
           SocialLoginButton(
-            onPressed: _isLoading
-                ? null
-                : () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text('Apple Sign-In coming soon')),
-                    );
-                  },
+            onPressed: _isLoading ? null : () => _signInWithApple(),
             text: 'Apple',
             icon: SvgPicture.asset(
               'assets/images/apple-icon.svg',
