@@ -411,6 +411,56 @@ class AuthService {
     }
   }
 
+  // Delete account and all associated data
+  Future<void> deleteAccount() async {
+    try {
+      final user = currentUser;
+      if (user == null) throw Exception('No user logged in');
+
+      print('deleteAccount: Starting account deletion for user ${user.id}');
+
+      // Clear cached data
+      if (_userRepository != null) {
+        await _userRepository!.clearAllCache();
+        print('deleteAccount: Cleared user cache');
+      }
+
+      // Clear RevenueCat user ID
+      await SubscriptionService.instance.clearUserId();
+      await _clearTrackingUser();
+
+      // Call the Edge Function to delete all user data and auth record
+      final session = _supabase.auth.currentSession;
+      if (session == null) throw Exception('No active session');
+
+      final response = await _supabase.functions.invoke(
+        'delete-account',
+        method: HttpMethod.post,
+        headers: {
+          'Authorization': 'Bearer ${session.accessToken}',
+        },
+      );
+
+      if (response.status != 200) {
+        final error = response.data?['error'] ?? 'Unknown error';
+        throw Exception('Failed to delete account: $error');
+      }
+
+      print('deleteAccount: Edge function completed successfully');
+
+      // Sign out from Google if applicable
+      await google_sign_in.GoogleSignIn.instance.signOut();
+
+      // Sign out locally (session is already invalidated server-side)
+      await _supabase.auth.signOut();
+
+      print('deleteAccount: Account deletion completed successfully');
+    } catch (e) {
+      print('Error deleting account: $e');
+      rethrow;
+    }
+  }
+
   // Create or update user in database
   Future<void> _createOrUpdateUser(User user) async {
     try {
