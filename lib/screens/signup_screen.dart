@@ -115,6 +115,34 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     }
   }
 
+  Future<void> _signUpWithApple() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final authService = ref.read(authServiceProvider);
+      final user = await authService.signInWithApple();
+
+      if (user == null) {
+        setState(() {
+          _errorMessage = 'Apple sign-up was cancelled';
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Failed to sign up with Apple';
+        _isLoading = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -299,14 +327,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         if (Platform.isIOS) ...[
           const SizedBox(height: 16),
           SocialLoginButton(
-            onPressed: _isLoading
-                ? null
-                : () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text('Apple Sign-In coming soon')),
-                    );
-                  },
+            onPressed: _isLoading ? null : () => _signUpWithApple(),
             text: 'Apple',
             icon: SvgPicture.asset(
               'assets/images/apple-icon.svg',

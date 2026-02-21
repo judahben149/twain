@@ -16,12 +16,19 @@ if (keystorePropertiesFile.exists()) {
 android {
     namespace = "com.judahben149.twain"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
         coreLibraryDesugaringEnabled true
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
+    }
+
+    // Support 16 KB memory page sizes (required for Play Store)
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
     }
 
     kotlinOptions {

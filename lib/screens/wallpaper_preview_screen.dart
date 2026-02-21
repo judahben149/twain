@@ -87,6 +87,19 @@ class _WallpaperPreviewScreenState
             fontWeight: FontWeight.w600,
           ),
         ),
+        actions: [
+          if (widget.unsplashWallpaper != null)
+            IconButton(
+              icon: Icon(
+                Icons.info_outline,
+                color: isDarkMode
+                    ? Colors.white
+                    : theme.colorScheme.onSurface,
+              ),
+              onPressed: () => _showAttributionDialog(context, theme, twainTheme),
+              tooltip: 'Photo attribution',
+            ),
+        ],
       ),
       body: Column(
         children: [
@@ -504,6 +517,77 @@ class _WallpaperPreviewScreenState
           ),
         ],
       ),
+    );
+  }
+
+  void _showAttributionDialog(
+    BuildContext context,
+    ThemeData theme,
+    TwainThemeExtension twainTheme,
+  ) {
+    final wallpaper = widget.unsplashWallpaper!;
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(Icons.camera_alt_outlined, color: twainTheme.iconColor),
+              const SizedBox(width: 8),
+              const Expanded(child: Text('Photo by')),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                wallpaper.photographerName,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '@${wallpaper.photographerUsername}',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Icon(
+                    Icons.public,
+                    size: 16,
+                    color: theme.colorScheme.onSurface.withOpacity(0.6),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Unsplash',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
     );
   }
 

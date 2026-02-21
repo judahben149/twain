@@ -210,6 +210,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           onTap: () => _launchUrl('https://twain-legal-site.vercel.app/privacy.html'),
                         ),
                       ]),
+                      const SizedBox(height: 48),
+                      _buildSettingsCard([
+                        _buildSettingsTile(
+                          icon: Icons.delete_forever,
+                          title: 'Delete Account',
+                          subtitle: 'Permanently delete your account and data',
+                          onTap: () => _showDeleteAccountDialog(context),
+                          isDestructive: true,
+                        ),
+                      ]),
                       const SizedBox(height: 32),
                     ],
                   ),
@@ -701,6 +711,148 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ],
       ),
     );
+  }
+
+  void _showDeleteAccountDialog(BuildContext context) {
+    final theme = Theme.of(context);
+    final twainTheme = context.twainTheme;
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: twainTheme.destructiveColor),
+            const SizedBox(width: 8),
+            const Text('Delete Account'),
+          ],
+        ),
+        content: const Text(
+          'This will permanently delete your account and all associated data including:\n\n'
+          '• Your profile and settings\n'
+          '• All wallpapers and photos\n'
+          '• Sticky notes and messages\n'
+          '• Partner connection\n\n'
+          'This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                  color: theme.colorScheme.onSurface.withOpacity(0.6)),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              _showDeleteAccountConfirmation(context);
+            },
+            child: Text(
+              'Continue',
+              style: TextStyle(color: twainTheme.destructiveColor),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteAccountConfirmation(BuildContext context) {
+    final theme = Theme.of(context);
+    final twainTheme = context.twainTheme;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Text(
+          'Are you absolutely sure?',
+          style: TextStyle(color: twainTheme.destructiveColor),
+        ),
+        content: const Text(
+          'Your account will be permanently deleted. You will lose all your data and cannot recover it.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                  color: theme.colorScheme.onSurface.withOpacity(0.6)),
+            ),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              await _performAccountDeletion(context);
+            },
+            child: Text(
+              'Delete My Account',
+              style: TextStyle(
+                color: twainTheme.destructiveColor,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _performAccountDeletion(BuildContext context) async {
+    final twainTheme = context.twainTheme;
+
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        content: const Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 20),
+            Text('Deleting account...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      await ref.read(authServiceProvider).deleteAccount();
+
+      // Invalidate auth provider
+      ref.invalidate(twainUserProvider);
+
+      // Close loading dialog and navigate to login
+      if (context.mounted) {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
+    } catch (e) {
+      // Close loading dialog
+      if (context.mounted) {
+        Navigator.pop(context);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete account: $e'),
+            backgroundColor: twainTheme.destructiveColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _launchUrl(String urlString) async {

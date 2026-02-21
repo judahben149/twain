@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:google_sign_in/google_sign_in.dart' as google_sign_in;
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:twain/models/twain_user.dart';
 import 'package:twain/supabase_config.dart';
@@ -129,16 +130,14 @@ class AuthService {
   // Sign in with Google (Native)
   Future<TwainUser?> signInWithGoogle() async {
     try {
+      String? idToken;
       String? rawNonce;
 
       if (Platform.isIOS) {
-        // On iOS, Google Sign-In embeds a nonce in the ID token.
-        // We must generate one and pass the raw nonce to Supabase so it can
-        // verify it against the hashed nonce in the token.
+        // iOS: Re-initialize with nonce for security (nonce is embedded in ID token)
         rawNonce = _generateRawNonce();
         final hashedNonce = _sha256ofString(rawNonce);
 
-        // Re-initialize with the hashed nonce so it gets embedded in the ID token
         await google_sign_in.GoogleSignIn.instance.initialize(
           clientId: SupabaseConfig.googleClientIdIOS,
           serverClientId: SupabaseConfig.googleWebClientId,
@@ -146,14 +145,11 @@ class AuthService {
         );
       }
 
-      // Get the already-initialized GoogleSignIn instance
-      final googleSignIn = google_sign_in.GoogleSignIn.instance;
-
-      // Authenticate the user
-      final googleUser = await googleSignIn.authenticate();
-
-      // Get the authentication tokens
-      final idToken = googleUser.authentication.idToken;
+      // Both platforms: Use authenticate() which shows native UI
+      // Android: Credential Manager bottom sheet
+      // iOS: Native Google Sign-In
+      final googleUser = await google_sign_in.GoogleSignIn.instance.authenticate();
+      idToken = googleUser.authentication.idToken;
 
       if (idToken == null) {
         throw Exception('Failed to get ID token from Google');
@@ -178,6 +174,113 @@ class AuthService {
       return await _getUserFromSupabase(user.id);
     } catch (e) {
       print('Error signing in with Google: $e');
+      rethrow;
+    }
+  }
+
+  // Sign in with Apple (iOS only)
+  Future<TwainUser?> signInWithApple() async {
+    try {
+      final rawNonce = _generateRawNonce();
+      final hashedNonce = _sha256ofString(rawNonce);
+
+      final credential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+        nonce: hashedNonce,
+      );
+
+      final idToken = credential.identityToken;
+      if (idToken == null) {
+        throw Exception('Failed to get ID token from Apple');
+      }
+
+      final response = await _supabase.auth.signInWithIdToken(
+        provider: OAuthProvider.apple,
+        idToken: idToken,
+        nonce: rawNonce,
+      );
+
+      final user = response.user;
+      if (user == null) return null;
+
+      // Apple only provides name on first sign-in, so we need to capture it
+      // and store it. On subsequent sign-ins, credential.givenName will be null.
+      String? displayName;
+      if (credential.givenName != null || credential.familyName != null) {
+        final parts = <String>[];
+        if (credential.givenName != null) parts.add(credential.givenName!);
+        if (credential.familyName != null) parts.add(credential.familyName!);
+        displayName = parts.join(' ');
+      }
+
+      // Create or update user in database
+      await _createOrUpdateUserWithApple(user, displayName: displayName);
+
+      // Set user ID in RevenueCat for subscription tracking
+      await SubscriptionService.instance.setUserId(user.id);
+      await _setTrackingUser(user.id);
+
+      return await _getUserFromSupabase(user.id);
+    } on SignInWithAppleAuthorizationException catch (e) {
+      if (e.code == AuthorizationErrorCode.canceled) {
+        // User cancelled - return null instead of throwing
+        return null;
+      }
+      print('Error signing in with Apple: $e');
+      rethrow;
+    } catch (e) {
+      print('Error signing in with Apple: $e');
+      rethrow;
+    }
+  }
+
+  // Create or update user for Apple Sign-In (handles display name specially)
+  Future<void> _createOrUpdateUserWithApple(User user, {String? displayName}) async {
+    try {
+      final existingUser = await _supabase
+          .from('users')
+          .select()
+          .eq('id', user.id)
+          .maybeSingle();
+
+      if (existingUser == null) {
+        // Create new user - use provided displayName or fall back to email prefix
+        print('Creating new user in database from Apple Sign-In: ${user.id}');
+        await _supabase.from('users').insert({
+          'id': user.id,
+          'email': user.email!,
+          'display_name': displayName ??
+              user.userMetadata?['full_name'] ??
+              user.email!.split('@')[0],
+          'avatar_url': user.userMetadata?['avatar_url'],
+          'status': 'online',
+          'last_active_at': DateTime.now().toUtc().toIso8601String(),
+        });
+        print('User created successfully in database');
+      } else {
+        // Update existing user - only update display name if provided and current is from email
+        print('Updating existing user in database: ${user.id}');
+        final updates = <String, dynamic>{};
+
+        // Only update display name if we have a new one from Apple and current looks like email prefix
+        if (displayName != null && displayName.isNotEmpty) {
+          final currentName = existingUser['display_name'] as String?;
+          if (currentName == null ||
+              currentName == user.email!.split('@')[0] ||
+              currentName.isEmpty) {
+            updates['display_name'] = displayName;
+          }
+        }
+
+        if (updates.isNotEmpty) {
+          await _supabase.from('users').update(updates).eq('id', user.id);
+        }
+      }
+    } catch (e) {
+      print('Error in _createOrUpdateUserWithApple: $e');
       rethrow;
     }
   }
@@ -304,6 +407,56 @@ class AuthService {
       await _supabase.auth.signOut();
     } catch (e) {
       print('Error signing out: $e');
+      rethrow;
+    }
+  }
+
+  // Delete account and all associated data
+  Future<void> deleteAccount() async {
+    try {
+      final user = currentUser;
+      if (user == null) throw Exception('No user logged in');
+
+      print('deleteAccount: Starting account deletion for user ${user.id}');
+
+      // Clear cached data
+      if (_userRepository != null) {
+        await _userRepository!.clearAllCache();
+        print('deleteAccount: Cleared user cache');
+      }
+
+      // Clear RevenueCat user ID
+      await SubscriptionService.instance.clearUserId();
+      await _clearTrackingUser();
+
+      // Call the Edge Function to delete all user data and auth record
+      final session = _supabase.auth.currentSession;
+      if (session == null) throw Exception('No active session');
+
+      final response = await _supabase.functions.invoke(
+        'delete-account',
+        method: HttpMethod.post,
+        headers: {
+          'Authorization': 'Bearer ${session.accessToken}',
+        },
+      );
+
+      if (response.status != 200) {
+        final error = response.data?['error'] ?? 'Unknown error';
+        throw Exception('Failed to delete account: $error');
+      }
+
+      print('deleteAccount: Edge function completed successfully');
+
+      // Sign out from Google if applicable
+      await google_sign_in.GoogleSignIn.instance.signOut();
+
+      // Sign out locally (session is already invalidated server-side)
+      await _supabase.auth.signOut();
+
+      print('deleteAccount: Account deletion completed successfully');
+    } catch (e) {
+      print('Error deleting account: $e');
       rethrow;
     }
   }
